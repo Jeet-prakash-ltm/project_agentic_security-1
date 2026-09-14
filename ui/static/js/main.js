@@ -65,6 +65,23 @@
 
     restoreDesktopSidebar();
 
+    // ------------------------------------------------------------
+    // SIDEBAR NAV GROUP — Dashboard expands to its sub-pages
+    // ------------------------------------------------------------
+    var dashGroup = document.getElementById("navDashboardGroup");
+    var dashToggle = document.getElementById("navDashboardToggle");
+
+    if (dashGroup && dashToggle) {
+        dashToggle.addEventListener("click", function () {
+            var willOpen = !dashGroup.classList.contains("is-open");
+            dashGroup.classList.toggle("is-open", willOpen);
+            dashToggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
+            if (willOpen && isDesktop() && sidebar && !sidebar.classList.contains("expanded")) {
+                toggleDesktopSidebar(true);
+            }
+        });
+    }
+
     window.showToast = function (message, type, duration) {
         var container = document.getElementById("toastContainer");
         if (!container) return;

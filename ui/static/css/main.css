@@ -85,8 +85,8 @@
     --shadow-md: 0 12px 32px rgba(11, 27, 43, 0.1);
 
     /* ---- Layout ---- */
-    --sidebar-width: 96px;
-    --sidebar-expanded-width: 300px;
+    --sidebar-width: 64px;
+    --sidebar-expanded-width: 200px;
     --topbar-height: 68px;
 
     /* ---- Typography ---- */
@@ -269,7 +269,7 @@ input, select, textarea {
     box-shadow: var(--shadow-glass);
     display: flex;
     flex-direction: column;
-    padding: 16px 10px;
+    padding: 14px 8px;
     z-index: 60;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
     overflow: visible;
@@ -295,8 +295,8 @@ input, select, textarea {
 }
 
 .brand-logo {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -362,8 +362,8 @@ input, select, textarea {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 48px;
-    height: 44px;
+    width: 46px;
+    height: 42px;
     margin: 0 auto;
     padding: 0;
     border-radius: 12px;
@@ -376,8 +376,8 @@ input, select, textarea {
 }
 
 .nav-link .nav-icon {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     flex-shrink: 0;
 }
 
@@ -432,6 +432,82 @@ input, select, textarea {
 
 .nav-link.active::before {
     display: none;
+}
+
+/* ---- Expandable nav group (Dashboard) ---- */
+.nav-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.nav-group-btn {
+    cursor: pointer;
+    text-align: left;
+}
+
+.nav-chevron {
+    width: 15px;
+    height: 15px;
+    margin-left: auto;
+    flex-shrink: 0;
+    opacity: 0;
+    width: 0;
+    transition: transform 0.2s ease, opacity 0.2s ease, width 0.2s ease;
+}
+
+.nav-group.is-open .nav-chevron {
+    transform: rotate(180deg);
+}
+
+.nav-submenu {
+    display: none;
+    flex-direction: column;
+    gap: 2px;
+    margin: 4px 0 2px;
+    padding-left: 8px;
+    border-left: 1px solid var(--glass-line);
+    margin-left: 14px;
+}
+
+.nav-group.is-open .nav-submenu {
+    display: flex;
+}
+
+.nav-sublink {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-2);
+    white-space: nowrap;
+    transition: background 0.18s ease, color 0.18s ease;
+}
+
+.nav-sublink:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.nav-sublink.active {
+    color: #fff;
+    background: var(--red-soft);
+}
+
+.nav-subdot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.55;
+    flex-shrink: 0;
+}
+
+.nav-sublink.active .nav-subdot {
+    background: var(--red);
+    opacity: 1;
 }
 
 .sidebar-footer {
@@ -541,6 +617,15 @@ input, select, textarea {
     }
 
     .sidebar.expanded .nav-link::before {
+        display: none;
+    }
+
+    .sidebar.expanded .nav-chevron {
+        opacity: 1;
+        width: 15px;
+    }
+
+    .sidebar:not(.expanded) .nav-submenu {
         display: none;
     }
 
@@ -1470,6 +1555,11 @@ input, select, textarea {
 
     .sidebar.open .nav-link::before {
         display: none;
+    }
+
+    .sidebar.open .nav-chevron {
+        opacity: 1;
+        width: 15px;
     }
 
     .sidebar.open .system-status .status-label {

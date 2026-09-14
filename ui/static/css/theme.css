@@ -1,0 +1,510 @@
+/* ============================================================
+   LTM SECURITY PLATFORM — DARK THEME
+   Black (#1a1a1a) + coral red (#ff5e4f), matching the landing
+   page. Loaded after main.css and the page stylesheet so these
+   overrides win without needing !important.
+   ============================================================ */
+
+:root {
+    /* ---- Base surfaces ---- */
+    --bg: #1a1a1a;
+    --bg-deep: #1a1a1a;
+    --surface: #202020;
+    --card: #202020;
+    --glass: rgba(30, 30, 30, 0.74);
+    --glass-strong: rgba(30, 30, 30, 0.96);
+    --glass-soft: rgba(255, 255, 255, 0.05);
+
+    /* ---- Borders ---- */
+    --border: #3a3a3a;
+    --border-soft: rgba(255, 255, 255, 0.08);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-line: rgba(255, 255, 255, 0.08);
+
+    /* ---- Coral brand ---- */
+    --crimson: #ff5e4f;
+    --red: #ff5e4f;
+    --red-accent: #ff7d70;
+    --red-soft: rgba(255, 94, 79, 0.14);
+    --rose: rgba(255, 94, 79, 0.18);
+    --rose-deep: rgba(255, 94, 79, 0.1);
+    --gradient: linear-gradient(135deg, #ff5e4f 0%, #ff5e4f 100%);
+    --gradient-red: linear-gradient(135deg, #ff5e4f 0%, #ff5e4f 100%);
+
+    /* ---- Text ---- */
+    --text: #ffffff;
+    --text-2: #dddddd;
+    --text-muted: #b8b8b8;
+    --text-3: #b8b8b8;
+    --muted: #b8b8b8;
+
+    /* ---- Shadows ---- */
+    --shadow-glass: 0 10px 40px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.35);
+    --shadow-lift: 0 24px 60px rgba(255, 94, 79, 0.14), 0 8px 24px rgba(0, 0, 0, 0.45);
+    --shadow-soft: 0 6px 20px rgba(0, 0, 0, 0.4);
+    --shadow-glow: 0 10px 34px rgba(255, 94, 79, 0.25);
+    --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+html, body {
+    background: #1a1a1a;
+}
+
+body {
+    color: #ffffff;
+}
+
+::selection {
+    background: rgba(255, 94, 79, 0.35);
+    color: #ffffff;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 94, 79, 0.5);
+}
+
+/* --------------------------------------------------
+   BACKGROUND SCENE
+-------------------------------------------------- */
+
+.bg-gradient {
+    background:
+        radial-gradient(1100px 700px at 88% -12%, rgba(255, 94, 79, 0.16), transparent 58%),
+        radial-gradient(900px 600px at -8% 22%, rgba(255, 94, 79, 0.08), transparent 52%),
+        linear-gradient(160deg, #1a1a1a 0%, #1a1a1a 55%, #211a1a 100%);
+}
+
+.bg-hex {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='96' viewBox='0 0 56 96'%3E%3Cpath d='M28 0l28 16v32L28 64 0 48V16z' fill='none' stroke='%23ff5e4f' stroke-opacity='0.06' stroke-width='1'/%3E%3Cpath d='M28 96l28-16V48L28 64 0 48v32z' fill='none' stroke='%23ff5e4f' stroke-opacity='0.06' stroke-width='1'/%3E%3C/svg%3E");
+}
+
+.crystal-orb {
+    background: radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04) 42%, rgba(255, 94, 79, 0.08) 72%, rgba(255, 94, 79, 0.02));
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow:
+        inset -14px -18px 40px rgba(255, 94, 79, 0.12),
+        inset 10px 12px 34px rgba(255, 255, 255, 0.06),
+        0 30px 80px rgba(0, 0, 0, 0.4);
+}
+
+/* --------------------------------------------------
+   SIDEBAR / TOPBAR
+-------------------------------------------------- */
+
+.sidebar {
+    background: rgba(26, 26, 26, 0.82);
+}
+
+.nav-link:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
+}
+
+.nav-link::before {
+    background: rgba(38, 38, 38, 0.96);
+}
+
+.nav-sublink:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.topbar {
+    background: rgba(26, 26, 26, 0.82);
+}
+
+.sidebar-backdrop {
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.brand-logo img {
+    filter: drop-shadow(0 8px 18px rgba(255, 94, 79, 0.4));
+}
+
+/* --------------------------------------------------
+   COMMON COMPONENTS
+-------------------------------------------------- */
+
+.card {
+    background: var(--card);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    background: #242424;
+    color: #ffffff;
+    border-color: #3a3a3a;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: #8f8f8f;
+}
+
+.form-group select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23b8b8b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+
+.form-group select option {
+    background: #202020;
+    color: #ffffff;
+}
+
+.status-idle {
+    color: #dddddd;
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+.alert {
+    background: rgba(255, 94, 79, 0.12);
+    border-color: rgba(255, 94, 79, 0.35);
+    color: #ff9a90;
+}
+
+.modal-backdrop {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.hero-eyebrow {
+    background: var(--red-soft);
+    border-color: rgba(255, 94, 79, 0.3);
+}
+
+.json-pre {
+    color: #ff9a90;
+}
+
+/* --------------------------------------------------
+   SHARED PAGE HEADER (meta chips)
+-------------------------------------------------- */
+
+.hero-chip {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #dddddd;
+}
+
+.hero-chip-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+}
+
+/* --------------------------------------------------
+   DASHBOARD (Network Security)
+-------------------------------------------------- */
+
+.dash-header {
+    border-color: rgba(255, 94, 79, 0.2);
+    background:
+        radial-gradient(700px 280px at 108% -30%, rgba(255, 94, 79, 0.16), transparent 60%),
+        radial-gradient(560px 240px at -6% 150%, rgba(255, 94, 79, 0.1), transparent 55%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+}
+
+.dash-header::after {
+    background-image:
+        linear-gradient(rgba(255, 94, 79, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 94, 79, 0.05) 1px, transparent 1px);
+}
+
+.dash-fw-search {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.quick-card {
+    background: var(--card);
+}
+
+/* --------------------------------------------------
+   REPORTS
+-------------------------------------------------- */
+
+.rep-panel,
+.rep-combobox {
+    background: var(--card);
+}
+
+.rep-combo-input,
+.rep-combo-list {
+    background: #242424;
+    color: #ffffff;
+}
+
+.rep-combo-row:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.rep-combo-row.is-active {
+    background: rgba(255, 94, 79, 0.14);
+}
+
+/* --------------------------------------------------
+   FINDINGS / SECURITY OPS
+-------------------------------------------------- */
+
+.fw-combo-input {
+    background: #242424;
+    color: #ffffff;
+    border-color: #3a3a3a;
+}
+
+.fw-combo-input::placeholder {
+    color: #8f8f8f;
+}
+
+.fw-combo-input:focus {
+    outline-color: var(--red);
+    border-color: var(--red);
+}
+
+.fw-combo-name {
+    color: #ffffff;
+}
+
+.fw-combo-sub,
+.fw-combo-empty {
+    color: #8f8f8f;
+}
+
+.fw-combo-list {
+    background: #202020;
+    border-color: #3a3a3a;
+}
+
+.fw-combo-clear:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
+}
+
+.fw-combo-row:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.fw-combo-row.is-active {
+    background: rgba(255, 94, 79, 0.14);
+}
+
+.fw-search-go {
+    background: var(--red);
+}
+
+.fw-search-go:hover {
+    background: var(--red-accent);
+}
+
+.fw-search-hint {
+    color: #ff9a90;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline-color: var(--red);
+    border-color: var(--red);
+}
+
+/* --------------------------------------------------
+   INSIGHTS
+-------------------------------------------------- */
+
+.map-agent-select select,
+.map-chip,
+.map-zoom-controls button,
+.map-detail-panel {
+    background: #202020;
+    color: #ffffff;
+    border-color: #3a3a3a;
+}
+
+.map-chip {
+    color: #dddddd;
+}
+
+.map-chip.is-active {
+    background: var(--red);
+    border-color: var(--red);
+    color: #ffffff;
+}
+
+.map-canvas-wrap,
+.agent-chart {
+    background: linear-gradient(180deg, #1f1f1f, #202020);
+}
+
+/* --------------------------------------------------
+   TELEMETRY MAP
+-------------------------------------------------- */
+
+.onto-chip {
+    background: #202020;
+    color: #ffffff;
+    border-color: #3a3a3a;
+}
+
+/* --------------------------------------------------
+   AI WORKSPACE
+-------------------------------------------------- */
+
+.ws-search,
+.ws-conv-item:hover,
+.ws-metric,
+.ws-output {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.ws-agent-picker select,
+.ws-tool-card,
+.ws-typing,
+.ws-suggestion,
+.ws-chip,
+.ws-composer,
+.ws-msg-text .msg-card,
+.ws-mcq-card,
+.ws-section-card,
+.fw-picker-card .fw-search-box {
+    background: #202020;
+    color: #ffffff;
+    border-color: #3a3a3a;
+}
+
+.ws-composer input,
+.ws-composer textarea {
+    color: #ffffff;
+}
+
+.ws-estate-dev {
+    background: #242424;
+    border-color: #3a3a3a;
+}
+
+.ws-estate-dev-name {
+    color: #ffffff;
+}
+
+.ws-estate-dev-meta {
+    color: #b8b8b8;
+}
+
+.ws-estate-dev.is-clone {
+    background: rgba(255, 94, 79, 0.1);
+    border-color: rgba(255, 94, 79, 0.28);
+}
+
+.ws-estate-run {
+    background: rgba(255, 94, 79, 0.12);
+    border-color: rgba(255, 94, 79, 0.3);
+    color: #ff9a90;
+}
+
+.ws-estate-run:hover {
+    background: rgba(255, 94, 79, 0.2);
+}
+
+.ws-estate-run[data-estate-action="excel"] {
+    background: rgba(20, 184, 166, 0.12);
+    border-color: rgba(20, 184, 166, 0.32);
+    color: #5eead4;
+}
+
+.ws-estate-run[data-estate-action="excel"]:hover {
+    background: rgba(20, 184, 166, 0.2);
+}
+
+.fw-picker-card .fw-search-box {
+    border-color: #3a3a3a;
+}
+
+.fw-picker-card .fw-search-input {
+    color: #ffffff;
+}
+
+.ws-back-run {
+    border-color: #3a3a3a;
+    color: #b8b8b8;
+}
+
+.ws-back-run:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: #ffffff;
+}
+
+.ws-fw-back-wrap {
+    border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.ws-sidebar-hint {
+    color: #8f8f8f;
+}
+
+/* --------------------------------------------------
+   PLACEHOLDER PAGES (Cloud Security / System Info)
+-------------------------------------------------- */
+
+.page-head {
+    margin-bottom: 24px;
+}
+
+.page-head h1 {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin: 6px 0 6px;
+}
+
+.page-head p {
+    color: var(--muted);
+    font-size: 14px;
+    max-width: 560px;
+}
+
+.page-placeholder {
+    min-height: 340px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.placeholder-inner {
+    text-align: center;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.placeholder-mark {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--red-soft);
+    border: 1px solid rgba(255, 94, 79, 0.25);
+    color: var(--red);
+    margin-bottom: 4px;
+}
+
+.placeholder-mark svg {
+    width: 30px;
+    height: 30px;
+}
+
+.placeholder-inner h3 {
+    font-size: 18px;
+    font-weight: 800;
+    color: #ffffff;
+}
+
+.placeholder-inner p {
+    font-size: 14px;
+    color: var(--muted);
+}

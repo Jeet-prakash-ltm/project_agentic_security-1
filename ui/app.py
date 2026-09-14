@@ -373,6 +373,7 @@ def request_demo():
 @app.route("/dashboard")
 @login_required
 def dashboard():
+    """Network Security view (the default page after sign-in)."""
 
     connected = agents_service.get_connected_agent()
 
@@ -386,6 +387,26 @@ def dashboard():
         base_model=(connected or {}).get("model", "gpt-5.1"),
         firewalls=assessment_service.FIREWALLS,
         firewall_id=_dashboard_firewall_param()
+    )
+
+
+@app.route("/dashboard/cloud-security")
+@login_required
+def cloud_security():
+    """Cloud Security view under Dashboard (placeholder for now)."""
+
+    return render_with_css(
+        "cloud_security.html"
+    )
+
+
+@app.route("/dashboard/system-info")
+@login_required
+def system_info():
+    """System Info view under Dashboard (placeholder for now)."""
+
+    return render_with_css(
+        "system_info.html"
     )
 
 # --------------------------------------------------

@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}LTM Security Platform{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/logo.svg') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=6">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=7">
     {% if page_css %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=24">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=25">
     {% endif %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v=1">
 </head>
 <body class="{% block body_class %}{% endblock %}">
 
@@ -31,10 +32,25 @@
         </a>
 
         <nav class="nav-menu">
-            <a href="{{ url_for('dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'dashboard' else '' }}" data-label="Dashboard">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-                <span>Dashboard</span>
-            </a>
+            {% set dash_endpoints = ['dashboard', 'cloud_security', 'system_info'] %}
+            <div class="nav-group {{ 'is-open' if request.endpoint in dash_endpoints else '' }}" id="navDashboardGroup">
+                <button type="button" class="nav-link nav-group-btn {{ 'active' if request.endpoint in dash_endpoints else '' }}" id="navDashboardToggle" data-label="Dashboard" aria-expanded="{{ 'true' if request.endpoint in dash_endpoints else 'false' }}" aria-controls="navDashboardSub">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+                    <span>Dashboard</span>
+                    <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="nav-submenu" id="navDashboardSub">
+                    <a href="{{ url_for('dashboard') }}" class="nav-sublink {{ 'active' if request.endpoint == 'dashboard' else '' }}">
+                        <span class="nav-subdot"></span><span>Network Security</span>
+                    </a>
+                    <a href="{{ url_for('cloud_security') }}" class="nav-sublink {{ 'active' if request.endpoint == 'cloud_security' else '' }}">
+                        <span class="nav-subdot"></span><span>Cloud Security</span>
+                    </a>
+                    <a href="{{ url_for('system_info') }}" class="nav-sublink {{ 'active' if request.endpoint == 'system_info' else '' }}">
+                        <span class="nav-subdot"></span><span>System Info</span>
+                    </a>
+                </div>
+            </div>
             <a href="{{ url_for('workspace') }}" class="nav-link {{ 'active' if request.endpoint == 'workspace' else '' }}" data-label="AI Workspace">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6 4.6 1.9-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/><path d="M18.5 15.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1z"/></svg>
                 <span>AI Workspace</span>
@@ -105,7 +121,7 @@
 
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=5"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=6"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

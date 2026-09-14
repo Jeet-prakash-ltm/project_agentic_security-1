@@ -4,17 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}LTM Security Platform{% endblock %}</title>
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/logo.svg') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=8">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='LTM_LOGO.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=9">
     {% if page_css %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=26">
     {% endif %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v=1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v=2">
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% block body_class %}{% endblock %}" data-logout-url="{{ url_for('logout') }}">
 
     <div class="bg-scene">
         <div class="bg-layer bg-gradient"></div>
+        <div class="bg-layer bg-photo"></div>
         <div class="bg-layer bg-hex"></div>
         <div class="bg-layer bg-noise"></div>
         <span class="crystal-orb orb-1"></span>
@@ -24,7 +25,7 @@
 
     <aside class="sidebar" id="sidebar">
         <a href="{{ url_for('dashboard') }}" class="brand brand-link" title="LTM Security Platform">
-            <span class="brand-icon brand-logo"><img src="{{ url_for('static', filename='images/logo.svg') }}" alt="LTM Security Platform"></span>
+            <span class="brand-icon brand-logo"><img src="{{ url_for('static', filename='LTM_LOGO.png') }}" alt="LTM Security Platform"></span>
             <div class="brand-text">
                 <span class="brand-title">LTM Security</span>
                 <span class="brand-sub">Platform</span>
@@ -121,7 +122,7 @@
 
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=6"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=7"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

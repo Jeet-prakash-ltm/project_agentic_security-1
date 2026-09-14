@@ -78,6 +78,14 @@ body {
         linear-gradient(160deg, #1a1a1a 0%, #1a1a1a 55%, #211a1a 100%);
 }
 
+.bg-photo {
+    background-image: url("/static/images/Screenshot%202026-09-14%20185326.png");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0.14;
+}
+
 .bg-hex {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='96' viewBox='0 0 56 96'%3E%3Cpath d='M28 0l28 16v32L28 64 0 48V16z' fill='none' stroke='%23ff5e4f' stroke-opacity='0.06' stroke-width='1'/%3E%3Cpath d='M28 96l28-16V48L28 64 0 48v32z' fill='none' stroke='%23ff5e4f' stroke-opacity='0.06' stroke-width='1'/%3E%3C/svg%3E");
 }
@@ -121,7 +129,8 @@ body {
 }
 
 .brand-logo img {
-    filter: drop-shadow(0 8px 18px rgba(255, 94, 79, 0.4));
+    filter: none;
+    mix-blend-mode: screen;
 }
 
 /* --------------------------------------------------

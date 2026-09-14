@@ -58,7 +58,7 @@ def current_user_id():
 @app.before_request
 def require_authentication():
     g.user = current_user()
-    return None
+    return _enforce_idle_timeout()
 
 
 @app.context_processor
@@ -93,6 +93,74 @@ def login_required(f):
             return _login_redirect()
         return f(*args, **kwargs)
     return wrapper
+
+
+# --------------------------------------------------
+# INACTIVITY TIMEOUT
+# --------------------------------------------------
+
+SESSION_IDLE_LIMIT = platform_settings.SESSION_IDLE_SECONDS
+
+
+def _wants_json_response():
+    """True for XHR/fetch/API calls that expect JSON rather than a page."""
+    if request.path.startswith("/api/"):
+        return True
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return True
+    accept = request.headers.get("Accept", "")
+    return "application/json" in accept and "text/html" not in accept
+
+
+def _expired_login_redirect(resume_url=""):
+    """Send an idle user to the sign-in page, remembering where to resume."""
+    from urllib.parse import urlencode
+
+    query = {"expired": "1"}
+    if resume_url:
+        query["next"] = resume_url
+    return redirect(url_for("login") + "?" + urlencode(query))
+
+
+def _last_visited_page():
+    """Best-effort URL of the page the browser is currently on."""
+    if request.method == "GET" and not _wants_json_response():
+        if request.query_string:
+            return request.full_path.rstrip("?")
+        return request.path
+    return ""
+
+
+def _enforce_idle_timeout():
+    """End a signed-in session after a period of inactivity.
+
+    Returns a redirect/response when the session has expired, otherwise
+    ``None`` so the request proceeds normally.
+    """
+    if SESSION_IDLE_LIMIT <= 0 or not session.get("user_id"):
+        return None
+    if request.endpoint in (None, "static", "login", "logout"):
+        return None
+
+    now = time.time()
+    try:
+        last_seen = float(session.get("last_activity") or 0)
+    except (TypeError, ValueError):
+        last_seen = 0.0
+
+    if last_seen and (now - last_seen) > SESSION_IDLE_LIMIT:
+        resume_url = session.get("last_page") or _last_visited_page()
+        session.clear()
+        g.user = None
+        if _wants_json_response():
+            return jsonify({"error": "session_expired"}), 401
+        return _expired_login_redirect(resume_url)
+
+    session["last_activity"] = now
+    page = _last_visited_page()
+    if page:
+        session["last_page"] = page
+    return None
 
 
 def _admin_or_403():
@@ -241,6 +309,8 @@ def render_reports(**context):
 # --------------------------------------------------
 
 def _login_notice():
+    if (request.args.get("expired") or "").strip().lower() in ("1", "true", "yes"):
+        return "Your session was signed out after a period of inactivity. Please sign in again."
     notice = (request.args.get("notice") or "").strip()
     if not notice:
         return None
@@ -275,6 +345,7 @@ def login():
         if user:
             session.clear()
             session["user_id"] = user["id"]
+            session["last_activity"] = time.time()
             if next_url:
                 return redirect(next_url)
             return redirect(url_for("dashboard"))
@@ -322,7 +393,29 @@ def login():
 
 @app.route("/logout")
 def logout():
+    from urllib.parse import urlencode
+
+    next_url = (request.args.get("next") or "").strip()
+    if next_url and not (next_url.startswith("/") and not next_url.startswith("//")):
+        next_url = ""
+    expired = (request.args.get("expired") or "").strip().lower() in ("1", "true", "yes")
+
     session.clear()
+
+    # Inactivity sign-out (and any logout that carries a target) returns to the
+    # sign-in page remembering where to resume; an explicit sign-out from the
+    # sidebar keeps the original "back to the landing page" behaviour.
+    if expired or next_url:
+        query = {}
+        if expired:
+            query["expired"] = "1"
+        if next_url:
+            query["next"] = next_url
+        target = url_for("login")
+        if query:
+            target = target + "?" + urlencode(query)
+        return redirect(target)
+
     return redirect(url_for("home"))
 
 

@@ -295,8 +295,8 @@ input, select, textarea {
 }
 
 .brand-logo {
-    width: 40px;
-    height: 40px;
+    width: 46px;
+    height: auto;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -306,9 +306,9 @@ input, select, textarea {
 
 .brand-logo img {
     width: 100%;
-    height: 100%;
+    height: auto;
     object-fit: contain;
-    filter: drop-shadow(0 8px 18px rgba(255, 94, 79, 0.35));
+    mix-blend-mode: screen;
 }
 
 .brand-text {

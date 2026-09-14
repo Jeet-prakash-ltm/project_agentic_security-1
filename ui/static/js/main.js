@@ -250,4 +250,51 @@
             sel.value = agent.id;
         }
     });
+
+    // ------------------------------------------------------------
+    // INACTIVITY SIGN-OUT — after 5 idle minutes the session ends
+    // and the user is returned to sign-in, then back to this page.
+    // ------------------------------------------------------------
+    (function idleSignOut() {
+        var logoutUrl = document.body.getAttribute("data-logout-url");
+        if (!logoutUrl) return;
+
+        var LIMIT_MS = 5 * 60 * 1000;
+        var timer = null;
+        var events = ["mousemove", "mousedown", "click", "keydown", "scroll", "touchstart", "wheel"];
+
+        function resumeTarget() {
+            return window.location.pathname + window.location.search;
+        }
+
+        function signOut() {
+            window.location.href = logoutUrl + "?expired=1&next=" + encodeURIComponent(resumeTarget());
+        }
+
+        function reset() {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(signOut, LIMIT_MS);
+        }
+
+        for (var i = 0; i < events.length; i++) {
+            window.addEventListener(events[i], reset, { passive: true });
+        }
+        reset();
+    })();
+
+    // Redirect to sign-in when an API call reports an expired session.
+    (function handleExpiredSession() {
+        var logoutUrl = document.body.getAttribute("data-logout-url");
+        if (!logoutUrl || typeof window.fetch !== "function") return;
+        var originalFetch = window.fetch;
+        window.fetch = function () {
+            return originalFetch.apply(this, arguments).then(function (response) {
+                if (response && response.status === 401) {
+                    window.location.href = logoutUrl + "?expired=1&next=" +
+                        encodeURIComponent(window.location.pathname + window.location.search);
+                }
+                return response;
+            });
+        };
+    })();
 })();

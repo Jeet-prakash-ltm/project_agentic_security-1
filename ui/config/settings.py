@@ -78,6 +78,10 @@ EXECUTIVE_SUMMARY_KEY = env(
 
 LIVE_ENABLED = env_bool("LIVE_ENABLED", True)
 
+# Minutes of inactivity before a signed-in session is ended automatically.
+# Set to 0 to disable the idle timeout.
+SESSION_IDLE_SECONDS = int(env("SESSION_IDLE_SECONDS", "300"))
+
 LIVE_TIMEOUT = int(env("LIVE_TIMEOUT", "60"))
 
 CACHE_TTL = int(env("CACHE_TTL", "120"))

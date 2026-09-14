@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign in — LTM Security Platform</title>
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/logo.svg') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}?v=5">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='LTM_LOGO.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}?v=6">
 </head>
 <body>
     <div class="auth-scene">
+        <div class="auth-bg-photo"></div>
         <div class="auth-orb auth-orb-1"></div>
         <div class="auth-orb auth-orb-2"></div>
         <div class="auth-orb auth-orb-3"></div>
@@ -17,7 +18,7 @@
     <main class="auth-shell">
         <div class="auth-card">
             <div class="auth-brand">
-                <span class="auth-logo"><img src="{{ url_for('static', filename='images/logo.svg') }}" alt="LTM Security Platform"></span>
+                <span class="auth-logo"><img src="{{ url_for('static', filename='LTM_LOGO.png') }}" alt="LTM Security Platform"></span>
                 <div class="auth-brand-text">
                     <span class="auth-title">LTM Security</span>
                     <span class="auth-sub">Platform</span>
@@ -55,7 +56,6 @@
                     <input type="password" name="password" placeholder="Your password" required autocomplete="current-password">
                 </label>
                 <button type="submit" class="auth-submit">Sign in</button>
-                <p class="auth-hint">Sign in to access your AI Workspace and chat history. Accounts are provisioned by an administrator.</p>
             </form>
         </div>
     </main>

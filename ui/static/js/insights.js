@@ -19,7 +19,7 @@
     var COLOR_INPUT = "#2563EB";
     var COLOR_OUTPUT = "#16A34A";
     var COLOR_TOTAL = "#7C3AED";
-    var COLOR_LATENCY = "#E4002B";
+    var COLOR_LATENCY = "#ff5e4f";
 
     var CW = 720;
     var CH = 210;

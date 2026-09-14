@@ -126,13 +126,13 @@
     font-weight: 600;
     color: var(--crimson);
     background: var(--red-soft);
-    border: 1px solid rgba(228, 0, 43, 0.2);
+    border: 1px solid rgba(255, 94, 79, 0.2);
     border-radius: 20px;
     padding: 4px 6px 4px 12px;
 }
 .active-pill-label { color: var(--text-3); }
 .active-pill-x {
-    border: none; background: rgba(228, 0, 43, 0.12);
+    border: none; background: rgba(255, 94, 79, 0.12);
     color: var(--crimson); font-size: 15px; line-height: 1;
     width: 18px; height: 18px; border-radius: 50%;
     cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
@@ -501,7 +501,7 @@
 }
 .action-btn svg { width: 13px; height: 13px; }
 .action-btn:hover { color: var(--text); border-color: var(--crimson); }
-.action-btn.ai { color: var(--crimson); border-color: rgba(228,0,43,0.25); background: var(--red-soft); }
+.action-btn.ai { color: var(--crimson); border-color: rgba(255,94,79,0.25); background: var(--red-soft); }
 .action-btn.ai:hover { background: var(--rose); }
 .action-btn.is-reviewed { color: var(--success); border-color: rgba(22,163,74,0.3); background: var(--success-soft); }
 
@@ -567,7 +567,7 @@
 }
 .copilot-chip {
     font-size: 12px; font-weight: 700; color: var(--crimson);
-    background: var(--red-soft); border: 1px solid rgba(228,0,43,0.2);
+    background: var(--red-soft); border: 1px solid rgba(255,94,79,0.2);
     border-radius: 20px; padding: 7px 13px; cursor: pointer;
     transition: all 0.15s;
 }

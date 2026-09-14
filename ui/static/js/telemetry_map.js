@@ -94,7 +94,7 @@
 
     // Accent per group (border when healthy, legend, badges).
     var GROUP_ACCENT = {};
-    GROUP_ACCENT["core"] = "#E4002B";
+    GROUP_ACCENT["core"] = "#ff5e4f";
     GROUP_ACCENT["azure"] = "#2563EB";
     GROUP_ACCENT["model"] = "#7C3AED";
     GROUP_ACCENT["service"] = "#0EA5E9";
@@ -246,7 +246,7 @@
         var l = Math.max(0, Math.min(1, Number(load) || 0));
         if (l < 0.35) return "#cbd5e1";
         if (l < 0.6) return "#f59e0b";
-        return "#E4002B";
+        return "#ff5e4f";
     }
 
     // Concentric "Intelligence Graph" placement: the agent at the core, with
@@ -452,7 +452,7 @@
                 {
                     selector: "node[isAgent='true']",
                     style: {
-                        "background-color": "#E4002B",
+                        "background-color": "#ff5e4f",
                         "border-width": 3.5,
                         "border-color": function (ele) {
                             return nodeColor(ele.data("status"));

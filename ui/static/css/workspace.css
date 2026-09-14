@@ -116,7 +116,7 @@
     font-weight: 700;
     color: #fff;
     background: var(--gradient-red);
-    box-shadow: 0 6px 16px rgba(228, 0, 43, 0.3);
+    box-shadow: 0 6px 16px rgba(255, 94, 79, 0.3);
     transition: transform 0.15s ease, box-shadow 0.2s ease;
 }
 
@@ -145,7 +145,7 @@
 
 .ws-search:focus-within {
     border-color: var(--red);
-    box-shadow: 0 0 0 3px rgba(228, 0, 43, 0.1);
+    box-shadow: 0 0 0 3px rgba(255, 94, 79, 0.1);
 }
 
 .ws-search svg {
@@ -319,7 +319,7 @@
 
 .ws-manage-agents:hover {
     color: var(--red);
-    border-color: rgba(228, 0, 43, 0.35);
+    border-color: rgba(255, 94, 79, 0.35);
     background: var(--rose);
 }
 
@@ -402,7 +402,7 @@
 .ws-icon-btn:hover {
     background: var(--rose);
     color: var(--red);
-    border-color: rgba(228, 0, 43, 0.25);
+    border-color: rgba(255, 94, 79, 0.25);
 }
 
 .ws-icon-btn.is-active {
@@ -506,7 +506,7 @@
     color: #fff;
     padding: 10px 15px;
     border-radius: 16px 4px 16px 16px;
-    box-shadow: 0 6px 18px rgba(228, 0, 43, 0.28);
+    box-shadow: 0 6px 18px rgba(255, 94, 79, 0.28);
 }
 
 .ws-message-user .ws-msg-text p {
@@ -719,7 +719,7 @@
     align-items: center;
     justify-content: center;
     margin-bottom: 20px;
-    box-shadow: 0 14px 34px rgba(228, 0, 43, 0.35);
+    box-shadow: 0 14px 34px rgba(255, 94, 79, 0.35);
 }
 
 .ws-empty-mark svg {
@@ -773,7 +773,7 @@
 }
 
 .ws-suggestion:hover {
-    border-color: rgba(228, 0, 43, 0.4);
+    border-color: rgba(255, 94, 79, 0.4);
     background: var(--rose);
     transform: translateY(-1px);
     box-shadow: var(--shadow-soft);
@@ -819,7 +819,7 @@
 }
 
 .ws-chip:hover {
-    border-color: rgba(228, 0, 43, 0.4);
+    border-color: rgba(255, 94, 79, 0.4);
     color: var(--red);
     background: var(--rose);
     transform: translateY(-1px);
@@ -840,7 +840,7 @@
 
 .ws-composer:focus-within {
     border-color: var(--red);
-    box-shadow: 0 0 0 3px rgba(228, 0, 43, 0.1), 0 6px 24px rgba(11, 27, 43, 0.08);
+    box-shadow: 0 0 0 3px rgba(255, 94, 79, 0.1), 0 6px 24px rgba(11, 27, 43, 0.08);
 }
 
 .ws-composer textarea {
@@ -872,7 +872,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 6px 18px rgba(228, 0, 43, 0.35);
+    box-shadow: 0 6px 18px rgba(255, 94, 79, 0.35);
     transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.15s ease;
     flex-shrink: 0;
 }
@@ -913,7 +913,7 @@
     font-weight: 700;
     color: var(--red);
     background: var(--rose);
-    border: 1px solid rgba(228, 0, 43, 0.2);
+    border: 1px solid rgba(255, 94, 79, 0.2);
     padding: 3px 10px;
     border-radius: 999px;
 }
@@ -1660,7 +1660,7 @@
 
 .ws-cloud-input:focus {
     border-color: var(--red);
-    box-shadow: 0 0 0 3px rgba(228, 0, 43, 0.08);
+    box-shadow: 0 0 0 3px rgba(255, 94, 79, 0.08);
 }
 
 .ws-cloud-input::placeholder {
@@ -1879,7 +1879,7 @@
     font-size: 14px;
     color: #fff;
     background: var(--gradient-red);
-    box-shadow: 0 5px 12px rgba(228, 0, 43, 0.25);
+    box-shadow: 0 5px 12px rgba(255, 94, 79, 0.25);
 }
 
 .netsec-step-main {

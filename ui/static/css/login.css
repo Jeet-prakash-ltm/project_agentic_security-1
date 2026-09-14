@@ -1,12 +1,13 @@
 :root {
-    --red: #E4002B;
-    --red-2: #FF4D4D;
-    --bg-0: #06070c;
-    --bg-1: #0b0d15;
-    --bg-2: #10131e;
-    --border: rgba(255, 255, 255, 0.08);
-    --text-0: #f4f6fb;
-    --text-3: #8b91a5;
+    --red: #ff5e4f;
+    --red-2: #ff7d70;
+    --bg-0: #1a1a1a;
+    --bg-1: #1a1a1a;
+    --bg-2: #202020;
+    --border: rgba(255, 255, 255, 0.1);
+    --text-0: #ffffff;
+    --text-1: #ffffff;
+    --text-3: #b8b8b8;
 }
 
 * { box-sizing: border-box; }
@@ -19,8 +20,8 @@ html, body {
 
 body {
     font-family: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
-    background: radial-gradient(1200px 800px at 80% -10%, rgba(228, 0, 43, 0.12), transparent 60%),
-                linear-gradient(160deg, var(--bg-0), var(--bg-1) 50%, var(--bg-2));
+    background: radial-gradient(1200px 800px at 80% -10%, rgba(255, 94, 79, 0.14), transparent 60%),
+                linear-gradient(160deg, var(--bg-0), var(--bg-1) 55%, #211a1a);
     color: var(--text-0);
     display: flex;
     align-items: center;
@@ -44,9 +45,9 @@ body {
     opacity: 0.35;
 }
 
-.auth-orb-1 { width: 360px; height: 360px; background: rgba(228, 0, 43, 0.5); top: -120px; left: -80px; }
-.auth-orb-2 { width: 320px; height: 320px; background: rgba(255, 77, 77, 0.35); bottom: -120px; right: -60px; }
-.auth-orb-3 { width: 200px; height: 200px; background: rgba(120, 90, 255, 0.25); top: 40%; right: 18%; }
+.auth-orb-1 { width: 360px; height: 360px; background: rgba(255, 94, 79, 0.5); top: -120px; left: -80px; }
+.auth-orb-2 { width: 320px; height: 320px; background: rgba(255, 125, 112, 0.32); bottom: -120px; right: -60px; }
+.auth-orb-3 { width: 200px; height: 200px; background: rgba(255, 94, 79, 0.22); top: 40%; right: 18%; }
 
 .auth-shell {
     position: relative;
@@ -56,7 +57,7 @@ body {
 }
 
 .auth-card {
-    background: rgba(16, 19, 30, 0.85);
+    background: rgba(30, 30, 30, 0.85);
     border: 1px solid var(--border);
     border-radius: 18px;
     padding: 34px 32px 30px;
@@ -82,7 +83,7 @@ body {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    filter: drop-shadow(0 8px 18px rgba(228, 0, 43, 0.35));
+    filter: drop-shadow(0 8px 18px rgba(255, 94, 79, 0.4));
 }
 
 .auth-brand-text {
@@ -133,9 +134,9 @@ body {
 }
 
 .auth-error {
-    background: rgba(228, 0, 43, 0.12);
-    border: 1px solid rgba(228, 0, 43, 0.4);
-    color: #ffb3bd;
+    background: rgba(255, 94, 79, 0.12);
+    border: 1px solid rgba(255, 94, 79, 0.4);
+    color: #ff9a90;
     font-size: 13px;
     padding: 10px 12px;
     border-radius: 8px;
@@ -203,18 +204,18 @@ body {
 }
 
 .auth-field select option {
-    background: #151826;
-    color: #e8ecf4;
+    background: #202020;
+    color: #ffffff;
 }
 
 .auth-field input:focus {
     border-color: var(--red-2);
-    box-shadow: 0 0 0 3px rgba(228, 0, 43, 0.18);
+    box-shadow: 0 0 0 3px rgba(255, 94, 79, 0.18);
 }
 
 .auth-field select:focus {
     border-color: var(--red-2);
-    box-shadow: 0 0 0 3px rgba(228, 0, 43, 0.18);
+    box-shadow: 0 0 0 3px rgba(255, 94, 79, 0.18);
 }
 
 .auth-submit {
@@ -252,8 +253,8 @@ body {
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
-    background: rgba(10, 132, 255, 0.08);
-    border: 1px solid rgba(10, 132, 255, 0.25);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 12px;
     padding: 12px 14px;
     margin-bottom: 14px;

@@ -14,7 +14,7 @@
         "Logging & Monitoring"
     ];
 
-    var COLORS = { vmpafw01: "#E4002B", vmpafw02: "#2563EB" };
+    var COLORS = { vmpafw01: "#ff5e4f", vmpafw02: "#2563EB" };
 
     var DEFAULT_FW = "vmpafw01";
     var state = {
@@ -324,7 +324,7 @@
             return PAD_TOP + (1 - (v - min) / (max - min)) * (H - PAD_TOP - PAD_BOTTOM);
         }
 
-        var color = firewallId === "all" ? "#E4002B" : (COLORS[firewallId] || "#E4002B");
+        var color = firewallId === "all" ? "#ff5e4f" : (COLORS[firewallId] || "#ff5e4f");
 
         var html = '<svg class="trend-line-svg" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" role="img" aria-label="Compliance score over time">';
 

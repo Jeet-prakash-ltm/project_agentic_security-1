@@ -13,11 +13,11 @@
     padding: 28px 32px 26px;
     overflow: visible;
     border-radius: 24px;
-    border: 1px solid rgba(228, 0, 43, 0.12);
+    border: 1px solid rgba(255, 94, 79, 0.12);
     box-shadow: var(--shadow-glass);
     background:
-        radial-gradient(700px 280px at 108% -30%, rgba(228, 0, 43, 0.10), transparent 60%),
-        radial-gradient(560px 240px at -6% 150%, rgba(228, 0, 43, 0.07), transparent 55%),
+        radial-gradient(700px 280px at 108% -30%, rgba(255, 94, 79, 0.10), transparent 60%),
+        radial-gradient(560px 240px at -6% 150%, rgba(255, 94, 79, 0.07), transparent 55%),
         linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 245, 246, 0.72));
 }
 
@@ -28,8 +28,8 @@
     pointer-events: none;
     border-radius: inherit;
     background-image:
-        linear-gradient(rgba(228, 0, 43, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(228, 0, 43, 0.03) 1px, transparent 1px);
+        linear-gradient(rgba(255, 94, 79, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 94, 79, 0.03) 1px, transparent 1px);
     background-size: 42px 42px;
     -webkit-mask-image: radial-gradient(420px 220px at 0% 100%, #000 0%, transparent 72%);
     mask-image: radial-gradient(420px 220px at 0% 100%, #000 0%, transparent 72%);
@@ -138,8 +138,8 @@
 }
 
 body.dash-estate .dash-scope {
-    border-color: rgba(228, 0, 43, 0.35);
-    background: rgba(228, 0, 43, 0.06);
+    border-color: rgba(255, 94, 79, 0.35);
+    background: rgba(255, 94, 79, 0.06);
 }
 
 /* Firewall inventory search combobox (shared markup with Reports) */
@@ -240,7 +240,7 @@ body.dash-estate .dash-scope {
 }
 
 .rep-combo-row.is-active {
-    background: rgba(228, 0, 43, 0.08);
+    background: rgba(255, 94, 79, 0.08);
 }
 
 .rep-combo-name {
@@ -278,7 +278,7 @@ body.dash-estate .dash-scope {
 
 .hero-chip-btn {
     background: var(--gradient-red);
-    border: 1px solid rgba(228, 0, 43, 0.35);
+    border: 1px solid rgba(255, 94, 79, 0.35);
     color: #fff;
     cursor: pointer;
     font-family: inherit;
@@ -300,7 +300,7 @@ body.dash-estate .dash-scope {
 
 .hero-chip-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 14px 30px rgba(228, 0, 43, 0.28);
+    box-shadow: 0 14px 30px rgba(255, 94, 79, 0.28);
 }
 
 .trend-legend {
@@ -351,7 +351,7 @@ body.dash-estate .dash-scope {
     left: 28px;
     right: 28px;
     height: 2px;
-    background: linear-gradient(90deg, transparent, rgba(228, 0, 43, 0.6), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 94, 79, 0.6), transparent);
     border-radius: 0 0 2px 2px;
 }
 
@@ -521,7 +521,7 @@ body.dash-estate .dash-scope {
 .sev-tile:hover,
 .sev-tile:focus {
     transform: translateY(-2px);
-    border-color: rgba(228, 0, 43, 0.4);
+    border-color: rgba(255, 94, 79, 0.4);
     box-shadow: var(--shadow-glow);
 }
 
@@ -658,7 +658,7 @@ body.dash-estate .dash-scope {
 .vbar-fill {
     width: 100%;
     border-radius: 8px;
-    background: linear-gradient(180deg, #FF4D4D, var(--red));
+    background: linear-gradient(180deg, #ff7d70, var(--red));
     transition: height 0.5s ease;
 }
 
@@ -765,7 +765,7 @@ body.dash-estate .dash-scope {
 .quick-card:hover,
 .quick-card:focus {
     transform: translateY(-3px);
-    border-color: rgba(228, 0, 43, 0.4);
+    border-color: rgba(255, 94, 79, 0.4);
     box-shadow: var(--shadow-glow);
 }
 

@@ -194,7 +194,7 @@
 }
 
 .rep-combo-row.is-active {
-    background: rgba(228, 0, 43, 0.08);
+    background: rgba(255, 94, 79, 0.08);
 }
 
 .rep-combo-name {
@@ -277,7 +277,7 @@
 }
 
 .data-table tbody tr:hover {
-    background: rgba(228, 0, 43, 0.03);
+    background: rgba(255, 94, 79, 0.03);
 }
 
 .data-table tbody tr:last-child td {
@@ -311,7 +311,7 @@
 }
 
 .file-icon-purple {
-    background: linear-gradient(135deg, #E4002B, #FF5A5F);
+    background: linear-gradient(135deg, #ff5e4f, #ff7d70);
 }
 
 .file-icon-green {

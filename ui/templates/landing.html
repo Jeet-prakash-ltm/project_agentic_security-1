@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}?v=4">
 </head>
 <body>
 
@@ -99,6 +99,242 @@
             </div>
         </section>
 
+        <!-- ============================================================
+             The sections below (Agents, Platform, Benefits, Use Cases,
+             How it works, FAQ) are intentionally disabled for the landing
+             page. Remove the surrounding comment markers to re-enable them.
+             ============================================================ -->
+        <!--
+        <section class="ld-section ld-section-tint" id="agents">
+            <div class="ld-container">
+                <div class="ld-section-head">
+                    <span class="ld-kicker">Agents</span>
+                    <h2>Meet Your Security Agents</h2>
+                    <p>Specialized agents that audit firewall configurations, execute governed firewall changes and contain cloud security incidents.</p>
+                </div>
+                <div class="ld-feature-grid">
+                    <article class="ld-feature">
+                        <span class="ld-feature-ic">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>
+                        </span>
+                        <h3>Firewall Audit Agent</h3>
+                        <p>Analyzes firewall configurations and security controls, identifies misconfigurations, validates hardening standards and generates prioritized findings.</p>
+                        <ul class="ld-feature-caps">
+                            <li>Compliance assessment</li>
+                            <li>Security findings</li>
+                            <li>Security Recommendation</li>
+                            <li>Assessment Report Generation</li>
+                            <li>Executive Summary</li>
+                        </ul>
+                    </article>
+                    <article class="ld-feature">
+                        <span class="ld-feature-ic">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="9" cy="18" r="2"/></svg>
+                        </span>
+                        <h3>Firewall Execution Agent</h3>
+                        <p>Executes approved firewall operational changes through governed workflows with complete execution visibility and audit history.</p>
+                        <ul class="ld-feature-caps">
+                            <li>Address object and group management</li>
+                            <li>Service object and group management</li>
+                            <li>Security policy management</li>
+                            <li>Nat Policy management</li>
+                            <li>Bulk Configuration Deployment</li>
+                            <li>Network config Management</li>
+                            <li>Playbooks</li>
+                        </ul>
+                    </article>
+                    <article class="ld-feature">
+                        <span class="ld-feature-ic">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 010-8 5.5 5.5 0 0110.5 1.5A3.5 3.5 0 0117 18H7z"/><path d="M12 11v3"/><path d="M10 12l2 2 2-2"/></svg>
+                        </span>
+                        <h3>Cloud Security Ops Agent</h3>
+                        <p>Investigates cloud security risks and performs approved containment actions to reduce potential impact during security incidents.</p>
+                        <ul class="ld-feature-caps">
+                            <li>Resource containment and Isolation</li>
+                            <li>Network Containment</li>
+                            <li>VM and NSG management</li>
+                            <li>Sentinel incidents</li>
+                            <li>Incidents investigation</li>
+                            <li>Incident summary generation</li>
+                        </ul>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="ld-section" id="platform">
+            <div class="ld-container">
+                <div class="ld-section-head">
+                    <span class="ld-kicker">Platform Capabilities</span>
+                    <h2>One Platform. Multiple Security Workspaces.</h2>
+                    <p>Purpose-built workspaces bring assessments, investigations, telemetry, reporting and agent operations together in one place.</p>
+                </div>
+                <div class="ld-feature-grid">
+                    <article class="ld-feature">
+                        <span class="ld-feature-ic">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+                        </span>
+                        <h3>Dashboard</h3>
+                        <p>View compliance scores, findings, agent activity and security posture from a centralized operational dashboard.</p>
+                    </article>
+                    <article class="ld-feature">
+                        <span class="ld-feature-ic">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4V5z"/><path d="M8 9h8M8 12h5"/></svg>
+                        </span>
+                        <h3>AI Workspace</h3>
+                        <p>Interact with agents using natural language to investigate findings, retrieve evidence and understand security risks.</p>
+                    </article>
+                    <article class="ld-feature">
+                        <span class="ld-feature-ic">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>
+                        </span>
+                        <h3>Security Operations</h3>
+                        <p>Review, prioritize and investigate findings with supporting evidence, recommendations and remediation guidance.</p>
+                    </article>
+                    <article class="ld-feature">
+                        <span class="ld-feature-ic">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>
+                        </span>
+                        <h3>Telemetry Map</h3>
+                        <p>Visualize assets, relationships, findings and exposure paths across firewall and cloud environments.</p>
+                    </article>
+                    <article class="ld-feature">
+                        <span class="ld-feature-ic">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h8l4 4V21.5H6V2.5z"/><path d="M14 2.5v4h4"/><path d="M9 12h6M9 16h6"/></svg>
+                        </span>
+                        <h3>Reports</h3>
+                        <p>Generate executive summaries, technical assessments and audit-ready reports directly from platform findings.</p>
+                    </article>
+                    <article class="ld-feature">
+                        <span class="ld-feature-ic">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+                        </span>
+                        <h3>Agent Insights</h3>
+                        <p>Monitor agent activity, execution history, usage metrics and operational performance.</p>
+                    </article>
+                    <article class="ld-feature">
+                        <span class="ld-feature-ic">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 008.6 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 8.6a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                        </span>
+                        <h3>Settings</h3>
+                        <p>Manage users, permissions, integrations, approval workflows and platform configuration.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="ld-section ld-section-tint" id="benefits">
+            <div class="ld-container">
+                <div class="ld-section-head">
+                    <span class="ld-kicker">Benefits</span>
+                    <h2>Designed For Security Teams</h2>
+                    <p>The measurable outcomes that come from pairing specialized agents with your firewall and Azure estate.</p>
+                </div>
+                <div class="ld-benefit-grid">
+                    <div class="ld-benefit">
+                        <span class="ld-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+                        <div><h3>Unified Visibility</h3><p>Firewall security, cloud security, investigations and reporting are available within a single platform.</p></div>
+                    </div>
+                    <div class="ld-benefit">
+                        <span class="ld-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+                        <div><h3>Faster Assessments</h3><p>Agents perform complex security analysis and present findings in a structured and actionable format.</p></div>
+                    </div>
+                    <div class="ld-benefit">
+                        <span class="ld-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+                        <div><h3>Controlled Execution</h3><p>Firewall changes and containment actions can be executed through governed workflows.</p></div>
+                    </div>
+                    <div class="ld-benefit">
+                        <span class="ld-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+                        <div><h3>Better Investigations</h3><p>Analysts receive evidence, context and remediation guidance alongside every finding.</p></div>
+                    </div>
+                    <div class="ld-benefit">
+                        <span class="ld-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+                        <div><h3>Leadership Reporting</h3><p>Translate technical observations into business-focused posture and risk reports.</p></div>
+                    </div>
+                    <div class="ld-benefit">
+                        <span class="ld-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+                        <div><h3>Audit Readiness</h3><p>Retain findings, execution records and reports for compliance and governance activities.</p></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="ld-section" id="usecases">
+            <div class="ld-container">
+                <div class="ld-section-head">
+                    <span class="ld-kicker">Use cases</span>
+                    <h2>Built for the way your security team works</h2>
+                    <p>Where LTM delivers value every day across network and cloud operations.</p>
+                </div>
+                <div class="ld-use-grid">
+                    <article class="ld-use"><span class="ld-use-num">01</span><h3>Firewall Security Assessments</h3><p>Review firewall policies, configurations, routing, VPN settings, logging and hardening controls.</p></article>
+                    <article class="ld-use"><span class="ld-use-num">02</span><h3>Firewall Change Operations</h3><p>Create, update and manage firewall configurations through the Firewall Execution Agent.</p></article>
+                    <article class="ld-use"><span class="ld-use-num">03</span><h3>Cloud Security Reviews</h3><p>Analyze Azure posture, exposure risks and security configuration issues.</p></article>
+                    <article class="ld-use"><span class="ld-use-num">04</span><h3>Security Finding Investigation</h3><p>Use Security Operations and AI Workspace to investigate and prioritize findings.</p></article>
+                    <article class="ld-use"><span class="ld-use-num">05</span><h3>Cloud Incident Containment</h3><p>Execute approved containment actions to reduce risk during active investigations.</p></article>
+                    <article class="ld-use"><span class="ld-use-num">06</span><h3>Executive &amp; Audit Reporting</h3><p>Generate management-ready reports and detailed technical evidence from platform assessments.</p></article>
+                </div>
+            </div>
+        </section>
+
+        <section class="ld-section ld-section-tint" id="demo">
+            <div class="ld-container ld-demo-wrap">
+                <div class="ld-demo-copy">
+                    <span class="ld-kicker">How it works</span>
+                    <h2>How The Platform Works</h2>
+                    <p>Connect your environments, run assessments through specialized agents, investigate the results and act on them through governed workflows.</p>
+                    <ul class="ld-demo-list">
+                        <li><span class="ld-step">1</span><div><strong>Connect Firewall and Azure Environments</strong><small>Register your firewall inventory and cloud subscriptions.</small></div></li>
+                        <li><span class="ld-step">2</span><div><strong>Run Assessments Through Specialized Agents</strong><small>Agents evaluate controls and surface prioritized findings.</small></div></li>
+                        <li><span class="ld-step">3</span><div><strong>Investigate Findings in Security Operations</strong><small>Review evidence, context and remediation guidance.</small></div></li>
+                        <li><span class="ld-step">4</span><div><strong>Execute Approved Actions</strong><small>Apply firewall changes and containment through governed approval.</small></div></li>
+                        <li><span class="ld-step">5</span><div><strong>Generate Reports and Track Improvements</strong><small>Produce executive and audit-ready reports over time.</small></div></li>
+                    </ul>
+                </div>
+
+                <div class="ld-demo-form-card">
+                    <div class="ld-demo-form-head"><h3>Ready to get started?</h3><p>Sign in to run your first assessment.</p></div>
+                    <a href="{{ url_for('login', mode='login') }}" class="ld-cta ld-cta-primary ld-cta-lg ld-cta-block">
+                        Sign In To Platform
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+                    </a>
+                    <p class="ld-form-privacy">Platform accounts are provisioned by an administrator to keep access controlled.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="ld-section ld-faq" id="faq">
+            <div class="ld-container">
+                <div class="ld-section-head">
+                    <span class="ld-kicker">FAQ</span>
+                    <h2>Frequently asked questions</h2>
+                </div>
+                <div class="ld-faq-list">
+                    <details>
+                        <summary>What does the LTM platform assess?</summary>
+                        <p>LTM continuously assesses two estates: your network firewall configuration (44+ hardening controls covering policies, routing, VPN, high availability, logging and administration) and your Microsoft Azure cloud security posture.</p>
+                    </details>
+                    <details>
+                        <summary>Which firewall and cloud environments do you support?</summary>
+                        <p>The platform is built around network firewall appliances and the Microsoft Azure cloud. It inspects firewall configuration state and Azure resources such as network security groups, subscriptions and identity exposure.</p>
+                    </details>
+                    <details>
+                        <summary>How do the AI agents work?</summary>
+                        <p>Specialist agents connect to your firewall and Azure environments through secure endpoints. The Firewall Audit Agent, Firewall Execution Agent and Cloud Security Ops Agent assess controls, execute approved changes and contain cloud risk, returning evidence and prioritized remediation guidance.</p>
+                    </details>
+                    <details>
+                        <summary>How do I get an account?</summary>
+                        <p>Platform accounts are provisioned by an administrator. Contact your LTM administrator to get an account so access stays controlled.</p>
+                    </details>
+                    <details>
+                        <summary>Is my data stored securely?</summary>
+                        <p>Yes. Assessment history, conversations and reports are persisted in your own PostgreSQL database. Your firewall and cloud data is never shared with other tenants.</p>
+                    </details>
+                </div>
+            </div>
+        </section>
+        -->
+
     </main>
 
     <footer class="ld-footer">
@@ -110,8 +346,6 @@
                 </a>
                 <p>AI-Powered Platform For Network Security And Cloud Security Operations.</p>
             </div>
-            <div class="ld-footer-col"><strong>Platform</strong><a href="#agents">Agents</a><a href="#platform">Platform capabilities</a><a href="#benefits">Benefits</a><a href="#usecases">Use cases</a></div>
-            <div class="ld-footer-col"><strong>Resources</strong><a href="#faq">FAQ</a><a href="#demo">How it works</a><a href="{{ url_for('login', mode='login') }}">Sign in</a></div>
         </div>
         <div class="ld-container ld-footer-bottom">
             <span>&copy; 2026 LTM Security Platform. All rights reserved.</span>
@@ -119,6 +353,6 @@
         </div>
     </footer>
 
-    <script src="{{ url_for('static', filename='js/landing.js') }}?v=2"></script>
+    <script src="{{ url_for('static', filename='js/landing.js') }}?v=3"></script>
 </body>
 </html>

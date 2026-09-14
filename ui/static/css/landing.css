@@ -1138,6 +1138,14 @@ img { display: block; }
 
 
 /* ---------------- LANDING PAGE REFRESH ---------------- */
+@font-face {
+    font-family: "ES Klarheit Grotesk";
+    src: url("../vendor/fonts/grotesk.woff2") format("woff2");
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+}
+
 :root {
     --red: #ff5e4f;
     --red-strong: #ff5e4f;
@@ -1199,6 +1207,7 @@ body { font-family: "ES Klarheit Grotesk", "Klarheit Grotesk", "Space Grotesk", 
 
 .ld-stats { background: #ff5e4f; color: #ffffff; }
 .ld-footer { background: #1a1a1a; color: #ffffff; margin-top: 0; }
+.ld-footer-grid { grid-template-columns: 1fr; }
 .ld-brand-footer .ld-brand-text strong, .ld-footer-col strong { color: #ffffff; }
 .ld-brand-footer .ld-brand-text span, .ld-footer-col a, .ld-footer-bottom { color: #b8b8b8; }
 

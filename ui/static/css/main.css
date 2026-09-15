@@ -200,9 +200,9 @@ input, select, textarea {
     top: 14px;
     bottom: 14px;
     width: var(--sidebar-width);
-    background: var(--glass);
-    -webkit-backdrop-filter: blur(36px);
-    backdrop-filter: blur(36px);
+    background: rgba(255, 255, 255, 0.16);
+    -webkit-backdrop-filter: blur(50px) saturate(185%);
+    backdrop-filter: blur(50px) saturate(185%);
     border: 1px solid var(--glass-border);
     border-radius: 20px;
     box-shadow: var(--shadow-glass);

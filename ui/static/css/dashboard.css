@@ -15,10 +15,12 @@
     border-radius: 24px;
     border: 1px solid rgba(255, 94, 79, 0.12);
     box-shadow: var(--shadow-glass);
+    -webkit-backdrop-filter: blur(44px) saturate(185%);
+    backdrop-filter: blur(44px) saturate(185%);
     background:
         radial-gradient(700px 280px at 108% -30%, rgba(255, 94, 79, 0.10), transparent 60%),
         radial-gradient(560px 240px at -6% 150%, rgba(255, 94, 79, 0.07), transparent 55%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(255, 245, 246, 0.72));
+        linear-gradient(180deg, rgba(255, 255, 255, 0.20), rgba(255, 245, 246, 0.08));
 }
 
 .dash-header::after {

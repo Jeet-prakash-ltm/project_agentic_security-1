@@ -1,0 +1,192 @@
+/* ============================================================
+   SYSTEM INFO — agent cards
+   ============================================================ */
+
+.sys-agents-panel {
+    padding: 22px 24px 24px;
+}
+
+.sys-count-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 13px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    color: var(--text-2);
+    background: var(--glass-soft);
+    border: 1px solid var(--glass-border);
+    white-space: nowrap;
+}
+
+.sys-agent-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+    gap: 14px;
+}
+
+.sys-agent-note {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 18px 4px;
+    font-size: 13px;
+    color: var(--text-2);
+}
+
+/* ---- Card ---- */
+
+.agent-card {
+    position: relative;
+    overflow: hidden;
+    min-height: 86px;
+    padding: 14px 15px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--glass-border);
+    background: var(--glass-soft);
+    -webkit-backdrop-filter: blur(26px) saturate(160%);
+    backdrop-filter: blur(26px) saturate(160%);
+    box-shadow: var(--shadow-soft);
+    outline: none;
+    transition: transform 0.18s ease, border-color 0.18s ease,
+        box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.agent-card:hover,
+.agent-card:focus-visible {
+    transform: translateY(-2px);
+    border-color: rgba(255, 94, 79, 0.42);
+    background: var(--glass);
+    box-shadow: var(--shadow-glow);
+}
+
+.agent-card-head {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-height: 56px;
+}
+
+.sys-agent-grid .pulse-dot {
+    background: currentColor;
+}
+
+.agent-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    color: #ffffff;
+    background: var(--gradient-red);
+    box-shadow: 0 6px 16px rgba(255, 94, 79, 0.28);
+}
+
+.agent-card-id {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.agent-card-name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.agent-card-type {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.agent-card-head .status-chip {
+    flex-shrink: 0;
+    padding: 4px 9px;
+    font-size: 10px;
+}
+
+/* ---- Hover-revealed capability ---- */
+
+.agent-card-capability {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    padding: 14px 16px;
+    border-radius: inherit;
+    background: var(--glass-strong);
+    -webkit-backdrop-filter: blur(30px) saturate(170%);
+    backdrop-filter: blur(30px) saturate(170%);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(5px);
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+    z-index: 3;
+}
+
+.agent-card:hover .agent-card-capability,
+.agent-card:focus-visible .agent-card-capability {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.agent-cap-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--red);
+    font-family: var(--font-display);
+}
+
+.agent-card-capability p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-2);
+}
+
+@media (max-width: 640px) {
+    .sys-agents-panel {
+        padding: 18px 16px 20px;
+    }
+
+    .sys-agent-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Touch devices cannot hover — keep capability readable inline. */
+    .agent-card {
+        min-height: 0;
+    }
+
+    .agent-card-capability {
+        position: static;
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+        margin-top: 10px;
+        padding: 10px 0 0;
+        background: none;
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+        border-top: 1px solid var(--glass-line);
+    }
+}

@@ -37,7 +37,7 @@
     height: 100%;
     display: flex;
     align-items: stretch;
-    padding: 12px 20px 20px;
+    padding: 12px 20px 20px 0;
     box-sizing: border-box;
 }
 
@@ -91,7 +91,7 @@
 .ws-sidebar.open {
     width: var(--ws-sidebar-w);
     min-width: var(--ws-sidebar-w);
-    margin-right: 14px;
+    margin-right: var(--page-gap);
     padding: 16px;
     opacity: 1;
     border-width: 1px;
@@ -953,7 +953,7 @@
 .ws-insights.open {
     width: var(--ws-insights-w);
     min-width: var(--ws-insights-w);
-    margin-left: 14px;
+    margin-left: var(--page-gap);
     padding: 16px;
     opacity: 1;
     border-width: 1px;

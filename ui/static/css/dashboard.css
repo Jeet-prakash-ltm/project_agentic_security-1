@@ -10,7 +10,7 @@
     gap: 26px;
     flex-wrap: wrap;
     margin-bottom: 28px;
-    padding: 28px 32px 26px;
+    padding: 58px 32px 26px;
     overflow: visible;
     border-radius: 24px;
     border: 1px solid rgba(255, 94, 79, 0.12);
@@ -39,6 +39,17 @@
 .dash-meta {
     position: relative;
     z-index: 1;
+}
+
+/* Live badge + Refresh pinned to the very top-right corner of the header. */
+.dash-corner {
+    position: absolute;
+    top: 18px;
+    right: 22px;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .dash-heading .hero-eyebrow {
@@ -745,7 +756,17 @@
         align-items: stretch;
         padding: 24px 22px 22px;
     }
+    .dash-heading {
+        order: 0;
+    }
+    .dash-corner {
+        position: static;
+        order: 1;
+        justify-content: flex-start;
+        margin-top: 14px;
+    }
     .dash-meta {
+        order: 2;
         justify-content: flex-start;
     }
     .dash-fw-search {

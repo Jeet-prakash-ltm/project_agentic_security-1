@@ -7,6 +7,13 @@
 {% block content %}
 
 <div class="dash-header">
+    <div class="dash-corner">
+        <span class="hero-chip" id="dataSourceBadge">Connecting…</span>
+        <button class="hero-chip-btn" id="refreshBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.5 15a9 9 0 102.6-8L1 10"/></svg>
+            Refresh
+        </button>
+    </div>
     <div class="dash-heading">
         <span class="hero-eyebrow">Dashboard · Network Security</span>
         <h1>Network Security</h1>
@@ -23,7 +30,6 @@
                 <ul class="rep-combo-list" id="dashFwList" role="listbox" hidden></ul>
             </div>
         </div>
-        <span class="hero-chip" id="dataSourceBadge">Connecting…</span>
         <a href="{{ url_for('run_assessment') }}" class="hero-chip-btn ghost" id="quickAssess">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"/><path d="M12 8v4M12 15.5v.5"/></svg>
             Run Assessment
@@ -36,10 +42,6 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h8l4 4V21.5H6V2.5z"/><path d="M14 2.5v4h4"/><path d="M9 12h6M9 16h6"/></svg>
             Generate Report
         </a>
-        <button class="hero-chip-btn" id="refreshBtn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.5 15a9 9 0 102.6-8L1 10"/></svg>
-            Refresh
-        </button>
     </div>
 </div>
 

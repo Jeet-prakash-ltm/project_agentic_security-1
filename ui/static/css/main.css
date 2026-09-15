@@ -87,6 +87,10 @@
     /* ---- Layout ---- */
     --sidebar-width: 64px;
     --sidebar-expanded-width: 224px;
+    --sidebar-inset: 14px;
+    /* Gap between the sidebar and page content, matched to the AI Workspace
+       panel-to-panel gap (conversation history <-> chat). */
+    --page-gap: 14px;
 
     /* ---- Typography ---- */
     --font: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -192,7 +196,7 @@ input, select, textarea {
 
 .sidebar {
     position: fixed;
-    left: 14px;
+    left: var(--sidebar-inset);
     top: 14px;
     bottom: 14px;
     width: var(--sidebar-width);
@@ -504,12 +508,12 @@ input, select, textarea {
     }
 
     body.sidebar-expanded .content {
-        margin-left: calc(var(--sidebar-expanded-width) + 28px);
+        margin-left: calc(var(--sidebar-expanded-width) + var(--sidebar-inset) + var(--page-gap));
     }
 }
 
 .content {
-    margin-left: calc(var(--sidebar-width) + 28px);
+    margin-left: calc(var(--sidebar-width) + var(--sidebar-inset) + var(--page-gap));
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -661,7 +665,7 @@ input, select, textarea {
 
 .main {
     flex: 1;
-    padding: 24px 26px 48px;
+    padding: 24px 26px 48px 0;
     max-width: 1460px;
     width: 100%;
 }
@@ -1312,13 +1316,13 @@ input, select, textarea {
 
 @media (max-width: 1200px) {
     .main {
-        padding: 20px 18px 40px;
+        padding: 20px 18px 40px 0;
     }
 }
 
 @media (max-width: 1024px) {
     .main {
-        padding: 20px 20px 36px;
+        padding: 20px 20px 36px 0;
     }
 }
 

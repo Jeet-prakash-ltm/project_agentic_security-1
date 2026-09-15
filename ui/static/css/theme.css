@@ -190,6 +190,13 @@ body {
     backdrop-filter: blur(50px) saturate(185%);
 }
 
+/* System Info agents panel mirrors the sidebar glass. */
+.card.sys-agents-panel {
+    background: rgba(22, 22, 22, 0.24);
+    -webkit-backdrop-filter: blur(50px) saturate(185%);
+    backdrop-filter: blur(50px) saturate(185%);
+}
+
 /* --------------------------------------------------
    DASHBOARD (Network Security)
 -------------------------------------------------- */

@@ -1,7 +1,8 @@
 /* ============================================================
    SYSTEM INFO — agent cards
-   Renders registered agents as small cards with a live/down
-   badge; hovering (or focusing) a card reveals its capability.
+   Renders registered agents as medium square cards with the full
+   agent name and a live/down badge; hovering (or focusing) a card
+   reveals its core capabilities.
    ============================================================ */
 
 (function () {
@@ -10,30 +11,29 @@
     var grid = document.getElementById("sysAgentCards");
     var countChip = document.getElementById("agentCountChip");
 
-    var CAPABILITIES = [
+    /* Core capabilities, keyed by the agent registry id. */
+    var CAPABILITIES = {
+        "firewall-audit-agent":
+            "Performs compliance assessments, generates executive summaries and reports, and delivers prioritised security findings with clear remediation recommendations.",
+        "netsec-execution-agent":
+            "Automates rule and policy lifecycle management, object management and network management across Palo Alto firewalls.",
+        "incident-response-agent-cloud-security":
+            "Delivers cloud security posture management (CSPM), integrates Microsoft Defender for Cloud and Microsoft Sentinel, analyses incidents, and performs cloud containment actions and security responses."
+    };
+
+    /* Fallback matching for agents that are not in the registry map. */
+    var CAPABILITY_RULES = [
         {
-            keys: ["firewall", "audit", "assessment"],
-            text: "Runs firewall compliance assessments, triages findings and drafts executive summaries."
+            keys: ["audit", "firewall audit"],
+            text: CAPABILITIES["firewall-audit-agent"]
         },
         {
-            keys: ["cloud", "aws", "azure", "gcp"],
-            text: "Audits cloud workload posture and surfaces misconfigurations across accounts."
+            keys: ["execution", "netsec", "firewall execution"],
+            text: CAPABILITIES["netsec-execution-agent"]
         },
         {
-            keys: ["network", "vpn", "remote", "perimeter"],
-            text: "Reviews network, VPN and remote-access controls for policy drift."
-        },
-        {
-            keys: ["insight", "telemetry", "monitor", "observ", "cost", "token"],
-            text: "Analyses agent telemetry, token usage and cost across the platform."
-        },
-        {
-            keys: ["policy", "compliance", "governance", "control"],
-            text: "Maps controls to compliance frameworks and tracks remediation progress."
-        },
-        {
-            keys: ["incident", "threat", "soc", "alert"],
-            text: "Correlates security events and supports incident triage."
+            keys: ["cloud", "sentinel", "defender"],
+            text: CAPABILITIES["incident-response-agent-cloud-security"]
         }
     ];
 
@@ -58,13 +58,17 @@
     }
 
     function capabilityFor(agent) {
-        var hay = ((agent.name || "") + " " + (agent.type || "") + " " + (agent.model || "")).toLowerCase();
+        var id = String(agent.id || "").toLowerCase();
+        if (CAPABILITIES[id]) {
+            return CAPABILITIES[id];
+        }
+        var hay = ((agent.name || "") + " " + (agent.type || "")).toLowerCase();
         var i;
         var j;
-        for (i = 0; i < CAPABILITIES.length; i += 1) {
-            for (j = 0; j < CAPABILITIES[i].keys.length; j += 1) {
-                if (hay.indexOf(CAPABILITIES[i].keys[j]) !== -1) {
-                    return CAPABILITIES[i].text;
+        for (i = 0; i < CAPABILITY_RULES.length; i += 1) {
+            for (j = 0; j < CAPABILITY_RULES[i].keys.length; j += 1) {
+                if (hay.indexOf(CAPABILITY_RULES[i].keys[j]) !== -1) {
+                    return CAPABILITY_RULES[i].text;
                 }
             }
         }
@@ -85,18 +89,19 @@
 
     function cardHtml(agent) {
         var name = agent.name || "Agent";
+        var type = agent.type && agent.type !== name
+            ? '<span class="agent-card-type">' + escapeHtml(agent.type) + "</span>"
+            : "";
         return (
             '<article class="agent-card" tabindex="0" aria-label="' + escapeHtml(name) + '">' +
-            '<div class="agent-card-head">' +
+            '<div class="agent-card-body">' +
             '<span class="agent-avatar" aria-hidden="true">' + escapeHtml(initials(name)) + "</span>" +
-            '<div class="agent-card-id">' +
             '<strong class="agent-card-name">' + escapeHtml(name) + "</strong>" +
-            '<span class="agent-card-type">' + escapeHtml(agent.type || "Agent") + "</span>" +
-            "</div>" +
+            type +
             statusBadge(agent) +
             "</div>" +
             '<div class="agent-card-capability">' +
-            '<span class="agent-cap-label">Capability</span>' +
+            '<span class="agent-cap-label">Core Capabilities</span>' +
             "<p>" + escapeHtml(capabilityFor(agent)) + "</p>" +
             "</div>" +
             "</article>"
@@ -137,7 +142,7 @@
             .catch(function () {
                 grid.innerHTML = '<p class="sys-agent-note">Unable to load agent status.</p>';
                 if (countChip) {
-                    countChip.textContent = "Total —";
+                    countChip.textContent = "Total \u2014";
                 }
             });
     }

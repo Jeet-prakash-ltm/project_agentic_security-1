@@ -7,9 +7,9 @@
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='LTM_LOGO.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=13">
     {% if page_css %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=30">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=31">
     {% endif %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v=6">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v=7">
 </head>
 <body class="{% block body_class %}{% endblock %}" data-logout-url="{{ url_for('logout') }}">
 

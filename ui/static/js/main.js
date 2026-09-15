@@ -4,7 +4,6 @@
     var sidebar = document.getElementById("sidebar");
     var backdrop = document.getElementById("sidebarBackdrop");
     var menuToggle = document.getElementById("menuToggle");
-    var sidebarToggle = document.getElementById("sidebarToggle");
 
     function isDesktop() {
         return window.innerWidth > 768;
@@ -21,11 +20,6 @@
         if (!sidebar) return;
         sidebar.classList.toggle("expanded", expanded);
         document.body.classList.toggle("sidebar-expanded", expanded);
-        if (sidebarToggle) {
-            sidebarToggle.setAttribute("aria-expanded", expanded ? "true" : "false");
-            sidebarToggle.setAttribute("aria-label", expanded ? "Collapse navigation" : "Expand navigation");
-            sidebarToggle.setAttribute("title", expanded ? "Collapse navigation" : "Expand navigation");
-        }
     }
 
     if (menuToggle) {
@@ -35,16 +29,20 @@
         });
     }
 
-    if (sidebarToggle) {
-        sidebarToggle.addEventListener("click", function () {
-            var isExpanded = sidebar.classList.contains("expanded");
-            toggleDesktopSidebar(!isExpanded);
-        });
-    }
-
     if (backdrop) {
         backdrop.addEventListener("click", function () {
             toggleSidebar(false);
+        });
+    }
+
+    // Desktop: expand the sidebar while the pointer is over it, otherwise
+    // collapse back to icons only.
+    if (sidebar) {
+        sidebar.addEventListener("mouseenter", function () {
+            if (isDesktop()) toggleDesktopSidebar(true);
+        });
+        sidebar.addEventListener("mouseleave", function () {
+            if (isDesktop()) toggleDesktopSidebar(false);
         });
     }
 
@@ -112,55 +110,6 @@
         if (trigger) {
             window.showToast(trigger.getAttribute("data-toast"));
         }
-    });
-
-    // ------------------------------------------------------------
-    // SYSTEM STATUS — sidebar live/sample indicator
-    // ------------------------------------------------------------
-
-    function setSystemStatus(status) {
-        var liveBadge = document.getElementById("liveBadge");
-        var liveBadgeDot = document.getElementById("liveBadgeDot");
-        var liveBadgeText = document.getElementById("liveBadgeText");
-
-        if (!liveBadge) return;
-
-        var overall = status.overall || "operational";
-        var source = status.source || "live";
-
-        var badgeClass = source === "live" ? "" : (overall === "offline" ? "is-offline" : "is-sample");
-        liveBadge.classList.remove("is-sample", "is-offline");
-        if (badgeClass) liveBadge.classList.add(badgeClass);
-
-        if (liveBadgeDot) {
-            liveBadgeDot.className = "pulse-dot";
-        }
-        if (liveBadgeText) {
-            liveBadgeText.textContent = source === "live" ? "Live" : "Sample";
-        }
-        liveBadge.setAttribute("title", source === "live" ? "Live" : "Sample");
-    }
-
-    function loadSystemStatus() {
-        fetch("/api/system-status")
-            .then(function (res) {
-                return res.json();
-            })
-            .then(function (data) {
-                if (data && !data.error) {
-                    setSystemStatus(data);
-                }
-            })
-            .catch(function () {
-                // keep default UI on failure
-            });
-    }
-
-    loadSystemStatus();
-
-    setInterval(loadSystemStatus, 30000);
-    document.addEventListener("visibilitychange", function () {
-        if (!document.hidden) loadSystemStatus();
     });
 
     // ------------------------------------------------------------

@@ -12,6 +12,18 @@
         <h1>Settings</h1>
         <p>{% if is_admin %}Manage user accounts, firewall inventory, and AI agents.{% else %}View user accounts and firewall inventory.{% endif %}</p>
     </div>
+    <div class="user-chip settings-user-chip" title="{{ current_user.name if current_user else 'LTM Security' }}">
+        <span class="avatar">{{ current_user.name|initials if current_user else 'LTM' }}</span>
+        <div class="user-meta">
+            <span class="user-name">{{ current_user.name if current_user else 'LTM Security' }}</span>
+            <span class="user-role">{{ current_user.role if current_user else 'Security Operations' }}</span>
+        </div>
+        {% if current_user %}
+        <a href="{{ url_for('logout') }}" class="user-logout" title="Sign out" aria-label="Sign out">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+        </a>
+        {% endif %}
+    </div>
 </div>
 
 <section class="settings-grid" data-is-admin="{{ 'true' if is_admin else 'false' }}">

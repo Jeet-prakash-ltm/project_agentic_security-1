@@ -7,7 +7,7 @@
 
     var sidebar = document.getElementById("wsSidebar");
     var insights = document.getElementById("wsInsights");
-    var sidebarToggle = document.getElementById("sidebarToggle");
+    var sidebarToggle = document.getElementById("wsSidebarToggle");
     var insightsToggle = document.getElementById("insightsToggle");
     var insightsClose = document.getElementById("insightsClose");
     var newChatBtn = document.getElementById("newChatBtn");

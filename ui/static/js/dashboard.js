@@ -367,26 +367,7 @@
     // MAIN
     // ============================================================
 
-    function scopeLabel(fw) {
-        return fw === "all" ? "Full Inventory" : fw;
-    }
-
-    function scopeSub(fw) {
-        if (fw === "all") return "Cumulative across every managed firewall";
-        var entry = (state.inventory || []).filter(function (e) {
-            return e && e.device_name === fw;
-        })[0];
-        if (entry && entry.clone_of) return "Clone of " + entry.clone_of + " \u00b7 data from parent firewall";
-        return "Single firewall";
-    }
-
     function updateScope(fw) {
-        var nameEl = document.getElementById("dashScopeName");
-        var subEl = document.getElementById("dashScopeSub");
-        if (nameEl) nameEl.textContent = scopeLabel(fw);
-        if (subEl) subEl.textContent = scopeSub(fw);
-        document.body.classList.toggle("dash-estate", fw === "all");
-
         var assess = document.getElementById("quickAssess");
         var summary = document.getElementById("quickSummary");
         var report = document.getElementById("quickReport");

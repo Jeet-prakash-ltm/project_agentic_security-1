@@ -45,7 +45,7 @@
     <section class="ws-panel ws-chat" id="wsChat">
 
         <header class="ws-chat-header">
-            <button class="ws-icon-btn" id="sidebarToggle" title="Toggle conversation history" aria-label="Toggle conversation history">
+            <button class="ws-icon-btn" id="wsSidebarToggle" title="Toggle conversation history" aria-label="Toggle conversation history">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
             </button>
 
@@ -123,5 +123,5 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=7"></script>
 <script src="{{ url_for('static', filename='js/netsec.js') }}?v=6"></script>
-<script src="{{ url_for('static', filename='js/workspace.js') }}?v=21"></script>
+    <script src="{{ url_for('static', filename='js/workspace.js') }}?v=22"></script>
 {% endblock %}

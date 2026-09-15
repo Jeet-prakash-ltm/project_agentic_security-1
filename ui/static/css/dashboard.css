@@ -100,48 +100,6 @@
     border-radius: 12px;
 }
 
-.dash-scope {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    margin: -12px 0 22px;
-    padding: 9px 16px;
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    background: var(--glass-soft);
-    font-size: 13px;
-    color: var(--text-2);
-}
-
-.dash-scope-label {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--muted);
-}
-
-.dash-scope strong {
-    color: var(--text);
-    font-weight: 700;
-}
-
-.dash-scope-sub {
-    color: var(--muted);
-    font-size: 12.5px;
-}
-
-.dash-scope-sub::before {
-    content: "\00b7";
-    margin-right: 9px;
-    color: var(--border);
-}
-
-body.dash-estate .dash-scope {
-    border-color: rgba(255, 94, 79, 0.35);
-    background: rgba(255, 94, 79, 0.06);
-}
-
 /* Firewall inventory search combobox (shared markup with Reports) */
 
 .rep-combobox {

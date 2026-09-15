@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}LTM Security Platform{% endblock %}</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='LTM_LOGO.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=10">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=11">
     {% if page_css %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=26">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=27">
     {% endif %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v=3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v=4">
 </head>
 <body class="{% block body_class %}{% endblock %}" data-logout-url="{{ url_for('logout') }}">
 
@@ -22,10 +22,6 @@
     </button>
 
     <aside class="sidebar" id="sidebar">
-        <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Expand navigation" aria-expanded="false" title="Expand navigation">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6l6 6-6 6"/><path d="M15 6l6 6-6 6"/></svg>
-        </button>
-
         <a href="{{ url_for('dashboard') }}" class="brand brand-link" title="LTM Security Platform">
             <span class="brand-icon brand-logo"><img src="{{ url_for('static', filename='LTM_LOGO.png') }}" alt="LTM Security Platform"></span>
             <div class="brand-text">
@@ -79,23 +75,6 @@
                 <span>Settings</span>
             </a>
         </nav>
-
-        <div class="sidebar-footer">
-            <span class="live-badge" id="liveBadge" title="Live"><span class="pulse-dot" id="liveBadgeDot"></span><span class="live-badge-text" id="liveBadgeText">Live</span></span>
-            <div class="user-chip" title="{{ current_user.name if current_user else 'LTM Security' }}">
-                <span class="avatar">{{ current_user.name|initials if current_user else 'LTM' }}</span>
-                <div class="user-meta">
-                    <span class="user-name">{{ current_user.name if current_user else 'LTM Security' }}</span>
-                    <span class="user-role">{{ current_user.role if current_user else 'Security Operations' }}</span>
-                </div>
-                {% if current_user %}
-                <a href="{{ url_for('logout') }}" class="user-logout" title="Sign out" aria-label="Sign out">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
-                </a>
-                {% endif %}
-            </div>
-            <div class="sidebar-version">LTM Platform v2.4.1</div>
-        </div>
     </aside>
 
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
@@ -108,7 +87,7 @@
 
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=8"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=9"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

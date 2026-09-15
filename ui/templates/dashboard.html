@@ -10,7 +10,6 @@
     <div class="dash-heading">
         <span class="hero-eyebrow">Dashboard · Network Security</span>
         <h1>Network Security</h1>
-        <p>Compliance score, findings and risk domains across your firewall estate — refreshed in real time.</p>
     </div>
     <div class="dash-meta">
         <div class="dash-fw-search">
@@ -25,6 +24,18 @@
             </div>
         </div>
         <span class="hero-chip" id="dataSourceBadge">Connecting…</span>
+        <a href="{{ url_for('run_assessment') }}" class="hero-chip-btn ghost" id="quickAssess">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"/><path d="M12 8v4M12 15.5v.5"/></svg>
+            Run Assessment
+        </a>
+        <a href="{{ url_for('reports') }}" class="hero-chip-btn ghost" id="quickSummary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            Executive Summary
+        </a>
+        <a href="{{ url_for('generate_excel') }}" class="hero-chip-btn ghost" id="quickReport">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h8l4 4V21.5H6V2.5z"/><path d="M14 2.5v4h4"/><path d="M9 12h6M9 16h6"/></svg>
+            Generate Report
+        </a>
         <button class="hero-chip-btn" id="refreshBtn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.5 15a9 9 0 102.6-8L1 10"/></svg>
             Refresh
@@ -48,42 +59,6 @@
     <div class="card dash-panel">
         <div class="section-head"><h3>Findings by Severity</h3></div>
         <div class="severity-grid" id="severityGrid"></div>
-    </div>
-</section>
-
-<section class="quick-actions">
-    <div class="section-head"><h3>Quick Actions</h3></div>
-    <div class="quick-grid">
-        <a href="{{ url_for('run_assessment') }}" class="quick-card" id="quickAssess">
-            <span class="quick-icon quick-icon-blue">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"/><path d="M12 8v4M12 15.5v.5"/></svg>
-            </span>
-            <div class="quick-body">
-                <h4>Run Assessment</h4>
-                <p id="quickAssessText">Execute a full compliance assessment</p>
-            </div>
-            <span class="quick-arrow">→</span>
-        </a>
-        <a href="{{ url_for('reports') }}" class="quick-card" id="quickSummary">
-            <span class="quick-icon quick-icon-purple">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-            </span>
-            <div class="quick-body">
-                <h4>Executive Summary</h4>
-                <p id="quickSummaryText">Review generated summaries in Reports Center</p>
-            </div>
-            <span class="quick-arrow">→</span>
-        </a>
-        <a href="{{ url_for('workspace') }}" class="quick-card" id="quickReport">
-            <span class="quick-icon quick-icon-green">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h8l4 4V21.5H6V2.5z"/><path d="M14 2.5v4h4"/><path d="M9 12h6M9 16h6"/></svg>
-            </span>
-            <div class="quick-body">
-                <h4>Generate Report</h4>
-                <p id="quickReportText">Create an assessment workbook in AI Workspace</p>
-            </div>
-            <span class="quick-arrow">→</span>
-        </a>
     </div>
 </section>
 
@@ -115,5 +90,5 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=7"></script>
-<script src="{{ url_for('static', filename='js/dashboard.js') }}?v=12"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}?v=13"></script>
 {% endblock %}

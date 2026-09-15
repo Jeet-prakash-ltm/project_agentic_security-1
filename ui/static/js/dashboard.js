@@ -157,7 +157,7 @@
     }
 
     // ============================================================
-    // FINDINGS BY SEVERITY (colored squares)
+    // FINDINGS BY SEVERITY (horizontal bar graph)
     // ============================================================
 
     function renderSeverityGrid(f) {
@@ -169,12 +169,19 @@
             { label: "Medium", color: "#F59E0B", count: f.medium || 0, status: "medium" },
             { label: "Low", color: "#22C55E", count: f.low || 0, status: "low" }
         ];
+        var max = 1;
+        sev.forEach(function (s) { max = Math.max(max, s.count); });
         var html = "";
         sev.forEach(function (s) {
-            html += '<a class="sev-tile" href="' + findingsUrl("severity", s.status) + '" title="' + s.label + ': ' + s.count + ' findings">' +
-                '<span class="sev-tile-color" style="background:' + s.color + '"></span>' +
-                '<span class="sev-tile-count">' + s.count + "</span>" +
-                '<span class="sev-tile-label">' + s.label + "</span>" +
+            var width = Math.round(s.count / max * 100);
+            html += '<a class="sev-bar" href="' + findingsUrl("severity", s.status) + '" title="' + s.label + ': ' + s.count + ' findings">' +
+                '<span class="sev-bar-head">' +
+                '<span class="sev-bar-label">' + s.label + "</span>" +
+                '<span class="sev-bar-count">' + s.count + "</span>" +
+                "</span>" +
+                '<span class="sev-bar-track">' +
+                '<span class="sev-bar-fill" style="width:' + width + "%;background:" + s.color + '"></span>' +
+                "</span>" +
                 "</a>";
         });
         el.innerHTML = html;
@@ -271,7 +278,7 @@
             var avg = values.reduce(function (a, b) { return a + b; }, 0) / values.length;
             return { ts: Number(ts), value: Math.round(avg * 10) / 10 };
         }).sort(function (a, b) { return a.ts - b.ts; });
-        return [{ name: "Full Inventory", points: points }];
+        return [{ name: "All Firewalls", points: points }];
     }
 
     function renderTrendStats(history, firewallId, complianceScore) {
@@ -371,31 +378,18 @@
         var assess = document.getElementById("quickAssess");
         var summary = document.getElementById("quickSummary");
         var report = document.getElementById("quickReport");
-        var query = fw === "all" ? "" : "?firewall=" + encodeURIComponent(fw);
+        var query = "?firewall=" + encodeURIComponent(fw || "all");
         if (assess) {
-            assess.href = fw === "all" ? "/workspace" : "/run-assessment" + query;
+            assess.href = fw === "all"
+                ? "/workspace"
+                : "/run-assessment?firewall=" + encodeURIComponent(fw);
         }
-        if (summary) summary.href = "/reports" + query;
-        if (report) report.href = "/workspace";
-
-        var assessText = document.getElementById("quickAssessText");
-        if (assessText) {
-            assessText.textContent = fw === "all"
-                ? "Assess every managed firewall in the AI Workspace"
-                : "Execute a compliance assessment for " + fw;
+        if (summary) {
+            summary.href = fw === "all"
+                ? "/reports?firewall=all"
+                : "/executive-summary" + query;
         }
-        var summaryText = document.getElementById("quickSummaryText");
-        if (summaryText) {
-            summaryText.textContent = fw === "all"
-                ? "Review summaries for the whole estate"
-                : "Review generated summaries for " + fw;
-        }
-        var reportText = document.getElementById("quickReportText");
-        if (reportText) {
-            reportText.textContent = fw === "all"
-                ? "Create an estate-wide assessment workbook"
-                : "Create a workbook for " + fw;
-        }
+        if (report) report.href = "/generate-excel" + query;
     }
 
     function applyNetsecData(data) {
@@ -434,7 +428,7 @@
         if (!input) return;
         if (state.firewall === "all") {
             input.value = "";
-            input.placeholder = "Full Inventory — search estate";
+            input.placeholder = "All Firewalls — search estate";
         } else {
             input.value = state.firewall;
             input.placeholder = "";
@@ -452,8 +446,8 @@
         if (!q || q.indexOf("all") !== -1 || q.indexOf("full") !== -1 || q.indexOf("device") !== -1 || q.indexOf("inventory") !== -1) {
             out += '<li class="rep-combo-row' + (state.firewall === "all" ? " is-active" : "") +
                 '" role="option" data-value="all">' +
-                '<span class="rep-combo-name">Full Inventory</span>' +
-                '<span class="rep-combo-sub">Cumulative data for every managed firewall</span></li>';
+                '<span class="rep-combo-name">All Firewalls</span>' +
+                '<span class="rep-combo-sub">Cumulative data across every managed firewall</span></li>';
         }
         inventorySource().forEach(function (fw) {
             var name = fw.device_name || "";

@@ -261,6 +261,22 @@
     box-shadow: 0 14px 30px rgba(255, 94, 79, 0.28);
 }
 
+/* Quick-action buttons share Refresh's shape and size, in an outline style so
+   Refresh keeps primary emphasis. */
+.hero-chip-btn.ghost {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    color: var(--text-2);
+    box-shadow: none;
+}
+
+.hero-chip-btn.ghost:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 94, 79, 0.4);
+    color: var(--red);
+    box-shadow: none;
+}
+
 .trend-legend {
     display: flex;
     gap: 16px;
@@ -455,52 +471,63 @@
 }
 
 /* ============================================================
-   FINDINGS BY SEVERITY (colored tiles)
+   FINDINGS BY SEVERITY (horizontal bar graph)
    ============================================================ */
 
 .severity-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-}
-
-.sev-tile {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 14px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
+    flex-direction: column;
+    gap: 16px;
+    padding: 4px 2px;
+}
+
+.sev-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
     text-decoration: none;
-    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.sev-tile:hover,
-.sev-tile:focus {
-    transform: translateY(-2px);
-    border-color: rgba(255, 94, 79, 0.4);
-    box-shadow: var(--shadow-glow);
+.sev-bar-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
 }
 
-.sev-tile-color {
-    width: 14px;
-    height: 40px;
-    border-radius: 6px;
-    flex-shrink: 0;
+.sev-bar-label {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.01em;
 }
 
-.sev-tile-count {
-    font-size: 24px;
+.sev-bar-count {
+    font-size: 15px;
     font-weight: 800;
     color: var(--text);
     font-family: var(--font-display);
 }
 
-.sev-tile-label {
-    font-size: 12px;
-    color: var(--muted);
-    font-weight: 600;
+.sev-bar-track {
+    position: relative;
+    height: 12px;
+    border-radius: 999px;
+    background: var(--border-soft);
+    overflow: hidden;
+}
+
+.sev-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    min-width: 2px;
+    transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sev-bar:hover .sev-bar-fill,
+.sev-bar:focus .sev-bar-fill {
+    filter: brightness(1.08);
 }
 
 /* ============================================================
@@ -692,90 +719,8 @@
 .trend-label { flex: 1; font-size: 10px; color: var(--muted); text-align: center; }
 .trend-summary { font-size: 12px; color: var(--muted); line-height: 1.5; }
 
-/* ============================================================
-   QUICK ACTIONS (premium action cards)
-   ============================================================ */
-
-.quick-actions {
-    margin-bottom: 26px;
-}
-
-.quick-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-}
-
-.quick-card {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 20px;
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    box-shadow: var(--shadow-soft);
-    text-decoration: none;
-    color: var(--text);
-    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
-}
-
-.quick-card:hover,
-.quick-card:focus {
-    transform: translateY(-3px);
-    border-color: rgba(255, 94, 79, 0.4);
-    box-shadow: var(--shadow-glow);
-}
-
-.quick-icon {
-    width: 46px;
-    height: 46px;
-    border-radius: 14px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.quick-icon svg {
-    width: 22px;
-    height: 22px;
-}
-
-.quick-icon-blue { background: var(--blue-soft); color: var(--blue); }
-.quick-icon-purple { background: var(--purple-soft); color: var(--purple); }
-.quick-icon-green { background: var(--success-soft); color: var(--success); }
-
-.quick-body {
-    flex: 1;
-    min-width: 0;
-}
-
-.quick-body h4 {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--text);
-    margin: 0 0 4px;
-}
-
-.quick-body p {
-    font-size: 12.5px;
-    color: var(--muted);
-    line-height: 1.4;
-    margin: 0;
-}
-
-.quick-arrow {
-    color: var(--muted);
-    font-size: 18px;
-    flex-shrink: 0;
-    transition: transform 0.18s ease, color 0.18s ease;
-}
-
-.quick-card:hover .quick-arrow {
-    color: var(--red);
-    transform: translateX(4px);
-}
+/* Quick-action buttons live in the page header next to Refresh and reuse the
+   .hero-chip-btn styling so every action has an identical shape and size. */
 
 /* ============================================================
    RESPONSIVE
@@ -785,15 +730,9 @@
     .dash-grid-2 {
         grid-template-columns: 1fr;
     }
-    .quick-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
 }
 
 @media (max-width: 768px) {
-    .severity-grid {
-        grid-template-columns: 1fr 1fr;
-    }
     .vertical-bars-axis {
         gap: 6px;
     }
@@ -801,15 +740,6 @@
         max-width: 320px;
         margin: 0 auto;
     }
-}
-
-@media (max-width: 640px) {
-    .quick-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 768px) {
     .dash-header {
         flex-direction: column;
         align-items: stretch;
@@ -818,6 +748,17 @@
     .dash-meta {
         justify-content: flex-start;
     }
+    .dash-fw-search {
+        flex: 1 1 100%;
+    }
+    .dash-fw-search .rep-combobox {
+        width: auto;
+        flex: 1;
+    }
+    .dash-meta .hero-chip-btn {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
     .dash-heading h1 {
         font-size: 26px;
     }
@@ -825,11 +766,5 @@
     .compliance-trend-section::before {
         left: 20px;
         right: 20px;
-    }
-}
-
-@media (max-width: 480px) {
-    .severity-grid {
-        grid-template-columns: 1fr;
     }
 }

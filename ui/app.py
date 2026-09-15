@@ -647,15 +647,39 @@ def executive_report():
 @login_required
 def generate_excel():
 
+    estate = (
+        (request.args.get("firewall") or "").strip().lower()
+        in ("all", "estate", "full", "full inventory")
+    )
+
     try:
 
-        result = (
-            assessment_service
-            .get_excel_report(
-                firewall_id=_firewall_param(),
-                force=True
+        if estate:
+
+            result = (
+                assessment_service
+                .get_estate_excel(force=True)
             )
-        )
+
+            # Reports centre expects a single-firewall summary shape; map the
+            # cumulative estate stats onto it so the counts render correctly.
+            cumulative = result.get("summary") or {}
+            result["summary"] = {
+                "total_controls": cumulative.get("total_controls", 0),
+                "compliant": cumulative.get("total_compliant", 0),
+                "non_compliant": cumulative.get("total_non_compliant", 0),
+                "not_assessed": cumulative.get("total_not_assessed", 0),
+            }
+
+        else:
+
+            result = (
+                assessment_service
+                .get_excel_report(
+                    firewall_id=_firewall_param(),
+                    force=True
+                )
+            )
 
         download_url = None
 
@@ -675,14 +699,18 @@ def generate_excel():
 
         size = file_size_label(result.get("local_file"))
 
+        report_name = "Full Inventory Workbook" if estate else "Assessment"
+        report_name = "{0}_{1}".format(
+            report_name,
+            timeutil.ist_now().strftime("%b_%Y"),
+        )
+
         report_history_service.append_report(
             {
-                "name": "Assessment_Workbook_{0}".format(
-                    timeutil.ist_now().strftime("%b_%Y")
-                ),
+                "name": report_name,
                 "type": "Workbook",
                 "generated_by": (agent or {}).get("name", "Firewall Audit Agent"),
-                "firewall": _firewall_param(),
+                "firewall": "estate" if estate else _firewall_param(),
                 "ts": time.time(),
                 "status": "Completed",
                 "size": size,

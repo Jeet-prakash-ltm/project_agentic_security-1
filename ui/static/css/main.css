@@ -86,8 +86,7 @@
 
     /* ---- Layout ---- */
     --sidebar-width: 64px;
-    --sidebar-expanded-width: 200px;
-    --topbar-height: 68px;
+    --sidebar-expanded-width: 224px;
 
     /* ---- Typography ---- */
     --font: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -124,7 +123,7 @@ h1, h2, h3, h4, p {
     margin: 0;
 }
 
-h1, h2, h3, .brand-title, .topbar-title h2 {
+h1, h2, h3, .brand-title {
     font-family: var(--font-display);
     letter-spacing: -0.02em;
 }
@@ -171,7 +170,7 @@ input, select, textarea {
 }
 
 /* --------------------------------------------------
-   BACKGROUND — subtle crystal wash + hex pattern
+   BACKGROUND — single shared photo
 -------------------------------------------------- */
 
 .bg-scene {
@@ -185,70 +184,6 @@ input, select, textarea {
 .bg-layer {
     position: absolute;
     inset: 0;
-}
-
-.bg-gradient {
-    background:
-        radial-gradient(1100px 700px at 88% -12%, rgba(255, 125, 112, 0.1), transparent 58%),
-        radial-gradient(900px 600px at -8% 22%, rgba(255, 227, 231, 0.55), transparent 52%),
-        linear-gradient(160deg, #FFFFFF 0%, #FAFAFB 55%, #FDF3F4 100%);
-}
-
-.bg-hex {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='96' viewBox='0 0 56 96'%3E%3Cpath d='M28 0l28 16v32L28 64 0 48V16z' fill='none' stroke='%23ff5e4f' stroke-opacity='0.045' stroke-width='1'/%3E%3Cpath d='M28 96l28-16V48L28 64 0 48v32z' fill='none' stroke='%23ff5e4f' stroke-opacity='0.045' stroke-width='1'/%3E%3C/svg%3E");
-}
-
-.bg-noise {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-}
-
-.crystal-orb {
-    position: absolute;
-    border-radius: 50%;
-    background: radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.3) 42%, rgba(255, 94, 79, 0.08) 72%, rgba(255, 94, 79, 0.02));
-    border: 1px solid rgba(255, 255, 255, 0.75);
-    box-shadow:
-        inset -14px -18px 40px rgba(255, 94, 79, 0.08),
-        inset 10px 12px 34px rgba(255, 255, 255, 0.85),
-        0 30px 80px rgba(255, 94, 79, 0.08);
-    animation: orbFloat var(--orb-dur, 18s) ease-in-out infinite;
-    will-change: transform;
-}
-
-.orb-1 {
-    width: 200px;
-    height: 200px;
-    top: -40px;
-    right: 8%;
-    --orb-dur: 22s;
-}
-
-.orb-2 {
-    width: 110px;
-    height: 110px;
-    bottom: 8%;
-    left: 4%;
-    --orb-dur: 17s;
-}
-
-.orb-3 {
-    width: 60px;
-    height: 60px;
-    top: 42%;
-    right: 2%;
-    --orb-dur: 14s;
-}
-
-@keyframes orbFloat {
-    0%, 100% {
-        transform: translate3d(0, 0, 0) rotate(0deg);
-    }
-    33% {
-        transform: translate3d(-18px, 26px, 0) rotate(6deg);
-    }
-    66% {
-        transform: translate3d(16px, -14px, 0) rotate(-4deg);
-    }
 }
 
 /* --------------------------------------------------
@@ -273,6 +208,37 @@ input, select, textarea {
     z-index: 60;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
     overflow: visible;
+}
+
+.sidebar-toggle {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 8px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 11px;
+    color: var(--text-2);
+    background: var(--glass-soft);
+    border: 1px solid var(--glass-border);
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.sidebar-toggle:hover {
+    background: var(--glass);
+    color: var(--text);
+    transform: scale(1.05);
+}
+
+.sidebar-toggle svg {
+    width: 17px;
+    height: 17px;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar.expanded .sidebar-toggle svg {
+    transform: rotate(180deg);
 }
 
 .brand {
@@ -473,6 +439,10 @@ input, select, textarea {
     display: flex;
 }
 
+.sidebar:not(.expanded):not(.open) .nav-submenu {
+    display: none;
+}
+
 .nav-sublink {
     display: flex;
     align-items: center;
@@ -517,49 +487,6 @@ input, select, textarea {
     flex-direction: column;
     align-items: center;
     gap: 10px;
-}
-
-.system-status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 11.5px;
-    font-weight: 600;
-    color: var(--text-2);
-    padding: 8px 10px;
-    background: var(--glass-soft);
-    border: 1px solid var(--glass-border);
-    border-radius: 10px;
-    overflow: hidden;
-    white-space: nowrap;
-}
-
-.system-status .pulse-dot {
-    background: var(--success);
-    flex-shrink: 0;
-}
-
-.system-status.is-degraded .pulse-dot {
-    background: var(--warning);
-}
-
-.system-status.is-degraded .status-label {
-    color: var(--warning);
-}
-
-.system-status.is-offline .pulse-dot {
-    background: var(--danger);
-}
-
-.system-status.is-offline .status-label {
-    color: var(--danger);
-}
-
-.system-status .status-label {
-    opacity: 0;
-    width: 0;
-    overflow: hidden;
-    transition: opacity 0.22s ease, width 0.3s ease;
 }
 
 .sidebar-version {
@@ -625,15 +552,6 @@ input, select, textarea {
         width: 15px;
     }
 
-    .sidebar:not(.expanded) .nav-submenu {
-        display: none;
-    }
-
-    .sidebar.expanded .system-status .status-label {
-        opacity: 1;
-        width: auto;
-    }
-
     .sidebar.expanded .sidebar-version {
         opacity: 1;
     }
@@ -654,73 +572,38 @@ input, select, textarea {
 }
 
 /* --------------------------------------------------
-   HEADER — floating command bar
+   MOBILE MENU BUTTON — fixed, small screens only
 -------------------------------------------------- */
-
-.topbar {
-    position: sticky;
-    top: 14px;
-    z-index: 40;
-    height: var(--topbar-height);
-    margin: 14px 20px 0;
-    display: flex;
-    align-items: center;
-    gap: 18px;
-    padding: 0 18px 0 22px;
-    background: var(--glass);
-    -webkit-backdrop-filter: blur(36px);
-    backdrop-filter: blur(36px);
-    border: 1px solid var(--glass-border);
-    border-radius: 16px;
-    box-shadow: var(--shadow-glass);
-}
 
 .menu-toggle {
     display: none;
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 58;
     width: 40px;
     height: 40px;
     border: 1px solid var(--glass-border);
-    background: var(--glass-soft);
-    border-radius: 10px;
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(36px);
+    backdrop-filter: blur(36px);
+    border-radius: 11px;
     color: var(--text-2);
     align-items: center;
     justify-content: center;
+    box-shadow: var(--shadow-glass);
     transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .menu-toggle:hover {
-    background: var(--glass);
+    background: var(--glass-strong);
+    color: var(--text);
     transform: scale(1.05);
 }
 
 .menu-toggle svg {
     width: 20px;
     height: 20px;
-}
-
-.topbar-title {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-.topbar-title h2 {
-    font-size: 17px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-}
-
-.topbar-crumb {
-    font-size: 11px;
-    color: var(--text-2);
-    letter-spacing: 0.3px;
-}
-
-.topbar-actions {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-left: auto;
 }
 
 /* Global Agent Selector */
@@ -817,16 +700,23 @@ input, select, textarea {
     display: flex;
     flex-direction: column;
     line-height: 1.25;
+    min-width: 0;
 }
 
 .user-name {
     font-size: 12.5px;
     font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .user-role {
     font-size: 10px;
     color: var(--text-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .user-logout {
@@ -849,6 +739,62 @@ input, select, textarea {
 .user-logout:hover {
     color: #fff;
     background: rgba(255, 94, 79, 0.16);
+}
+
+/* ---- Sidebar footer: live status badge + user chip ---- */
+
+.sidebar-footer .live-badge {
+    padding: 6px;
+    gap: 0;
+    max-width: 100%;
+}
+
+.sidebar-footer .live-badge-text {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: opacity 0.22s ease, width 0.3s ease;
+}
+
+.sidebar .user-chip {
+    flex-direction: column;
+    gap: 6px;
+    padding: 5px;
+    border-radius: 14px;
+    max-width: 100%;
+}
+
+.sidebar .user-chip .user-meta {
+    display: none;
+}
+
+.sidebar .user-chip .user-logout {
+    margin-left: 0;
+}
+
+.sidebar.expanded .sidebar-footer .live-badge {
+    padding: 6px 13px;
+    gap: 8px;
+}
+
+.sidebar.expanded .sidebar-footer .live-badge-text {
+    opacity: 1;
+    width: auto;
+}
+
+.sidebar.expanded .user-chip {
+    flex-direction: row;
+    gap: 10px;
+    padding: 5px 11px 5px 5px;
+    border-radius: 999px;
+    width: 100%;
+}
+
+.sidebar.expanded .user-chip .user-meta {
+    display: flex;
+    flex: 1;
+    min-width: 0;
 }
 
 .main {
@@ -1512,10 +1458,6 @@ input, select, textarea {
     .main {
         padding: 20px 20px 36px;
     }
-
-    .topbar {
-        padding: 0 16px 0 20px;
-    }
 }
 
 @media (max-width: 768px) {
@@ -1525,6 +1467,10 @@ input, select, textarea {
         top: 10px;
         bottom: 10px;
         box-shadow: var(--shadow-lift);
+    }
+
+    .sidebar .sidebar-toggle {
+        display: none;
     }
 
     .sidebar.open {
@@ -1562,9 +1508,28 @@ input, select, textarea {
         width: 15px;
     }
 
-    .sidebar.open .system-status .status-label {
+    .sidebar.open .sidebar-footer .live-badge {
+        padding: 6px 13px;
+        gap: 8px;
+    }
+
+    .sidebar.open .sidebar-footer .live-badge-text {
         opacity: 1;
         width: auto;
+    }
+
+    .sidebar.open .user-chip {
+        flex-direction: row;
+        gap: 10px;
+        padding: 5px 11px 5px 5px;
+        border-radius: 999px;
+        width: 100%;
+    }
+
+    .sidebar.open .user-chip .user-meta {
+        display: flex;
+        flex: 1;
+        min-width: 0;
     }
 
     .sidebar.open .sidebar-version {
@@ -1584,28 +1549,12 @@ input, select, textarea {
         display: inline-flex;
     }
 
-    .topbar {
-        padding: 0 14px;
-        gap: 12px;
-        margin: 10px 10px 0;
-        top: 10px;
-    }
-
-    .topbar-crumb,
-    .live-badge {
-        display: none;
-    }
-
     .user-role {
         display: none;
     }
 
-    .user-chip {
-        padding: 5px;
-    }
-
     .main {
-        padding: 16px 12px 30px;
+        padding: 64px 12px 30px;
     }
 
     .toast-container {

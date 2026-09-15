@@ -4,6 +4,7 @@
     var sidebar = document.getElementById("sidebar");
     var backdrop = document.getElementById("sidebarBackdrop");
     var menuToggle = document.getElementById("menuToggle");
+    var sidebarToggle = document.getElementById("sidebarToggle");
 
     function isDesktop() {
         return window.innerWidth > 768;
@@ -20,29 +21,24 @@
         if (!sidebar) return;
         sidebar.classList.toggle("expanded", expanded);
         document.body.classList.toggle("sidebar-expanded", expanded);
-        try { sessionStorage.setItem("ltm.sidebar.expanded", expanded ? "1" : "0"); } catch (e) { /* ignore */ }
-    }
-
-    function restoreDesktopSidebar() {
-        if (!isDesktop() || !sidebar) return;
-        var expanded = true;
-        try {
-            var saved = sessionStorage.getItem("ltm.sidebar.expanded");
-            if (saved === "0") expanded = false;
-            else if (saved === "1") expanded = true;
-        } catch (e) { /* ignore */ }
-        toggleDesktopSidebar(expanded);
+        if (sidebarToggle) {
+            sidebarToggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+            sidebarToggle.setAttribute("aria-label", expanded ? "Collapse navigation" : "Expand navigation");
+            sidebarToggle.setAttribute("title", expanded ? "Collapse navigation" : "Expand navigation");
+        }
     }
 
     if (menuToggle) {
         menuToggle.addEventListener("click", function () {
-            if (isDesktop()) {
-                var isExpanded = sidebar.classList.contains("expanded");
-                toggleDesktopSidebar(!isExpanded);
-            } else {
-                var isOpen = sidebar.classList.contains("open");
-                toggleSidebar(!isOpen);
-            }
+            var isOpen = sidebar.classList.contains("open");
+            toggleSidebar(!isOpen);
+        });
+    }
+
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener("click", function () {
+            var isExpanded = sidebar.classList.contains("expanded");
+            toggleDesktopSidebar(!isExpanded);
         });
     }
 
@@ -63,8 +59,6 @@
         }
     });
 
-    restoreDesktopSidebar();
-
     // ------------------------------------------------------------
     // SIDEBAR NAV GROUP — Dashboard expands to its sub-pages
     // ------------------------------------------------------------
@@ -73,11 +67,24 @@
 
     if (dashGroup && dashToggle) {
         dashToggle.addEventListener("click", function () {
+            if (isDesktop() && sidebar && !sidebar.classList.contains("expanded")) {
+                dashGroup.classList.add("is-open");
+                dashToggle.setAttribute("aria-expanded", "true");
+                toggleDesktopSidebar(true);
+                return;
+            }
             var willOpen = !dashGroup.classList.contains("is-open");
             dashGroup.classList.toggle("is-open", willOpen);
             dashToggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
-            if (willOpen && isDesktop() && sidebar && !sidebar.classList.contains("expanded")) {
-                toggleDesktopSidebar(true);
+        });
+    }
+
+    // Collapse the sidebar again once a Dashboard sub-page is chosen.
+    var dashSubLinks = document.querySelectorAll(".nav-submenu .nav-sublink");
+    for (var s = 0; s < dashSubLinks.length; s++) {
+        dashSubLinks[s].addEventListener("click", function () {
+            if (isDesktop() && sidebar) {
+                toggleDesktopSidebar(false);
             }
         });
     }
@@ -108,47 +115,30 @@
     });
 
     // ------------------------------------------------------------
-    // SYSTEM STATUS — sidebar + topbar live/sample indicator
+    // SYSTEM STATUS — sidebar live/sample indicator
     // ------------------------------------------------------------
 
     function setSystemStatus(status) {
-        var systemStatus = document.getElementById("systemStatus");
-        var systemDot = document.getElementById("systemStatusDot");
-        var systemLabel = document.getElementById("systemStatusLabel");
         var liveBadge = document.getElementById("liveBadge");
         var liveBadgeDot = document.getElementById("liveBadgeDot");
         var liveBadgeText = document.getElementById("liveBadgeText");
 
-        if (!systemStatus && !liveBadge) return;
+        if (!liveBadge) return;
 
         var overall = status.overall || "operational";
         var source = status.source || "live";
 
-        var systemClass = overall === "offline" ? "is-offline" : (overall === "degraded" ? "is-degraded" : "");
-        if (systemStatus) {
-            systemStatus.classList.remove("is-offline", "is-degraded");
-            if (systemClass) systemStatus.classList.add(systemClass);
-        }
-        if (systemDot) {
-            systemDot.className = "pulse-dot";
-        }
-        if (systemLabel) {
-            if (overall === "offline") systemLabel.textContent = "Systems Offline";
-            else if (overall === "degraded") systemLabel.textContent = "Partial Systems Operational";
-            else systemLabel.textContent = "All Systems Operational";
-        }
-
         var badgeClass = source === "live" ? "" : (overall === "offline" ? "is-offline" : "is-sample");
-        if (liveBadge) {
-            liveBadge.classList.remove("is-sample", "is-offline");
-            if (badgeClass) liveBadge.classList.add(badgeClass);
-        }
+        liveBadge.classList.remove("is-sample", "is-offline");
+        if (badgeClass) liveBadge.classList.add(badgeClass);
+
         if (liveBadgeDot) {
             liveBadgeDot.className = "pulse-dot";
         }
         if (liveBadgeText) {
             liveBadgeText.textContent = source === "live" ? "Live" : "Sample";
         }
+        liveBadge.setAttribute("title", source === "live" ? "Live" : "Sample");
     }
 
     function loadSystemStatus() {

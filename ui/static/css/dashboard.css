@@ -6,12 +6,11 @@
     position: relative;
     z-index: 30;
     display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 26px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
     margin-bottom: 28px;
-    padding: 58px 32px 26px;
+    padding: 24px 32px 26px;
     overflow: visible;
     border-radius: 24px;
     border: 1px solid rgba(255, 94, 79, 0.12);
@@ -46,10 +45,7 @@
 
 /* Title block pinned to the very top-left corner of the header. */
 .dash-heading {
-    position: absolute;
-    top: 20px;
-    left: 32px;
-    max-width: 60%;
+    max-width: 62%;
 }
 
 /* Live badge + Refresh pinned to the very top-right corner of the header. */
@@ -84,10 +80,11 @@
 .dash-meta {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: flex-start;
     gap: 10px;
     flex-wrap: wrap;
-    margin-left: auto;
+    margin-left: 0;
+    width: 100%;
 }
 
 .dash-fw-search {

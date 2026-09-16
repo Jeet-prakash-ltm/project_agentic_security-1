@@ -476,7 +476,7 @@ input, select, textarea {
 @media (min-width: 769px) {
     .sidebar {
         width: var(--sidebar-width);
-        top: 14px;
+        top: 68px;
     }
 
     .sidebar.expanded {
@@ -600,10 +600,13 @@ input, select, textarea {
 
 .sidebar-expand-toggle {
     display: none;
+    position: fixed;
+    top: 14px;
+    left: calc(var(--sidebar-inset) + (var(--sidebar-width) - 44px) / 2);
+    z-index: 62;
     width: 44px;
     height: 44px;
     padding: 0;
-    margin: 0 auto 10px;
     border: 1px solid var(--glass-border);
     border-radius: 13px;
     background: rgba(255, 255, 255, 0.16);
@@ -612,7 +615,6 @@ input, select, textarea {
     color: var(--text-2);
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
     box-shadow: var(--shadow-glass);
     transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }

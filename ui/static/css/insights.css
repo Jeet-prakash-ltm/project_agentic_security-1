@@ -1211,6 +1211,23 @@
     border-radius: var(--radius-md, 10px);
     aspect-ratio: 1 / 1;
     min-width: 0;
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.agent-health-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 94, 79, 0.4);
+}
+
+.agent-health-card.is-active {
+    border-color: rgba(255, 94, 79, 0.55);
+    box-shadow: 0 10px 26px rgba(255, 94, 79, 0.16);
+}
+
+.agent-health-card:focus-visible {
+    outline: 2px solid rgba(255, 94, 79, 0.5);
+    outline-offset: 2px;
 }
 
 .agent-health-card-top {

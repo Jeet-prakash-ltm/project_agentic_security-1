@@ -392,6 +392,26 @@
     color: var(--muted);
 }
 
+/* Live/down status pill — mirrors the Network Security dashboard badge. */
+.hero-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--success);
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(22, 163, 74, 0.35);
+    padding: 9px 15px;
+    border-radius: 999px;
+    box-shadow: var(--shadow-soft);
+    white-space: nowrap;
+}
+
+.hero-chip .pulse-dot {
+    background: var(--success);
+}
+
 .fw-status {
     display: inline-flex;
     align-items: center;

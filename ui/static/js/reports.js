@@ -108,6 +108,27 @@
         renderRows();
     });
 
+    // ---- Domain navigation (Network Security / Cloud Security) ----
+
+    var domainNav = document.getElementById("reportsDomainNav");
+    var networkPanel = document.getElementById("reportsDomainNetwork");
+    var cloudPanel = document.getElementById("reportsDomainCloud");
+
+    if (domainNav) {
+        domainNav.addEventListener("click", function (event) {
+            var button = event.target.closest(".reports-domain-btn");
+            if (!button) return;
+            var domain = button.getAttribute("data-domain") || "network";
+            domainNav.querySelectorAll(".reports-domain-btn").forEach(function (b) {
+                var on = b === button;
+                b.classList.toggle("is-active", on);
+                b.setAttribute("aria-pressed", on ? "true" : "false");
+            });
+            if (networkPanel) networkPanel.hidden = domain !== "network";
+            if (cloudPanel) cloudPanel.hidden = domain !== "cloud";
+        });
+    }
+
     // ---- Firewall estate search combobox ----
 
     var input = document.getElementById("repFwInput");

@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}LTM Security Platform{% endblock %}</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='LTM_LOGO.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=15">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=16">
     {% if page_css %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=32">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=33">
     {% endif %}
     {% block head_extra %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v=7">
@@ -22,6 +22,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
     </button>
 
+    <button class="sidebar-expand-toggle" id="sidebarExpandToggle" type="button" aria-label="Expand navigation" aria-expanded="false" aria-controls="sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/><path d="M15 6l6 6-6 6" opacity="0.55"/></svg>
+    </button>
+
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-user-chip" title="{{ current_user.name if current_user else 'LTM Security' }}">
             <span class="avatar">{{ current_user.name|initials if current_user else 'LTM' }}</span>
@@ -30,10 +34,6 @@
                 <span class="user-role">{{ current_user.role if current_user else 'Security Operations' }}</span>
             </div>
         </div>
-
-        <button class="sidebar-expand-toggle" id="sidebarExpandToggle" type="button" aria-label="Expand navigation" aria-expanded="false" aria-controls="sidebar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/><path d="M15 6l6 6-6 6" opacity="0.55"/></svg>
-        </button>
 
         <a href="{{ url_for('dashboard') }}" class="brand brand-link" title="LTM Security Platform">
             <span class="brand-icon brand-logo"><img src="{{ url_for('static', filename='LTM_LOGO.png') }}" alt="LTM Security Platform"></span>

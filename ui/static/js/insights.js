@@ -13,6 +13,9 @@
     var agentHealthList = document.getElementById("agentHealthList");
     var agentHealthUpdated = document.getElementById("agentHealthUpdated");
 
+    var insightsAgents = [];
+    var selectedAgent = "";
+
     var POLL_MS = 5000;
     var TICKS = 5;
 
@@ -316,26 +319,62 @@
         return panel;
     }
 
-    function renderHistory(agents) {
+    function historyEmpty(title, message, withAction) {
+        var empty = document.createElement("div");
+        empty.className = "empty-state card";
+        empty.innerHTML =
+            '<div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 00-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0012 2z"/></svg></div>' +
+            "<h3>" + escapeHtml(title) + "</h3>" +
+            "<p>" + message + "</p>" +
+            (withAction ? '<a href="/workspace" class="btn btn-primary">Open AI Workspace</a>' : "");
+        return empty;
+    }
+
+    function renderSelectedHistory() {
         if (!historyList) return;
         historyList.innerHTML = "";
 
-        var list = agents || [];
-        if (!list.length) {
-            var empty = document.createElement("div");
-            empty.className = "empty-state card";
-            empty.innerHTML =
-                '<div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 00-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0012 2z"/></svg></div>' +
-                "<h3>No agent telemetry yet</h3>" +
-                "<p>Chat with an agent in the AI Workspace to start collecting token and latency history.</p>" +
-                '<a href="/workspace" class="btn btn-primary">Open AI Workspace</a>';
-            historyList.appendChild(empty);
+        if (!insightsAgents.length) {
+            historyList.appendChild(historyEmpty(
+                "No agent telemetry yet",
+                "Chat with an agent in the AI Workspace to start collecting token and latency history.",
+                true
+            ));
             return;
         }
 
-        list.forEach(function (agent) {
-            historyList.appendChild(renderAgentPanel(agent));
-        });
+        if (!selectedAgent) {
+            historyList.appendChild(historyEmpty(
+                "Select an agent",
+                "Choose an agent card above to view its token and latency history.",
+                false
+            ));
+            return;
+        }
+
+        var agent = null;
+        for (var i = 0; i < insightsAgents.length; i += 1) {
+            if ((insightsAgents[i].agent_name || "") === selectedAgent) {
+                agent = insightsAgents[i];
+                break;
+            }
+        }
+
+        if (!agent) {
+            historyList.appendChild(historyEmpty(
+                "No history for " + selectedAgent,
+                "This agent has not recorded any usage yet. Chat with it in the AI Workspace to start tracking.",
+                true
+            ));
+            return;
+        }
+
+        historyList.appendChild(renderAgentPanel(agent));
+    }
+
+    function renderHistory(agents) {
+        insightsAgents = agents || [];
+        renderSelectedHistory();
     }
 
     function renderAgentHealth(agents) {
@@ -357,8 +396,11 @@
             var lastActive = a.last_active ? fmtRelative(a.last_active) : "No telemetry";
             var initial = escapeHtml((a.name || "A").trim().charAt(0).toUpperCase());
             var detail = a.detail || (live ? "Reachable" : "Unreachable");
+            var active = (a.name || "") === selectedAgent;
             html +=
-                '<div class="agent-health-card ' + (live ? "is-live" : "is-down") + '">' +
+                '<div class="agent-health-card ' + (live ? "is-live" : "is-down") + (active ? " is-active" : "") +
+                '" data-agent-name="' + escapeHtml(a.name || "") + '" role="button" tabindex="0" aria-pressed="' +
+                (active ? "true" : "false") + '">' +
                 '<div class="agent-health-card-top">' +
                 '<div class="agent-health-pill">' +
                 '<span class="agent-status-dot ' + (live ? "live" : "down") + '" aria-hidden="true"></span>' +
@@ -384,6 +426,37 @@
         if (agentHealthUpdated) {
             agentHealthUpdated.textContent = checkedAt ? "Checked " + fmtRelative(checkedAt) : "";
         }
+    }
+
+    function markActiveCards() {
+        if (!agentHealthList) return;
+        var cards = agentHealthList.querySelectorAll(".agent-health-card");
+        for (var i = 0; i < cards.length; i += 1) {
+            var on = cards[i].getAttribute("data-agent-name") === selectedAgent;
+            cards[i].classList.toggle("is-active", on);
+            cards[i].setAttribute("aria-pressed", on ? "true" : "false");
+        }
+    }
+
+    function selectAgent(name) {
+        selectedAgent = name || "";
+        markActiveCards();
+        renderSelectedHistory();
+    }
+
+    if (agentHealthList) {
+        agentHealthList.addEventListener("click", function (event) {
+            var card = event.target.closest(".agent-health-card");
+            if (!card) return;
+            selectAgent(card.getAttribute("data-agent-name") || "");
+        });
+        agentHealthList.addEventListener("keydown", function (event) {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            var card = event.target.closest(".agent-health-card");
+            if (!card) return;
+            event.preventDefault();
+            selectAgent(card.getAttribute("data-agent-name") || "");
+        });
     }
 
     function loadAgentHealth() {

@@ -448,3 +448,40 @@
         margin-left: 0;
     }
 }
+
+/* --------------------------------------------------
+   DOMAIN NAVIGATION (Network Security / Cloud Security)
+-------------------------------------------------- */
+
+.reports-domain-nav {
+    display: inline-flex;
+    gap: 6px;
+    padding: 6px;
+    margin-bottom: 22px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--glass-soft);
+}
+
+.reports-domain-btn {
+    border: 0;
+    background: transparent;
+    color: var(--text-2);
+    font: inherit;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 9px 20px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.reports-domain-btn:hover {
+    color: var(--text);
+}
+
+.reports-domain-btn.is-active {
+    background: var(--gradient-red);
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(255, 94, 79, 0.28);
+}

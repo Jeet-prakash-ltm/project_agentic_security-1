@@ -187,9 +187,11 @@
 
     function statusHtml(status) {
         var live = status === "live";
-        var cls = live ? "live" : "down";
+        var color = live ? "#059669" : "#dc2626";
+        var border = live ? "rgba(34, 197, 94, 0.5)" : "rgba(239, 68, 68, 0.5)";
         var label = live ? "Live" : "Down";
-        return '<span class="fw-status fw-status-' + cls + '"><span class="status-dot ' + cls + '"></span>' + label + "</span>";
+        return '<span class="hero-chip" style="border-color: ' + border + '; color: ' + color + ';">' +
+            '<span class="pulse-dot" style="background: ' + color + ';"></span> ' + label + "</span>";
     }
 
     function deviceHtml(fw) {
@@ -502,7 +504,8 @@
 
     function statusHtml(agent) {
         var live = agent.status === "live";
-        var cls = live ? "live" : "down";
+        var color = live ? "#059669" : "#dc2626";
+        var border = live ? "rgba(34, 197, 94, 0.5)" : "rgba(239, 68, 68, 0.5)";
         var label = live ? "Live" : "Down";
         var detail = agent.detail || "";
         var latency = "";
@@ -510,8 +513,8 @@
             latency = " · " + agent.latency_ms + " ms";
         }
         var title = detail + latency;
-        return '<span class="fw-status fw-status-' + cls + '" title="' + escapeHtml(title) + '"><span class="status-dot ' + cls + '"></span>' +
-            label + "</span>";
+        return '<span class="hero-chip" style="border-color: ' + border + '; color: ' + color + ';" title="' + escapeHtml(title) + '">' +
+            '<span class="pulse-dot" style="background: ' + color + ';"></span> ' + label + "</span>";
     }
 
     function renderAgents(agents) {

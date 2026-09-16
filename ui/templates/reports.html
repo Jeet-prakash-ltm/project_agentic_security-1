@@ -27,6 +27,13 @@
 </div>
 {% endif %}
 
+<nav class="reports-domain-nav" id="reportsDomainNav" aria-label="Report domain">
+    <button type="button" class="reports-domain-btn is-active" data-domain="network" aria-pressed="true">Network Security</button>
+    <button type="button" class="reports-domain-btn" data-domain="cloud" aria-pressed="false">Cloud Security</button>
+</nav>
+
+<div class="reports-domain-panel" id="reportsDomainNetwork">
+
 <section class="recent-reports card">
     <div class="reports-filter-bar" id="reportsFilters">
         <div class="report-filter-group">
@@ -156,11 +163,27 @@
 </section>
 {% endif %}
 
+</div>
+
+<div class="reports-domain-panel" id="reportsDomainCloud" hidden>
+    <section class="recent-reports card">
+        <div class="section-head">
+            <div>
+                <h3>Cloud Security Reports</h3>
+                <span class="section-sub">Executive summaries and assessment workbooks for cloud security posture</span>
+            </div>
+        </div>
+        <div class="empty-state">
+            No cloud security reports generated yet.
+        </div>
+    </section>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
     window.REPORT_DATA = {{ reports | tojson }};
 </script>
-<script src="{{ url_for('static', filename='js/reports.js') }}?v=5"></script>
+<script src="{{ url_for('static', filename='js/reports.js') }}?v=6"></script>
 {% endblock %}

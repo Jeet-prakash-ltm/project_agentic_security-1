@@ -56,6 +56,9 @@ def _public(entry):
         "host_ip": entry.host_ip,
         "host_key": _mask_key(entry.host_key),
         "has_host_key": bool(entry.host_key),
+        "vendor": entry.vendor,
+        "port": entry.port,
+        "username": entry.username,
         "clone_of": entry.clone_of,
         "status": entry.status or "down",
         "last_checked": entry.last_checked,
@@ -220,6 +223,78 @@ def add_firewall(device_name, host_name, host_ip, host_key):
     return _public(entry)
 
 
+def import_firewall(device_name, host_ip, vendor=None, port=None, username=None, password=None):
+    """Register a firewall from a bulk inventory import.
+
+    Unlike :func:`add_firewall` the credential fields are optional - the
+    Firewall Inventory template only guarantees a device name and IP address.
+    The management host name falls back to the IP address and the password is
+    stored as the (masked) host key.
+    """
+    device_name = (device_name or "").strip()
+    host_ip = (host_ip or "").strip()
+    vendor = (vendor or "").strip()
+    username = (username or "").strip()
+    password = (password or "").strip()
+
+    if not device_name:
+        raise ValueError("Firewall name is required.")
+    if len(device_name) > 64:
+        raise ValueError("Firewall name must be 64 characters or fewer.")
+    if not host_ip:
+        raise ValueError("IP address is required.")
+    try:
+        ipaddress.ip_address(host_ip)
+    except ValueError:
+        raise ValueError("Enter a valid IP address.")
+
+    port_value = None
+    if port not in (None, ""):
+        try:
+            port_value = int(port)
+        except (TypeError, ValueError):
+            raise ValueError("Port must be a number.")
+        if not 1 <= port_value <= 65535:
+            raise ValueError("Port must be between 1 and 65535.")
+
+    with _lock:
+        repo = _repo()
+        if repo.by_device_name(device_name):
+            raise ValueError("A firewall with this name already exists.")
+        entry = repo.create(
+            {
+                "device_name": device_name,
+                "host_name": host_ip,
+                "host_ip": host_ip,
+                "host_key": password,
+                "vendor": vendor,
+                "port": port_value,
+                "username": username,
+                "status": "down",
+                "last_checked": None,
+                "created": time.time(),
+            }
+        )
+        _persist_probe(entry)
+        repo.session.commit()
+
+    return _public(entry)
+
+
+def remove_by_device_name(device_name):
+    """Remove a registered firewall by logical name (bulk import action)."""
+    device_name = (device_name or "").strip()
+    if not device_name:
+        raise ValueError("Firewall name is required.")
+    with _lock:
+        repo = _repo()
+        entry = repo.by_device_name(device_name)
+        if entry is None:
+            raise ValueError("Firewall not found in the inventory.")
+        repo.delete_id(entry.id)
+    return device_name
+
+
 def clone_firewall(source_id, clone_device_name):
     """Clone a registered firewall under a new device name.
 
@@ -252,6 +327,9 @@ def clone_firewall(source_id, clone_device_name):
                 "host_name": source.host_name,
                 "host_ip": source.host_ip,
                 "host_key": source.host_key or "",
+                "vendor": source.vendor,
+                "port": source.port,
+                "username": source.username,
                 "clone_of": source.device_name,
                 "status": "down",
                 "last_checked": None,

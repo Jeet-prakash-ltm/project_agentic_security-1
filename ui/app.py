@@ -26,6 +26,7 @@ from services import report_history_service
 from services import system_status_service
 from services import telemetry_map_service
 from services import firewall_data_service
+from services import firewall_bulk_service
 from services import foundry_incidents
 from services import timeutil
 from services import users_service
@@ -1606,6 +1607,8 @@ def api_admin_firewalls():
                     "id": entry["id"],
                     "device_name": entry["device_name"],
                     "host_ip": entry["host_ip"],
+                    "vendor": entry.get("vendor"),
+                    "port": entry.get("port"),
                     "status": entry["status"],
                 }
                 for entry in entries
@@ -1656,6 +1659,33 @@ def api_admin_firewalls_clone(firewall_id):
         code = 404 if "not found" in str(exc) else 400
         return jsonify({"error": str(exc)}), code
     return jsonify({"firewall": entry}), 201
+
+
+@app.route("/api/admin/firewalls/template")
+@admin_required
+def api_admin_firewalls_template():
+    """Download the Firewall Inventory Excel template (Asset Inventory)."""
+
+    buffer = firewall_bulk_service.build_template_bytes()
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name="firewall-inventory-template.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/api/admin/firewalls/bulk", methods=["POST"])
+@admin_required
+def api_admin_firewalls_bulk():
+    """Apply a filled-in Firewall Inventory workbook (add/remove rows)."""
+
+    file = request.files.get("file")
+    try:
+        summary = firewall_bulk_service.process_upload(file)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify(summary)
 
 
 # --------------------------------------------------

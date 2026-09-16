@@ -87,13 +87,11 @@
                         <span class="nav-subdot"></span><span>Accounts</span>
                     </a>
                     <a href="{{ url_for('settings_inventory') }}" class="nav-sublink {{ 'active' if request.endpoint == 'settings_inventory' else '' }}">
-                        <span class="nav-subdot"></span><span>Inventory</span>
+                        <span class="nav-subdot"></span><span>Asset Inventory</span>
                     </a>
-                    {% if is_admin %}
                     <a href="{{ url_for('settings_agents') }}" class="nav-sublink {{ 'active' if request.endpoint == 'settings_agents' else '' }}">
                         <span class="nav-subdot"></span><span>Agents</span>
                     </a>
-                    {% endif %}
                 </div>
             </div>
             <a href="{{ url_for('logout') }}" class="nav-link nav-logout" data-label="Logout">

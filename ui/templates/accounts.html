@@ -5,7 +5,7 @@
 {% block page_title %}Accounts{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=33">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=34">
 {% endblock %}
 
 {% block content %}
@@ -14,7 +14,6 @@
     <div>
         <span class="hero-eyebrow">Settings · Accounts</span>
         <h1>Accounts</h1>
-        <p>{% if is_admin %}Provision accounts and control who can sign in.{% else %}Platform roster.{% endif %}</p>
     </div>
     <div class="user-chip settings-user-chip" title="{{ current_user.name if current_user else 'LTM Security' }}">
         <span class="avatar">{{ current_user.name|initials if current_user else 'LTM' }}</span>
@@ -34,7 +33,6 @@
             </span>
             <div>
                 <h3>User Accounts</h3>
-                <p>{% if is_admin %}Provision accounts and control who can sign in{% else %}Platform roster{% endif %}</p>
             </div>
             {% if is_admin %}
             <span class="status-chip status-on" id="pendingCountChip">Pending 0</span>
@@ -80,7 +78,6 @@
                     <input type="password" id="invitePassword" placeholder="Temporary password" autocomplete="off">
                     <button class="btn btn-primary" id="inviteBtn" type="button">Add User</button>
                 </div>
-                <p class="users-hint">Accounts are created here by an administrator and can sign in right away. Self-registration on the sign-in page is disabled. Use <strong>Remove</strong> to stop a user from signing in — the account and its data are retained in the database but stay hidden from the workspace, reports and insights.</p>
             </div>
             {% endif %}
         </div>
@@ -91,5 +88,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=8"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=9"></script>
 {% endblock %}

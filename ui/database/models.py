@@ -233,6 +233,8 @@ class ManagedFirewall(Base):
     table holds the static registry of firewalls the platform manages, entered
     under Settings > Firewall Inventory (device name, host name, host IP and
     host key). ``clone_of`` records the source device when a row is a clone.
+    ``vendor``/``port``/``username`` are optional asset details captured when
+    firewalls are imported in bulk from the Firewall Inventory template.
     ``status``/``last_checked`` persist the last live/down reachability probe
     result for the host IP.
     """
@@ -244,6 +246,9 @@ class ManagedFirewall(Base):
     host_name = Column(String(255), nullable=False)
     host_ip = Column(String(64), nullable=False)
     host_key = Column(String(1024))
+    vendor = Column(String(128))
+    port = Column(Integer)
+    username = Column(String(128))
     clone_of = Column(String(64))
     status = Column(String(16), default="down")
     last_checked = Column(Float)

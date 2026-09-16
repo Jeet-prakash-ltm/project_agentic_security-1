@@ -205,7 +205,9 @@
         var rows = firewalls.map(function (fw) {
             var cells =
                 "<td>" + deviceHtml(fw) + "</td>" +
+                "<td>" + escapeHtml(fw.vendor || "—") + "</td>" +
                 "<td class=\"fw-ip\">" + escapeHtml(fw.host_ip || "—") + "</td>" +
+                "<td>" + escapeHtml(fw.port ? fw.port : "—") + "</td>" +
                 "<td>" + statusHtml(fw.status) + "</td>";
             if (isFwAdmin) {
                 var cloneButton = fw.clone_of
@@ -221,7 +223,7 @@
         }).join("");
 
         body.innerHTML = rows ||
-            '<tr><td colspan="' + (isFwAdmin ? 4 : 3) + '" class="users-empty">No firewalls registered yet.</td></tr>';
+            '<tr><td colspan="' + (isFwAdmin ? 6 : 5) + '" class="users-empty">No firewalls registered yet.</td></tr>';
 
         if (countChip) countChip.textContent = "Total " + firewalls.length;
     }
@@ -237,7 +239,7 @@
         tr.className = "fw-clone-row";
         tr.setAttribute("data-source-id", fw.id);
         tr.innerHTML =
-            '<td colspan="4">' +
+            '<td colspan="6">' +
             '<div class="fw-clone-form">' +
             '<span class="fw-clone-form-label">Clone of <strong>' + escapeHtml(fw.device_name || "") + "</strong></span>" +
             '<input type="text" class="fw-clone-input" placeholder="Enter a device name for the clone" autocomplete="off" value="' + escapeHtml(fw.device_name + "-clone") + '">' +
@@ -299,7 +301,7 @@
             .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error("Failed to load firewall inventory")); })
             .then(function (data) { renderFirewalls(data.firewalls || []); })
             .catch(function (err) {
-                body.innerHTML = '<tr><td colspan="' + (isFwAdmin ? 4 : 3) + '" class="users-empty">' + escapeHtml(err.message) + '</td></tr>';
+                body.innerHTML = '<tr><td colspan="' + (isFwAdmin ? 6 : 5) + '" class="users-empty">' + escapeHtml(err.message) + '</td></tr>';
             });
     }
 
@@ -396,10 +398,84 @@
         });
     }
 
+    // ---- Bulk import: download template / upload workbook ----
+    var bulkMessages = document.getElementById("fwBulkMessages");
+    var uploadInput = document.getElementById("fwUploadInput");
+    var uploadBtn = document.getElementById("fwUploadBtn");
+    var bulkTimer = null;
+
+    function renderBulkMessages(summary) {
+        if (!bulkMessages) return;
+        var lines = [];
+
+        if (summary && summary.error) {
+            lines.push('<p class="bulk-message bulk-message-error">' + escapeHtml(summary.error) + "</p>");
+        } else if (summary) {
+            lines.push(
+                '<p class="bulk-summary">Added ' + (summary.added || 0) +
+                " · Removed " + (summary.removed || 0) +
+                " · Failed " + (summary.failed || 0) + "</p>"
+            );
+        }
+
+        ((summary && summary.results) || []).forEach(function (result) {
+            var cls = result.status === "success" ? "bulk-message-success" : "bulk-message-error";
+            lines.push('<p class="bulk-message ' + cls + '">' + escapeHtml(result.message) + "</p>");
+        });
+
+        bulkMessages.innerHTML = lines.join("");
+
+        if (bulkTimer) window.clearTimeout(bulkTimer);
+        bulkTimer = window.setTimeout(function () {
+            bulkMessages.innerHTML = "";
+        }, 20000);
+    }
+
+    function uploadWorkbook(file) {
+        if (bulkMessages) {
+            bulkMessages.innerHTML = '<p class="bulk-message bulk-message-pending">Processing ' +
+                escapeHtml(file.name) + "…</p>";
+        }
+        if (bulkTimer) window.clearTimeout(bulkTimer);
+        if (uploadBtn) uploadBtn.disabled = true;
+
+        var formData = new FormData();
+        formData.append("file", file);
+
+        fetch("/api/admin/firewalls/bulk", {
+            method: "POST",
+            headers: { "Accept": "application/json" },
+            body: formData
+        }).then(function (res) {
+            return res.json().then(function (data) {
+                if (!res.ok) throw new Error(data.error || "Upload failed");
+                return data;
+            });
+        }).then(function (data) {
+            renderBulkMessages(data);
+            loadFirewalls();
+        }).catch(function (err) {
+            renderBulkMessages({ error: err.message });
+        }).then(function () {
+            if (uploadBtn) uploadBtn.disabled = false;
+        });
+    }
+
+    if (uploadBtn && uploadInput) {
+        uploadBtn.addEventListener("click", function () {
+            uploadInput.click();
+        });
+        uploadInput.addEventListener("change", function () {
+            var file = uploadInput.files && uploadInput.files[0];
+            uploadInput.value = "";
+            if (file) uploadWorkbook(file);
+        });
+    }
+
     loadFirewalls();
 })();
 
-// ---- AI Agents (administrators only) ----
+// ---- AI Agents (administrators manage; members view status only) ----
 
 (function () {
     "use strict";
@@ -407,6 +483,10 @@
     var body = document.getElementById("agentsBody");
     if (!body) return;
 
+    var agentsCard = document.getElementById("agentsCard");
+    var isAgentsAdmin = agentsCard
+        ? agentsCard.getAttribute("data-is-admin") === "true"
+        : false;
     var countChip = document.getElementById("agentCountChip");
 
     function escapeHtml(value) {
@@ -433,18 +513,21 @@
 
     function renderAgents(agents) {
         var rows = agents.map(function (agent) {
+            var actions = isAgentsAdmin
+                ? '<td class="users-actions">' +
+                  '<button class="btn btn-sm btn-danger" data-action="remove" data-id="' + escapeHtml(agent.id || "") + '">Remove</button>' +
+                  "</td>"
+                : "";
             return "<tr data-id=\"" + escapeHtml(agent.id || "") + "\">" +
                 "<td>" + escapeHtml(agent.name || "") + "</td>" +
                 "<td>" + escapeHtml(agent.type || "Custom Agent") + "</td>" +
                 "<td>" + statusHtml(agent) + "</td>" +
-                '<td class="users-actions">' +
-                '<button class="btn btn-sm btn-danger" data-action="remove" data-id="' + escapeHtml(agent.id || "") + '">Remove</button>' +
-                "</td>" +
+                actions +
                 "</tr>";
         }).join("");
 
         body.innerHTML = rows ||
-            '<tr><td colspan="4" class="users-empty">No agents configured yet.</td></tr>';
+            '<tr><td colspan="' + (isAgentsAdmin ? 4 : 3) + '" class="users-empty">No agents configured yet.</td></tr>';
 
         if (countChip) countChip.textContent = "Total " + agents.length;
     }
@@ -454,7 +537,7 @@
             .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error("Failed to load agent status")); })
             .then(function (data) { renderAgents(data.agents || []); })
             .catch(function (err) {
-                body.innerHTML = '<tr><td colspan="4" class="users-empty">' + escapeHtml(err.message) + "</td></tr>";
+                body.innerHTML = '<tr><td colspan="' + (isAgentsAdmin ? 4 : 3) + '" class="users-empty">' + escapeHtml(err.message) + "</td></tr>";
             });
     }
 
@@ -472,6 +555,7 @@
     }
 
     body.addEventListener("click", function (event) {
+        if (!isAgentsAdmin) return;
         var button = event.target.closest("[data-action]");
         if (!button || button.getAttribute("data-action") !== "remove") return;
         var id = button.getAttribute("data-id") || "";

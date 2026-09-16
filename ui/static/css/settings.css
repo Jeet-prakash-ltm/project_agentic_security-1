@@ -260,6 +260,119 @@
     grid-template-columns: 1.4fr 2fr 1.6fr auto;
 }
 
+.bulk-import {
+    border-top: 1px solid var(--border-soft);
+    padding-top: 16px;
+    margin-top: 16px;
+}
+
+.bulk-import > strong {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 10px;
+}
+
+.bulk-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.bulk-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    padding: 14px 18px;
+    border-radius: 16px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    line-height: 1;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.bulk-btn svg {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+}
+
+.bulk-btn-template {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    color: var(--text-0);
+}
+
+.bulk-btn-template:hover {
+    border-color: var(--red);
+    background: rgba(255, 94, 79, 0.08);
+}
+
+.bulk-btn-upload {
+    background: var(--gradient-red);
+    border: 1px solid transparent;
+    color: #fff;
+    box-shadow: 0 10px 24px rgba(255, 94, 79, 0.28);
+}
+
+.bulk-btn-upload:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 28px rgba(255, 94, 79, 0.36);
+}
+
+.bulk-btn-upload:disabled {
+    opacity: 0.6;
+    cursor: progress;
+}
+
+.bulk-messages {
+    margin-top: 14px;
+}
+
+.bulk-messages:empty {
+    margin-top: 0;
+}
+
+.bulk-summary {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+
+.bulk-message {
+    font-size: 12.5px;
+    line-height: 1.5;
+    padding: 9px 12px;
+    border-radius: 10px;
+    margin-bottom: 7px;
+    border: 1px solid transparent;
+}
+
+.bulk-message-success {
+    color: #86efac;
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.32);
+}
+
+.bulk-message-error {
+    color: #ff9a9a;
+    background: rgba(220, 38, 38, 0.1);
+    border-color: rgba(220, 38, 38, 0.32);
+}
+
+.bulk-message-pending {
+    color: var(--muted);
+    background: rgba(255, 255, 255, 0.04);
+    border-color: var(--border-soft);
+}
+
 .fw-device {
     font-weight: 700;
     color: var(--text-0);
@@ -358,6 +471,10 @@
 @media (max-width: 640px) {
     .invite-user-row {
         grid-template-columns: 1fr;
+    }
+
+    .bulk-actions {
+        flex-direction: column;
     }
 }
 

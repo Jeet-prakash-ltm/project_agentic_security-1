@@ -1,20 +1,20 @@
 {% extends "base.html" %}
 
-{% block title %}Inventory — Settings{% endblock %}
+{% block title %}Asset Inventory — Settings{% endblock %}
 
-{% block page_title %}Inventory{% endblock %}
+{% block page_title %}Asset Inventory{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=33">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=34">
 {% endblock %}
 
 {% block content %}
 
 <div class="settings-header">
     <div>
-        <span class="hero-eyebrow">Settings · Inventory</span>
-        <h1>Inventory</h1>
-        <p>{% if is_admin %}Registered firewalls with live status — clone an original device to model a similar one.{% else %}Registered firewalls and their live status.{% endif %}</p>
+        <span class="hero-eyebrow">Settings · Asset Inventory</span>
+        <h1>Asset Inventory</h1>
+        {% if not is_admin %}<p>Registered firewalls and their live status.</p>{% endif %}
     </div>
     <div class="user-chip settings-user-chip" title="{{ current_user.name if current_user else 'LTM Security' }}">
         <span class="avatar">{{ current_user.name|initials if current_user else 'LTM' }}</span>
@@ -34,7 +34,6 @@
             </span>
             <div>
                 <h3>Firewall Inventory</h3>
-                <p>{% if is_admin %}Registered firewalls with live status — clone an original device to model a similar one{% else %}Registered firewalls and their live status{% endif %}</p>
             </div>
             <span class="status-chip status-on" id="fwCountChip">Total 0</span>
         </div>
@@ -44,7 +43,9 @@
                     <thead>
                         <tr>
                             <th>Device Name</th>
+                            <th>Vendor</th>
                             <th>IP</th>
+                            <th>Port</th>
                             <th>Status</th>
                             {% if is_admin %}
                             <th>Actions</th>
@@ -52,7 +53,7 @@
                         </tr>
                     </thead>
                     <tbody id="fwInventoryBody">
-                        <tr><td colspan="4" class="users-empty">Loading firewall inventory…</td></tr>
+                        <tr><td colspan="6" class="users-empty">Loading firewall inventory…</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -67,7 +68,22 @@
                     <input type="password" id="fwHostKey" placeholder="Host key" autocomplete="off">
                     <button class="btn btn-primary" id="fwAddBtn" type="button">Add Firewall</button>
                 </div>
-                <p class="users-hint">Device name is the firewall's logical name. Live/down is checked automatically against the host IP. Use <strong>Clone</strong> on an original device to register a copy under a new device name — the clone name is entered right here in the list. Cloned firewalls cannot be cloned again.</p>
+            </div>
+
+            <div class="bulk-import">
+                <strong>Bulk firewall addition</strong>
+                <div class="bulk-actions">
+                    <a class="bulk-btn bulk-btn-template" id="fwTemplateBtn" href="{{ url_for('api_admin_firewalls_template') }}" download>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+                        <span>Firewall Inventory Template</span>
+                    </a>
+                    <button class="bulk-btn bulk-btn-upload" id="fwUploadBtn" type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M5 3h14"/></svg>
+                        <span>Upload Firewall Inventory</span>
+                    </button>
+                </div>
+                <input type="file" id="fwUploadInput" accept=".xlsx" hidden>
+                <div class="bulk-messages" id="fwBulkMessages" role="status" aria-live="polite"></div>
             </div>
             {% endif %}
         </div>
@@ -78,5 +94,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=8"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=9"></script>
 {% endblock %}

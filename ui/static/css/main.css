@@ -86,7 +86,7 @@
 
     /* ---- Layout ---- */
     --sidebar-width: 64px;
-    --sidebar-expanded-width: 224px;
+    --sidebar-expanded-width: 244px;
     --sidebar-inset: 14px;
     /* Gap between the sidebar and page content, matched to the AI Workspace
        panel-to-panel gap (conversation history <-> chat). */
@@ -276,6 +276,25 @@ input, select, textarea {
     flex-direction: column;
     gap: 6px;
     flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+    padding-right: 2px;
+}
+
+.nav-menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.nav-menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.nav-menu::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.28);
+    border-radius: 999px;
 }
 
 .nav-section-label {
@@ -516,7 +535,8 @@ input, select, textarea {
         margin-left: calc(var(--sidebar-expanded-width) + var(--sidebar-inset) + var(--page-gap));
     }
 
-    /* Collapsed sidebar: the Dashboard group reveals its pages as a flyout. */
+    /* Collapsed sidebar: a group reveals its pages as a fixed flyout so it is
+       never clipped by the scrollable nav list. */
     .sidebar:not(.expanded) .nav-group {
         position: relative;
     }
@@ -526,9 +546,7 @@ input, select, textarea {
     }
 
     .sidebar:not(.expanded) .nav-submenu {
-        position: absolute;
-        left: calc(100% + 16px);
-        top: 0;
+        position: fixed;
         display: none;
         flex-direction: column;
         gap: 2px;
@@ -544,7 +562,18 @@ input, select, textarea {
         z-index: 80;
     }
 
-    .sidebar:not(.expanded) .nav-group:hover .nav-submenu {
+    /* Invisible bridge covering the gap to the icon so the pointer can travel
+       onto a sub-option without the flyout closing. */
+    .sidebar:not(.expanded) .nav-submenu::before {
+        content: "";
+        position: absolute;
+        left: -16px;
+        top: 0;
+        width: 16px;
+        height: 100%;
+    }
+
+    .sidebar:not(.expanded) .nav-group.flyout-open .nav-submenu {
         display: flex;
     }
 }

@@ -634,8 +634,10 @@
     }
 
     function syncFilterChips() {
-        syncChipGroup("severityChips", state.filters.severity);
-        syncChipGroup("statusChips", state.filters.status);
+        var sev = document.getElementById("severitySelect");
+        if (sev) sev.value = state.filters.severity;
+        var st = document.getElementById("statusSelect");
+        if (st) st.value = state.filters.status;
         syncChipGroup("domainChips", state.filters.domain);
         var fw = document.getElementById("firewallSelect");
         if (fw) fw.value = state.filters.firewall;
@@ -1094,6 +1096,22 @@
             });
         }
 
+        var sevSelect = document.getElementById("severitySelect");
+        if (sevSelect) {
+            sevSelect.addEventListener("change", function () {
+                state.filters.severity = sevSelect.value;
+                applyFilters();
+            });
+        }
+
+        var stSelect = document.getElementById("statusSelect");
+        if (stSelect) {
+            stSelect.addEventListener("change", function () {
+                state.filters.status = stSelect.value;
+                applyFilters();
+            });
+        }
+
         if (viewSelect) {
             viewSelect.addEventListener("change", function () {
                 var val = viewSelect.value;
@@ -1144,8 +1162,10 @@
             });
         }
 
-        document.getElementById("btnSaveView").addEventListener("click", saveView);
-        document.getElementById("btnResetFilters").addEventListener("click", resetFilters);
+        var saveViewBtn = document.getElementById("btnSaveView");
+        if (saveViewBtn) saveViewBtn.addEventListener("click", saveView);
+        var resetBtn = document.getElementById("btnResetFilters");
+        if (resetBtn) resetBtn.addEventListener("click", resetFilters);
         document.getElementById("btnExpandAll").addEventListener("click", function () {
             state.collapsed = {};
             document.querySelectorAll(".group-section").forEach(function (s) { s.classList.remove("is-collapsed"); });
@@ -1322,8 +1342,6 @@
 
     loadFilters();
     loadSavedViews();
-    bindChips("severityChips", "severity");
-    bindChips("statusChips", "status");
     bindChips("domainChips", "domain");
     bindEvents();
     bindFirewallCombo();

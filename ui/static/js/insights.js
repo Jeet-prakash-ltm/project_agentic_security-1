@@ -332,25 +332,15 @@
 
     function renderSelectedHistory() {
         if (!historyList) return;
-        historyList.innerHTML = "";
-
-        if (!insightsAgents.length) {
-            historyList.appendChild(historyEmpty(
-                "No agent telemetry yet",
-                "Chat with an agent in the AI Workspace to start collecting token and latency history.",
-                true
-            ));
-            return;
-        }
 
         if (!selectedAgent) {
-            historyList.appendChild(historyEmpty(
-                "Select an agent",
-                "Choose an agent card above to view its token and latency history.",
-                false
-            ));
+            historyList.setAttribute("hidden", "");
+            historyList.innerHTML = "";
             return;
         }
+
+        historyList.removeAttribute("hidden");
+        historyList.innerHTML = "";
 
         var agent = null;
         for (var i = 0; i < insightsAgents.length; i += 1) {
@@ -392,34 +382,20 @@
         list.forEach(function (a) {
             if (a.checked_at > checkedAt) checkedAt = a.checked_at;
             var live = a.status === "live";
-            var latency = a.latency_ms == null ? "—" : fmtLatency(a.latency_ms);
-            var lastActive = a.last_active ? fmtRelative(a.last_active) : "No telemetry";
             var initial = escapeHtml((a.name || "A").trim().charAt(0).toUpperCase());
-            var detail = a.detail || (live ? "Reachable" : "Unreachable");
             var active = (a.name || "") === selectedAgent;
             html +=
                 '<div class="agent-health-card ' + (live ? "is-live" : "is-down") + (active ? " is-active" : "") +
                 '" data-agent-name="' + escapeHtml(a.name || "") + '" role="button" tabindex="0" aria-pressed="' +
                 (active ? "true" : "false") + '">' +
                 '<div class="agent-health-card-top">' +
-                '<div class="agent-health-pill">' +
+                '<span class="agent-health-avatar ' + (live ? "live" : "down") + '">' + initial + "</span>" +
+                '<span class="agent-health-pill">' +
                 '<span class="agent-status-dot ' + (live ? "live" : "down") + '" aria-hidden="true"></span>' +
                 '<span class="agent-health-label ' + (live ? "live" : "down") + '">' + (live ? "Live" : "Down") + "</span>" +
+                "</span>" +
                 "</div>" +
-                '<span class="agent-health-latency" title="Probe latency">' + latency + "</span>" +
-                "</div>" +
-                '<div class="agent-health-meta">' +
-                '<span class="agent-health-avatar ' + (live ? "live" : "down") + '">' + initial + "</span>" +
-                '<div class="agent-health-id">' +
-                '<span class="agent-health-name">' + escapeHtml(a.name) + "</span>" +
-                '<span class="agent-health-type">' + escapeHtml(a.type || "Agent") + " \u00b7 " + escapeHtml(a.model || "-") + "</span>" +
-                "</div>" +
-                "</div>" +
-                '<div class="agent-health-cstats">' +
-                '<span class="agent-health-cstat"><small>Last active</small><b>' + lastActive + "</b></span>" +
-                '<span class="agent-health-cstat"><small>Convos</small><b>' + fmtNumber(a.conversations) + "</b></span>" +
-                "</div>" +
-                '<p class="agent-health-detail" title="' + escapeHtml(detail) + '">' + escapeHtml(detail) + "</p>" +
+                '<span class="agent-health-name" title="' + escapeHtml(a.name || "") + '">' + escapeHtml(a.name) + "</span>" +
                 "</div>";
         });
         agentHealthList.innerHTML = html;

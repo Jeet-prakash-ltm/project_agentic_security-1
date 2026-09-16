@@ -11,7 +11,6 @@
         ? selfCard.getAttribute("data-is-admin") === "true"
         : false;
     var selfUserId = selfCard ? (selfCard.getAttribute("data-self-user") || "") : "";
-    var pendingChip = document.getElementById("pendingCountChip");
 
     function chipClass(status) {
         if (status === "pending") return "status-chip status-warn";
@@ -25,10 +24,8 @@
     }
 
     function renderUsers(users) {
-        var pending = 0;
         var rows = users.map(function (user) {
             if (isUsersAdmin) {
-                if (user.status === "pending") pending += 1;
                 var actions = "";
                 if (user.status === "pending") {
                     actions =
@@ -59,8 +56,6 @@
 
         usersBody.innerHTML = rows ||
             '<tr><td colspan="' + (isUsersAdmin ? 4 : 2) + '" class="users-empty">No accounts yet.</td></tr>';
-
-        if (pendingChip) pendingChip.textContent = "Pending " + pending;
     }
 
     function capitalize(value) {

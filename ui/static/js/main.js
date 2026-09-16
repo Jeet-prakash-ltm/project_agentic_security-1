@@ -5,6 +5,7 @@
     var backdrop = document.getElementById("sidebarBackdrop");
     var menuToggle = document.getElementById("menuToggle");
     var expandToggle = document.getElementById("sidebarExpandToggle");
+    var SIDEBAR_STATE_KEY = "ltm_sidebar_expanded";
 
     function isDesktop() {
         return window.innerWidth > 768;
@@ -30,6 +31,19 @@
         }
     }
 
+    function rememberDesktopSidebar(expanded) {
+        try {
+            localStorage.setItem(SIDEBAR_STATE_KEY, expanded ? "1" : "0");
+        } catch (e) { /* ignore */ }
+    }
+
+    function restoreDesktopSidebar() {
+        if (!isDesktop()) return;
+        var saved = null;
+        try { saved = localStorage.getItem(SIDEBAR_STATE_KEY); } catch (e) { saved = null; }
+        toggleDesktopSidebar(saved === "1");
+    }
+
     if (menuToggle) {
         menuToggle.addEventListener("click", function () {
             var isOpen = sidebar.classList.contains("open");
@@ -44,12 +58,17 @@
     }
 
     // The sidebar stays collapsed to an icon rail. It is expanded only from
-    // the dedicated toggle above the rail, and collapses again on click.
+    // the dedicated toggle above the rail and keeps that state across pages.
     if (expandToggle) {
         expandToggle.addEventListener("click", function () {
-            toggleDesktopSidebar(!sidebar.classList.contains("expanded"));
+            var next = !sidebar.classList.contains("expanded");
+            toggleDesktopSidebar(next);
+            rememberDesktopSidebar(next);
+            window.dispatchEvent(new CustomEvent("sidebar-toggled", { detail: { expanded: next } }));
         });
     }
+
+    restoreDesktopSidebar();
 
     window.addEventListener("resize", function () {
         if (window.innerWidth > 768 && sidebar) {
@@ -73,39 +92,89 @@
         if (!entry.group || !entry.toggle) return;
 
         (function (group, toggle) {
+            var submenu = group.querySelector(".nav-submenu");
+            var closeTimer = null;
+            var FLYOUT_GAP = 12;
+
+            function collapsedRail() {
+                return isDesktop() && sidebar && !sidebar.classList.contains("expanded");
+            }
+
+            function clearFlyoutPosition() {
+                if (!submenu) return;
+                submenu.style.top = "";
+                submenu.style.left = "";
+            }
+
+            function positionFlyout() {
+                if (!submenu || !sidebar) return;
+                var g = group.getBoundingClientRect();
+                var s = sidebar.getBoundingClientRect();
+                var cs = window.getComputedStyle(sidebar);
+                var originX = s.left + parseFloat(cs.borderLeftWidth || 0);
+                var originY = s.top + parseFloat(cs.borderTopWidth || 0);
+                submenu.style.top = Math.round(g.top - originY) + "px";
+                submenu.style.left = Math.round(g.right + FLYOUT_GAP - originX) + "px";
+            }
+
             function closeGroup() {
+                if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
                 group.classList.remove("is-open");
+                group.classList.remove("flyout-open");
+                clearFlyoutPosition();
                 toggle.setAttribute("aria-expanded", "false");
             }
 
+            function openGroup() {
+                if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+                group.classList.add("is-open");
+                toggle.setAttribute("aria-expanded", "true");
+                if (collapsedRail()) {
+                    positionFlyout();
+                    group.classList.add("flyout-open");
+                }
+            }
+
             toggle.addEventListener("click", function () {
-                var willOpen = !group.classList.contains("is-open");
-                group.classList.toggle("is-open", willOpen);
-                toggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
+                if (group.classList.contains("is-open")) closeGroup();
+                else openGroup();
             });
 
-            // Collapsed rail: hide the flyout once the pointer leaves.
+            // Collapsed rail: keep the flyout open while the pointer travels
+            // from the icon across the gap and onto one of the sub-options.
+            group.addEventListener("mouseenter", function () {
+                if (!collapsedRail()) return;
+                if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+                positionFlyout();
+                group.classList.add("flyout-open");
+            });
+
             group.addEventListener("mouseleave", function () {
-                if (isDesktop() && sidebar && !sidebar.classList.contains("expanded")) {
-                    closeGroup();
-                }
+                if (!collapsedRail()) return;
+                if (closeTimer) clearTimeout(closeTimer);
+                closeTimer = setTimeout(function () {
+                    closeTimer = null;
+                    if (group.matches(":hover") || group.contains(document.activeElement)) return;
+                    group.classList.remove("flyout-open");
+                    group.classList.remove("is-open");
+                    toggle.setAttribute("aria-expanded", "false");
+                }, 160);
             });
 
             document.addEventListener("click", function (event) {
                 if (!group.contains(event.target)) closeGroup();
             });
+
+            window.addEventListener("sidebar-toggled", function (event) {
+                if (event.detail && event.detail.expanded) closeGroup();
+                else clearFlyoutPosition();
+            });
+
+            window.addEventListener("resize", function () {
+                closeGroup();
+            });
         })(entry.group, entry.toggle);
     });
-
-    // Collapse the sidebar again once a sub-page is chosen.
-    var navSubLinks = document.querySelectorAll(".nav-submenu .nav-sublink");
-    for (var s = 0; s < navSubLinks.length; s++) {
-        navSubLinks[s].addEventListener("click", function () {
-            if (isDesktop() && sidebar) {
-                toggleDesktopSidebar(false);
-            }
-        });
-    }
 
     window.showToast = function (message, type, duration) {
         var container = document.getElementById("toastContainer");

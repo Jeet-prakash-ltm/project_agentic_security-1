@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}Security Ops — LTM Security Platform{% endblock %}
+{% block title %}Investigation Centre — LTM Security Platform{% endblock %}
 
-{% block page_title %}Security Operations Center{% endblock %}
+{% block page_title %}Investigation Centre{% endblock %}
 
 {% block content %}
 
 <div class="findings-header">
     <div>
         <span class="hero-eyebrow">Firewall Posture Investigation</span>
-        <h1>Security Operations Center</h1>
+        <h1>Investigation Centre</h1>
         <p>Investigate findings, prioritize remediation, and track posture over time.</p>
     </div>
     <div class="findings-header-actions">
@@ -51,47 +51,26 @@
             <input type="text" id="findingsSearch" placeholder="Search finding ID, title, domain, evidence..." aria-label="Search findings">
         </div>
         <div class="toolbar-select">
-            <label for="sortSelect">Sort</label>
-            <select id="sortSelect">
-                <option value="severity">Severity</option>
-                <option value="risk">Highest Risk</option>
-                <option value="riskAsc">Lowest Risk</option>
-                <option value="recent">Newest</option>
-                <option value="oldest">Oldest</option>
-                <option value="domain">Domain</option>
-                <option value="firewall">Firewall</option>
+            <label for="severitySelect">Severity</label>
+            <select id="severitySelect">
+                <option value="all">All</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
             </select>
         </div>
         <div class="toolbar-select">
-            <label for="viewSelect">View</label>
-            <select id="viewSelect"></select>
+            <label for="statusSelect">Status</label>
+            <select id="statusSelect">
+                <option value="all">All</option>
+                <option value="non-compliant">Non-Compliant</option>
+                <option value="compliant">Compliant</option>
+                <option value="not-assessed">Not Assessed</option>
+            </select>
         </div>
-        <button class="btn btn-ghost btn-sm" id="btnSaveView" type="button">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
-            Save View
-        </button>
-        <button class="btn btn-ghost btn-sm" id="btnResetFilters" type="button">Reset</button>
     </div>
     <div class="toolbar-filters">
-        <div class="filter-group">
-            <span class="filter-label">Severity</span>
-            <div class="filter-chips" id="severityChips">
-                <button class="chip is-active" data-value="all">All</button>
-                <button class="chip chip-critical" data-value="critical">Critical</button>
-                <button class="chip chip-high" data-value="high">High</button>
-                <button class="chip chip-medium" data-value="medium">Medium</button>
-                <button class="chip chip-low" data-value="low">Low</button>
-            </div>
-        </div>
-        <div class="filter-group">
-            <span class="filter-label">Status</span>
-            <div class="filter-chips" id="statusChips">
-                <button class="chip is-active" data-value="all">All</button>
-                <button class="chip" data-value="non-compliant">Non-Compliant</button>
-                <button class="chip" data-value="compliant">Compliant</button>
-                <button class="chip" data-value="not-assessed">Not Assessed</button>
-            </div>
-        </div>
         <div class="filter-group">
             <span class="filter-label">Domain</span>
             <div class="filter-chips" id="domainChips"></div>
@@ -169,6 +148,6 @@
 {% block scripts %}
 {% if not assessment_blocked %}
 <script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=7"></script>
-<script src="{{ url_for('static', filename='js/findings.js') }}?v=13"></script>
+<script src="{{ url_for('static', filename='js/findings.js') }}?v=14"></script>
 {% endif %}
 {% endblock %}

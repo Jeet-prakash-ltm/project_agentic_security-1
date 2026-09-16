@@ -985,6 +985,10 @@
     margin-bottom: 24px;
 }
 
+.agent-history-list[hidden] {
+    display: none;
+}
+
 .agent-history-panel {
     background: var(--card);
     border: 1px solid var(--border);
@@ -1188,7 +1192,7 @@
 
 .agent-health-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 14px;
     margin-top: 16px;
 }
@@ -1204,15 +1208,22 @@
 .agent-health-card {
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
     gap: 14px;
-    padding: 18px;
+    padding: 16px 18px;
+    min-height: 118px;
     background: var(--bg-elevated, var(--card));
     border: 1px solid var(--border);
     border-radius: var(--radius-md, 10px);
-    aspect-ratio: 1 / 1;
     min-width: 0;
     cursor: pointer;
     transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.agent-health-card .agent-health-name {
+    display: block;
+    margin-top: auto;
+    font-size: 14.5px;
 }
 
 .agent-health-card:hover {
@@ -1423,8 +1434,7 @@
 
 @media (max-width: 720px) {
     .agent-health-card {
-        aspect-ratio: auto;
-        min-height: 220px;
+        min-height: 112px;
     }
 
     .agent-health-cstats {

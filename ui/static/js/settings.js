@@ -45,7 +45,6 @@
                     "<td>" + escapeHtml(user.name || "") + "</td>" +
                     "<td>" + escapeHtml(user.email || "") + "</td>" +
                     "<td>" + escapeHtml(user.role || "") + "</td>" +
-                    "<td><span class=\"" + chipClass(user.status) + "\">" + escapeHtml(chipLabel(user.status)) + "</span></td>" +
                     "<td class=\"users-actions\">" + actions + "</td>" +
                     "</tr>"
                 );
@@ -59,7 +58,7 @@
         }).join("");
 
         usersBody.innerHTML = rows ||
-            '<tr><td colspan="' + (isUsersAdmin ? 5 : 2) + '" class="users-empty">No accounts yet.</td></tr>';
+            '<tr><td colspan="' + (isUsersAdmin ? 4 : 2) + '" class="users-empty">No accounts yet.</td></tr>';
 
         if (pendingChip) pendingChip.textContent = "Pending " + pending;
     }
@@ -81,7 +80,7 @@
             .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error("Failed to load accounts")); })
             .then(function (data) { renderUsers(data.users || []); })
             .catch(function (err) {
-                usersBody.innerHTML = '<tr><td colspan="' + (isUsersAdmin ? 5 : 2) + '" class="users-empty">' + escapeHtml(err.message) + '</td></tr>';
+                usersBody.innerHTML = '<tr><td colspan="' + (isUsersAdmin ? 4 : 2) + '" class="users-empty">' + escapeHtml(err.message) + '</td></tr>';
             });
     }
 
@@ -190,7 +189,7 @@
         var live = status === "live";
         var cls = live ? "live" : "down";
         var label = live ? "Live" : "Down";
-        return '<span class="fw-status"><span class="status-dot ' + cls + '"></span>' + label + "</span>";
+        return '<span class="fw-status fw-status-' + cls + '"><span class="status-dot ' + cls + '"></span>' + label + "</span>";
     }
 
     function deviceHtml(fw) {
@@ -205,9 +204,8 @@
         var rows = firewalls.map(function (fw) {
             var cells =
                 "<td>" + deviceHtml(fw) + "</td>" +
-                "<td>" + escapeHtml(fw.vendor || "—") + "</td>" +
+                "<td>" + escapeHtml(fw.vendor || "Palo Alto Networks") + "</td>" +
                 "<td class=\"fw-ip\">" + escapeHtml(fw.host_ip || "—") + "</td>" +
-                "<td>" + escapeHtml(fw.port ? fw.port : "—") + "</td>" +
                 "<td>" + statusHtml(fw.status) + "</td>";
             if (isFwAdmin) {
                 var cloneButton = fw.clone_of
@@ -223,7 +221,7 @@
         }).join("");
 
         body.innerHTML = rows ||
-            '<tr><td colspan="' + (isFwAdmin ? 6 : 5) + '" class="users-empty">No firewalls registered yet.</td></tr>';
+            '<tr><td colspan="' + (isFwAdmin ? 5 : 4) + '" class="users-empty">No firewalls registered yet.</td></tr>';
 
         if (countChip) countChip.textContent = "Total " + firewalls.length;
     }
@@ -239,7 +237,7 @@
         tr.className = "fw-clone-row";
         tr.setAttribute("data-source-id", fw.id);
         tr.innerHTML =
-            '<td colspan="6">' +
+            '<td colspan="5">' +
             '<div class="fw-clone-form">' +
             '<span class="fw-clone-form-label">Clone of <strong>' + escapeHtml(fw.device_name || "") + "</strong></span>" +
             '<input type="text" class="fw-clone-input" placeholder="Enter a device name for the clone" autocomplete="off" value="' + escapeHtml(fw.device_name + "-clone") + '">' +
@@ -301,7 +299,7 @@
             .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error("Failed to load firewall inventory")); })
             .then(function (data) { renderFirewalls(data.firewalls || []); })
             .catch(function (err) {
-                body.innerHTML = '<tr><td colspan="' + (isFwAdmin ? 6 : 5) + '" class="users-empty">' + escapeHtml(err.message) + '</td></tr>';
+                body.innerHTML = '<tr><td colspan="' + (isFwAdmin ? 5 : 4) + '" class="users-empty">' + escapeHtml(err.message) + '</td></tr>';
             });
     }
 
@@ -322,25 +320,30 @@
     if (addBtn) {
         addBtn.addEventListener("click", function () {
             var deviceName = (document.getElementById("fwDeviceName").value || "").trim();
-            var hostName = (document.getElementById("fwHostName").value || "").trim();
+            var vendor = (document.getElementById("fwVendor").value || "").trim();
             var hostIp = (document.getElementById("fwHostIp").value || "").trim();
-            var hostKey = document.getElementById("fwHostKey").value || "";
+            var username = (document.getElementById("fwUsername").value || "").trim();
+            var password = document.getElementById("fwPassword").value || "";
+            var port = (document.getElementById("fwPort").value || "").trim();
 
-            if (!deviceName || !hostName || !hostIp || !hostKey) {
-                window.showToast("Device name, host name, host IP, and host key are required.", "error");
+            if (!deviceName || !hostIp) {
+                window.showToast("Device name and IP address are required.", "error");
                 return;
             }
             postJson("/api/admin/firewalls", {
                 device_name: deviceName,
-                host_name: hostName,
+                vendor: vendor,
                 host_ip: hostIp,
-                host_key: hostKey
+                username: username,
+                password: password,
+                port: port
             }).then(function () {
                 window.showToast("Firewall added to the inventory.", "success");
                 document.getElementById("fwDeviceName").value = "";
-                document.getElementById("fwHostName").value = "";
                 document.getElementById("fwHostIp").value = "";
-                document.getElementById("fwHostKey").value = "";
+                document.getElementById("fwUsername").value = "";
+                document.getElementById("fwPassword").value = "";
+                document.getElementById("fwPort").value = "";
                 loadFirewalls();
             }).catch(function (err) {
                 window.showToast(err.message, "error");
@@ -507,7 +510,7 @@
             latency = " · " + agent.latency_ms + " ms";
         }
         var title = detail + latency;
-        return '<span class="fw-status" title="' + escapeHtml(title) + '"><span class="status-dot ' + cls + '"></span>' +
+        return '<span class="fw-status fw-status-' + cls + '" title="' + escapeHtml(title) + '"><span class="status-dot ' + cls + '"></span>' +
             label + "</span>";
     }
 

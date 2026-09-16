@@ -395,27 +395,49 @@
 .fw-status {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    font-weight: 600;
+    gap: 8px;
     font-size: 12.5px;
-    color: var(--text-0);
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(22, 163, 74, 0.35);
+    color: #059669;
+    box-shadow: var(--shadow-soft);
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.fw-status-down {
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #dc2626;
 }
 
 .status-dot {
-    width: 9px;
-    height: 9px;
+    position: relative;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     display: inline-block;
+    flex-shrink: 0;
+}
+
+.status-dot::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: inherit;
+    opacity: 0.35;
+    animation: pulse 1.8s ease-out infinite;
 }
 
 .status-dot.live {
     background: #22c55e;
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
 }
 
 .status-dot.down {
     background: #ef4444;
-    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18);
 }
 
 .fw-clone-row td {

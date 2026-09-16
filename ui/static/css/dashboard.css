@@ -4,6 +4,7 @@
 
 .dash-header {
     position: relative;
+    z-index: 30;
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
@@ -43,6 +44,14 @@
     z-index: 1;
 }
 
+/* Title block pinned to the very top-left corner of the header. */
+.dash-heading {
+    position: absolute;
+    top: 20px;
+    left: 32px;
+    max-width: 60%;
+}
+
 /* Live badge + Refresh pinned to the very top-right corner of the header. */
 .dash-corner {
     position: absolute;
@@ -78,6 +87,7 @@
     justify-content: flex-end;
     gap: 10px;
     flex-wrap: wrap;
+    margin-left: auto;
 }
 
 .dash-fw-search {
@@ -111,6 +121,33 @@
 
 .dash-fw-search .rep-combo-list {
     border-radius: 12px;
+}
+
+.dash-fw-go {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 94, 79, 0.35);
+    border-radius: 50%;
+    background: var(--gradient-red);
+    color: #fff;
+    cursor: pointer;
+    box-shadow: var(--shadow-soft);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dash-fw-go:hover {
+    transform: translateY(-1px) scale(1.04);
+    box-shadow: 0 8px 20px rgba(255, 94, 79, 0.28);
+}
+
+.dash-fw-go svg {
+    width: 16px;
+    height: 16px;
 }
 
 /* Firewall inventory search combobox (shared markup with Reports) */

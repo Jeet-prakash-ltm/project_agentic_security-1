@@ -1623,11 +1623,13 @@ def api_admin_firewalls_add():
 
     payload = request.get_json(silent=True) or {}
     try:
-        entry = managed_firewalls_service.add_firewall(
+        entry = managed_firewalls_service.import_firewall(
             payload.get("device_name") or "",
-            payload.get("host_name") or "",
             payload.get("host_ip") or "",
-            payload.get("host_key") or "",
+            vendor=payload.get("vendor") or "",
+            port=payload.get("port"),
+            username=payload.get("username") or "",
+            password=payload.get("password") or "",
         )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400

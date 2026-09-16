@@ -502,15 +502,35 @@
                 close();
             });
         }
+        var goBtn = document.getElementById("dashFwGo");
+        var go = function () {
+            var query = (input.value || "").trim();
+            var lower = query.toLowerCase();
+            if (!query || lower === "all") {
+                setFirewall("all");
+                close();
+                return;
+            }
+            var exact = null;
+            var partial = null;
+            inventorySource().forEach(function (fw) {
+                var name = fw.device_name || "";
+                var hay = name.toLowerCase();
+                if (hay === lower) exact = exact || name;
+                else if (!partial && hay.indexOf(lower) !== -1) partial = name;
+            });
+            setFirewall(exact || partial || state.firewall || "all");
+            close();
+        };
+
         input.addEventListener("keydown", function (e) {
             if (e.key === "Escape") { close(); return; }
             if (e.key === "Enter") {
                 e.preventDefault();
-                var first = list.querySelector(".rep-combo-row");
-                if (first) setFirewall(first.getAttribute("data-value") || "all");
-                close();
+                go();
             }
         });
+        if (goBtn) goBtn.addEventListener("click", go);
     }
 
     function loadInventory() {

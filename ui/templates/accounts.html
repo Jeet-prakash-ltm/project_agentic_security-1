@@ -5,7 +5,7 @@
 {% block page_title %}Accounts{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=34">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=35">
 {% endblock %}
 
 {% block content %}
@@ -14,13 +14,6 @@
     <div>
         <span class="hero-eyebrow">Settings · Accounts</span>
         <h1>Accounts</h1>
-    </div>
-    <div class="user-chip settings-user-chip" title="{{ current_user.name if current_user else 'LTM Security' }}">
-        <span class="avatar">{{ current_user.name|initials if current_user else 'LTM' }}</span>
-        <div class="user-meta">
-            <span class="user-name">{{ current_user.name if current_user else 'LTM Security' }}</span>
-            <span class="user-role">{{ current_user.role if current_user else 'Security Operations' }}</span>
-        </div>
     </div>
 </div>
 
@@ -51,13 +44,12 @@
                             {% endif %}
                             <th>Role</th>
                             {% if is_admin %}
-                            <th>Status</th>
                             <th>Actions</th>
                             {% endif %}
                         </tr>
                     </thead>
                     <tbody id="usersBody">
-                        <tr><td colspan="5" class="users-empty">Loading accounts…</td></tr>
+                        <tr><td colspan="4" class="users-empty">Loading accounts…</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -88,5 +80,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=9"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=10"></script>
 {% endblock %}

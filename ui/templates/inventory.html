@@ -5,7 +5,7 @@
 {% block page_title %}Asset Inventory{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=34">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=35">
 {% endblock %}
 
 {% block content %}
@@ -15,13 +15,6 @@
         <span class="hero-eyebrow">Settings · Asset Inventory</span>
         <h1>Asset Inventory</h1>
         {% if not is_admin %}<p>Registered firewalls and their live status.</p>{% endif %}
-    </div>
-    <div class="user-chip settings-user-chip" title="{{ current_user.name if current_user else 'LTM Security' }}">
-        <span class="avatar">{{ current_user.name|initials if current_user else 'LTM' }}</span>
-        <div class="user-meta">
-            <span class="user-name">{{ current_user.name if current_user else 'LTM Security' }}</span>
-            <span class="user-role">{{ current_user.role if current_user else 'Security Operations' }}</span>
-        </div>
     </div>
 </div>
 
@@ -45,7 +38,6 @@
                             <th>Device Name</th>
                             <th>Vendor</th>
                             <th>IP</th>
-                            <th>Port</th>
                             <th>Status</th>
                             {% if is_admin %}
                             <th>Actions</th>
@@ -53,7 +45,7 @@
                         </tr>
                     </thead>
                     <tbody id="fwInventoryBody">
-                        <tr><td colspan="6" class="users-empty">Loading firewall inventory…</td></tr>
+                        <tr><td colspan="5" class="users-empty">Loading firewall inventory…</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -63,9 +55,11 @@
                 <strong>Add a firewall</strong>
                 <div class="invite-user-row invite-user-row--fw">
                     <input type="text" id="fwDeviceName" placeholder="Device name (firewall), e.g. vmpafw03" autocomplete="off">
-                    <input type="text" id="fwHostName" placeholder="Host name, e.g. vm-pa-03.corp.local" autocomplete="off">
-                    <input type="text" id="fwHostIp" placeholder="Host IP, e.g. 10.0.0.3" autocomplete="off">
-                    <input type="password" id="fwHostKey" placeholder="Host key" autocomplete="off">
+                    <input type="text" id="fwVendor" placeholder="Vendor" value="Palo Alto Networks" autocomplete="off">
+                    <input type="text" id="fwHostIp" placeholder="IP address, e.g. 10.0.0.3" autocomplete="off">
+                    <input type="text" id="fwUsername" placeholder="User name" autocomplete="off">
+                    <input type="password" id="fwPassword" placeholder="Password" autocomplete="new-password">
+                    <input type="text" id="fwPort" inputmode="numeric" placeholder="Port" autocomplete="off">
                     <button class="btn btn-primary" id="fwAddBtn" type="button">Add Firewall</button>
                 </div>
             </div>
@@ -94,5 +88,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=9"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=10"></script>
 {% endblock %}

@@ -23,6 +23,14 @@
     font-size: 14px;
 }
 
+.reports-header-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    align-self: flex-start;
+}
+
 /* ------------------------------------------------------------
    Filter bar (firewall estate search + report type chips)
    ------------------------------------------------------------ */
@@ -461,7 +469,7 @@
     display: inline-flex;
     gap: 6px;
     padding: 6px;
-    margin-bottom: 22px;
+    margin-bottom: 0;
     border: 1px solid var(--border);
     border-radius: 999px;
     background: var(--glass-soft);

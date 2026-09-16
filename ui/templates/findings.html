@@ -46,13 +46,16 @@
 
 <section class="findings-toolbar card" id="toolbarFilters">
     <div class="toolbar-row">
-        <div class="toolbar-search">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-            <input type="text" id="findingsSearch" placeholder="Search findings..." aria-label="Search findings">
+        <div class="filter-group toolbar-field">
+            <label class="filter-label" for="findingsSearch">Findings</label>
+            <div class="toolbar-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                <input type="text" id="findingsSearch" placeholder="Search findings..." aria-label="Search findings">
+            </div>
         </div>
-        <div class="toolbar-select">
-            <label for="severitySelect">Severity</label>
-            <select id="severitySelect">
+        <div class="filter-group toolbar-field">
+            <label class="filter-label" for="severitySelect">Severity</label>
+            <select id="severitySelect" class="filter-select">
                 <option value="all">All</option>
                 <option value="critical">Critical</option>
                 <option value="high">High</option>
@@ -60,17 +63,17 @@
                 <option value="low">Low</option>
             </select>
         </div>
-        <div class="toolbar-select">
-            <label for="statusSelect">Status</label>
-            <select id="statusSelect">
+        <div class="filter-group toolbar-field">
+            <label class="filter-label" for="statusSelect">Status</label>
+            <select id="statusSelect" class="filter-select">
                 <option value="all">All</option>
                 <option value="non-compliant">Non-Compliant</option>
                 <option value="compliant">Compliant</option>
                 <option value="not-assessed">Not Assessed</option>
             </select>
         </div>
-        <div class="filter-group fw-combo-group">
-            <span class="filter-label">Firewall</span>
+        <div class="filter-group toolbar-field fw-combo-group">
+            <label class="filter-label" for="fwSearchInput">Firewall</label>
             <div class="fw-combobox" id="fwCombobox">
                 <svg class="fw-combo-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
                 <input type="text" id="fwSearchInput" class="fw-combo-input" placeholder="All devices — search inventory" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Search firewall inventory">
@@ -81,7 +84,7 @@
             </div>
             <select id="firewallSelect" class="filter-select" hidden><option value="all">All</option></select>
         </div>
-        <div class="filter-group">
+        <div class="filter-group toolbar-field">
             <label class="filter-label" for="riskRangeSelect">Risk Score</label>
             <select id="riskRangeSelect" class="filter-select">
                 <option value="all">All</option>
@@ -91,7 +94,7 @@
                 <option value="low">0–39 (Low)</option>
             </select>
         </div>
-        <div class="filter-group">
+        <div class="filter-group toolbar-field">
             <label class="filter-label" for="dateSelect">Assessment</label>
             <select id="dateSelect" class="filter-select"><option value="all">All dates</option></select>
         </div>

@@ -1290,3 +1290,11 @@ body { font-family: "ES Klarheit Grotesk", "Klarheit Grotesk", "Space Grotesk", 
     .ld-menu-btn span { background: #ffffff; }
     .ld-hero h1 { font-size: 24px; }
 }
+
+/* LTM Security Platform wordmark stays white in every nav/footer context */
+.ld-brand-text strong,
+.ld-brand-text span,
+.ld-brand-footer .ld-brand-text strong,
+.ld-brand-footer .ld-brand-text span {
+    color: #ffffff;
+}

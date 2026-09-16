@@ -5,7 +5,7 @@
 {% block page_title %}Asset Inventory{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=37">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=38">
 {% endblock %}
 
 {% block content %}
@@ -20,7 +20,7 @@
     <div class="settings-header-actions">
         <button class="btn btn-ghost" id="fwSingularBtn" type="button" aria-pressed="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-            Singular Inventory
+            Single Entry
         </button>
         <button class="btn btn-primary" id="fwBulkBtn" type="button" aria-pressed="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8"/><path d="M8 13h8"/><path d="M8 17h4"/></svg>
@@ -114,5 +114,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=13"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=14"></script>
 {% endblock %}

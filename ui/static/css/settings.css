@@ -636,7 +636,19 @@
 }
 
 .fw-drawer .bulk-actions {
-    flex-direction: column;
+    flex-direction: row;
+}
+
+/* Square, side-by-side bulk options inside the drawer */
+.fw-drawer .bulk-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    border-radius: 8px;
+    padding: 16px 10px;
+    font-size: 12px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.3;
 }
 
 

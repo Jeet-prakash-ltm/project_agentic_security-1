@@ -185,7 +185,7 @@
     function openDrawer(mode) {
         if (!drawer) return;
         var singular = mode !== "bulk";
-        if (drawerTitle) drawerTitle.textContent = singular ? "Add a single firewall" : "Bulk firewall addition";
+        if (drawerTitle) drawerTitle.textContent = singular ? "Single entry" : "Bulk firewall addition";
         if (panelSingular) panelSingular.hidden = !singular;
         if (panelBulk) panelBulk.hidden = singular;
         if (singularBtn) {

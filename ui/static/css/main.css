@@ -261,12 +261,12 @@ input, select, textarea {
 .brand-title {
     font-size: 17px;
     font-weight: 700;
-    color: var(--red);
+    color: #ffffff;
 }
 
 .brand-sub {
     font-size: 10px;
-    color: var(--text-2);
+    color: #ffffff;
     text-transform: uppercase;
     letter-spacing: 2.4px;
 }
@@ -386,6 +386,48 @@ input, select, textarea {
     background: var(--gradient-red);
     color: #fff;
     box-shadow: 0 10px 26px rgba(255, 94, 79, 0.4);
+}
+
+.nav-link.is-disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.nav-link.is-disabled:hover {
+    transform: none;
+    color: var(--text-2);
+    background: transparent;
+}
+
+.nav-link.is-disabled.active {
+    background: transparent;
+    box-shadow: none;
+}
+
+/* Fixed tooltip that escapes the scrollable nav list clipping */
+.nav-tooltip {
+    position: fixed;
+    z-index: 130;
+    background: var(--glass-strong);
+    -webkit-backdrop-filter: blur(30px);
+    backdrop-filter: blur(30px);
+    border: 1px solid var(--glass-border);
+    color: var(--text);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 7px 13px;
+    border-radius: 10px;
+    white-space: nowrap;
+    box-shadow: var(--shadow-soft);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.16s ease, visibility 0.16s ease;
+}
+
+.nav-tooltip.is-visible {
+    opacity: 1;
+    visibility: visible;
 }
 
 .nav-logout {
@@ -542,6 +584,11 @@ input, select, textarea {
     }
 
     .sidebar:not(.expanded) .nav-group-btn::before {
+        display: none;
+    }
+
+    /* Collapsed rail: the chevron (auto margin) would push the icon off-centre */
+    .sidebar:not(.expanded) .nav-chevron {
         display: none;
     }
 

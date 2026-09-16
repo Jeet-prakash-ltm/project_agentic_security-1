@@ -12,12 +12,18 @@
         <h1>Reports Center</h1>
         <p>Review executive summaries and assessment workbooks per firewall — generation runs from the AI Workspace.</p>
     </div>
-    {% if assessment_source %}
-    <span class="hero-chip">
-        <span class="pulse-dot"></span>
-        {{ 'Live Data' if assessment_source == 'live' else 'Sample Data' }}
-    </span>
-    {% endif %}
+    <div class="reports-header-side">
+        <nav class="reports-domain-nav" id="reportsDomainNav" aria-label="Report domain">
+            <button type="button" class="reports-domain-btn is-active" data-domain="network" aria-pressed="true">Network Security</button>
+            <button type="button" class="reports-domain-btn" data-domain="cloud" aria-pressed="false">Cloud Security</button>
+        </nav>
+        {% if assessment_source %}
+        <span class="hero-chip">
+            <span class="pulse-dot"></span>
+            {{ 'Live Data' if assessment_source == 'live' else 'Sample Data' }}
+        </span>
+        {% endif %}
+    </div>
 </div>
 
 {% if error %}
@@ -26,11 +32,6 @@
     <span>{{ error }}</span>
 </div>
 {% endif %}
-
-<nav class="reports-domain-nav" id="reportsDomainNav" aria-label="Report domain">
-    <button type="button" class="reports-domain-btn is-active" data-domain="network" aria-pressed="true">Network Security</button>
-    <button type="button" class="reports-domain-btn" data-domain="cloud" aria-pressed="false">Cloud Security</button>
-</nav>
 
 <div class="reports-domain-panel" id="reportsDomainNetwork">
 

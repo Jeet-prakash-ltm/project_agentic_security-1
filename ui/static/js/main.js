@@ -176,6 +176,75 @@
         })(entry.group, entry.toggle);
     });
 
+    // ------------------------------------------------------------
+    // SIDEBAR ICON TOOLTIPS — show the page name on hover in the
+    // collapsed rail. Rendered as a fixed element because the nav
+    // list clips anything overflowing horizontally.
+    // ------------------------------------------------------------
+    (function navIconTooltips() {
+        if (!sidebar) return;
+
+        var tip = document.createElement("div");
+        tip.className = "nav-tooltip";
+        tip.setAttribute("role", "tooltip");
+        document.body.appendChild(tip);
+
+        function collapsedRail() {
+            return isDesktop() && !sidebar.classList.contains("expanded");
+        }
+
+        function hide() {
+            tip.classList.remove("is-visible");
+        }
+
+        function show(link) {
+            if (!collapsedRail()) return;
+            var label = link.getAttribute("data-label");
+            if (!label) return;
+            var rect = link.getBoundingClientRect();
+            var isGroup = link.classList.contains("nav-group-btn");
+            tip.textContent = label;
+            tip.style.left = Math.round(rect.right + 14) + "px";
+            if (isGroup) {
+                tip.style.top = Math.round(rect.top - 10) + "px";
+                tip.style.transform = "translateY(-100%)";
+            } else {
+                tip.style.top = Math.round(rect.top + rect.height / 2) + "px";
+                tip.style.transform = "translateY(-50%)";
+            }
+            tip.classList.add("is-visible");
+        }
+
+        function linkFrom(event) {
+            if (!event.target || !event.target.closest) return null;
+            var link = event.target.closest(".nav-link[data-label]");
+            return link && sidebar.contains(link) ? link : null;
+        }
+
+        document.addEventListener("mouseover", function (event) {
+            var link = linkFrom(event);
+            if (link) show(link);
+            else hide();
+        });
+        document.addEventListener("mouseout", function (event) {
+            if (linkFrom(event)) hide();
+        });
+        window.addEventListener("sidebar-toggled", hide);
+        window.addEventListener("scroll", hide, true);
+        document.addEventListener("click", hide);
+    })();
+
+    // Telemetry Map is intentionally inert: the icon stays visible but the
+    // page is never opened.
+    document.addEventListener("click", function (event) {
+        if (!event.target || !event.target.closest) return;
+        var disabledLink = event.target.closest('.nav-link[data-disabled="true"]');
+        if (disabledLink) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    });
+
     window.showToast = function (message, type, duration) {
         var container = document.getElementById("toastContainer");
         if (!container) return;

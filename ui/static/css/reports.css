@@ -158,6 +158,10 @@
     color: var(--text);
 }
 
+.rep-combo-clear[hidden] {
+    display: none;
+}
+
 .rep-combo-clear svg {
     width: 12px;
     height: 12px;

@@ -40,7 +40,7 @@
             <span class="filter-label">Firewall</span>
             <div class="rep-combobox" id="repCombobox">
                 <svg class="rep-combo-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-                <input type="text" id="repFwInput" class="rep-combo-input" value="vmpafw01" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Search firewall estate">
+                <input type="text" id="repFwInput" class="rep-combo-input" value="" placeholder="All devices — search estate" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Search firewall estate">
                 <button type="button" class="rep-combo-clear" id="repFwClear" hidden aria-label="Clear firewall filter">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
                 </button>
@@ -185,5 +185,5 @@
 <script>
     window.REPORT_DATA = {{ reports | tojson }};
 </script>
-<script src="{{ url_for('static', filename='js/reports.js') }}?v=6"></script>
+<script src="{{ url_for('static', filename='js/reports.js') }}?v=7"></script>
 {% endblock %}

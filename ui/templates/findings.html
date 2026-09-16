@@ -48,7 +48,7 @@
     <div class="toolbar-row">
         <div class="toolbar-search">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-            <input type="text" id="findingsSearch" placeholder="Search finding ID, title, domain, evidence..." aria-label="Search findings">
+            <input type="text" id="findingsSearch" placeholder="Search findings..." aria-label="Search findings">
         </div>
         <div class="toolbar-select">
             <label for="severitySelect">Severity</label>
@@ -68,12 +68,6 @@
                 <option value="compliant">Compliant</option>
                 <option value="not-assessed">Not Assessed</option>
             </select>
-        </div>
-    </div>
-    <div class="toolbar-filters">
-        <div class="filter-group">
-            <span class="filter-label">Domain</span>
-            <div class="filter-chips" id="domainChips"></div>
         </div>
         <div class="filter-group fw-combo-group">
             <span class="filter-label">Firewall</span>
@@ -100,6 +94,12 @@
         <div class="filter-group">
             <label class="filter-label" for="dateSelect">Assessment</label>
             <select id="dateSelect" class="filter-select"><option value="all">All dates</option></select>
+        </div>
+    </div>
+    <div class="toolbar-filters">
+        <div class="filter-group">
+            <span class="filter-label">Domain</span>
+            <div class="filter-chips" id="domainChips"></div>
         </div>
     </div>
     <div class="active-filters" id="activeFilters" aria-label="Active filters"></div>

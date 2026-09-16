@@ -172,6 +172,56 @@
         : false;
     var countChip = document.getElementById("fwCountChip");
 
+    // ---- Add/bulk inventory side drawer ----
+    var drawer = document.getElementById("fwDrawer");
+    var drawerBackdrop = document.getElementById("fwDrawerBackdrop");
+    var drawerTitle = document.getElementById("fwDrawerTitle");
+    var drawerClose = document.getElementById("fwDrawerClose");
+    var singularBtn = document.getElementById("fwSingularBtn");
+    var bulkBtn = document.getElementById("fwBulkBtn");
+    var panelSingular = document.getElementById("fwPanelSingular");
+    var panelBulk = document.getElementById("fwPanelBulk");
+
+    function openDrawer(mode) {
+        if (!drawer) return;
+        var singular = mode !== "bulk";
+        if (drawerTitle) drawerTitle.textContent = singular ? "Add a single firewall" : "Bulk firewall addition";
+        if (panelSingular) panelSingular.hidden = !singular;
+        if (panelBulk) panelBulk.hidden = singular;
+        if (singularBtn) {
+            singularBtn.classList.toggle("is-active", singular);
+            singularBtn.setAttribute("aria-pressed", singular ? "true" : "false");
+        }
+        if (bulkBtn) {
+            bulkBtn.classList.toggle("is-active", !singular);
+            bulkBtn.setAttribute("aria-pressed", !singular ? "true" : "false");
+        }
+        drawer.hidden = false;
+        if (drawerBackdrop) drawerBackdrop.hidden = false;
+        window.requestAnimationFrame(function () {
+            drawer.classList.add("is-open");
+            if (drawerBackdrop) drawerBackdrop.classList.add("is-open");
+        });
+    }
+
+    function closeDrawer() {
+        if (!drawer) return;
+        drawer.classList.remove("is-open");
+        if (drawerBackdrop) drawerBackdrop.classList.remove("is-open");
+        window.setTimeout(function () {
+            drawer.hidden = true;
+            if (drawerBackdrop) drawerBackdrop.hidden = true;
+        }, 220);
+    }
+
+    if (singularBtn) singularBtn.addEventListener("click", function () { openDrawer("singular"); });
+    if (bulkBtn) bulkBtn.addEventListener("click", function () { openDrawer("bulk"); });
+    if (drawerClose) drawerClose.addEventListener("click", closeDrawer);
+    if (drawerBackdrop) drawerBackdrop.addEventListener("click", closeDrawer);
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && drawer && !drawer.hidden) closeDrawer();
+    });
+
     function escapeHtml(value) {
         return String(value == null ? "" : value)
             .replace(/&/g, "&amp;")

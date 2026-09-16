@@ -15,9 +15,17 @@
 
     var insightsAgents = [];
     var selectedAgent = "";
+    var agentRanges = {};
 
     var POLL_MS = 5000;
     var TICKS = 5;
+
+    var RANGES = [
+        { key: "week", label: "Past week", seconds: 7 * 86400 },
+        { key: "month", label: "Past month", seconds: 30 * 86400 },
+        { key: "6mo", label: "Past 6 months", seconds: 182 * 86400 },
+        { key: "year", label: "Past year", seconds: 365 * 86400 }
+    ];
 
     var COLOR_INPUT = "#2563EB";
     var COLOR_OUTPUT = "#16A34A";
@@ -103,6 +111,35 @@
         return pts.slice().sort(function (a, b) {
             return (a.ts || 0) - (b.ts || 0);
         });
+    }
+
+    function availableRanges(points) {
+        var nowSec = Date.now() / 1000;
+        return RANGES.filter(function (range, index) {
+            var prevWindow = index > 0 ? RANGES[index - 1].seconds : 0;
+            return points.some(function (p) {
+                var age = nowSec - (p.ts || 0);
+                return age <= range.seconds && (index === 0 || age > prevWindow);
+            });
+        });
+    }
+
+    function filterPoints(points, range) {
+        if (!range) return points;
+        var nowSec = Date.now() / 1000;
+        return points.filter(function (p) { return (p.ts || 0) >= nowSec - range.seconds; });
+    }
+
+    function rangeTabsHtml(ranges, selectedKey) {
+        if (!ranges.length) return "";
+        return '<div class="agent-range-tabs" role="group" aria-label="Time range">' +
+            ranges.map(function (range) {
+                var on = range.key === selectedKey;
+                return '<button type="button" class="agent-range-btn' + (on ? " is-active" : "") +
+                    '" data-range="' + range.key + '" aria-pressed="' + (on ? "true" : "false") + '">' +
+                    escapeHtml(range.label) + "</button>";
+            }).join("") +
+            "</div>";
     }
 
     function renderCost(totals, agents) {
@@ -270,7 +307,18 @@
         var output = agent.output_tokens || 0;
         var cached = agent.cached_tokens || 0;
         var reasoning = agent.reasoning_tokens || 0;
-        var points = sortedSeries(agent);
+        var allPoints = sortedSeries(agent);
+        var ranges = availableRanges(allPoints);
+        var selectedRange = agentRanges[agent.agent_name] || "";
+        if (!ranges.some(function (r) { return r.key === selectedRange; })) {
+            selectedRange = ranges.length ? ranges[ranges.length - 1].key : "";
+        }
+        if (selectedRange) agentRanges[agent.agent_name] = selectedRange;
+        var activeRange = null;
+        for (var r = 0; r < ranges.length; r += 1) {
+            if (ranges[r].key === selectedRange) { activeRange = ranges[r]; break; }
+        }
+        var points = filterPoints(allPoints, activeRange);
 
         var stat = function (label, value) {
             return '<span class="agent-stat"><span class="agent-stat-label">' + escapeHtml(label) + '</span><strong>' + value + "</strong></span>";
@@ -278,6 +326,7 @@
 
         var panel = document.createElement("div");
         panel.className = "agent-history-panel card";
+        panel.setAttribute("data-agent-name", agent.agent_name || "");
         panel.innerHTML =
             '<div class="agent-history-head">' +
             '<span class="agent-avatar agent-avatar-blue">' + escapeHtml(avatarFor(agent.agent_name)) + "</span>" +
@@ -287,6 +336,7 @@
             "</div>" +
             '<span class="agent-cost-badge">' + fmtCost(agent.cost) + "</span>" +
             "</div>" +
+            rangeTabsHtml(ranges, selectedRange) +
 
             '<div class="agent-history-stats">' +
             stat("Input", fmtTokens(input)) +
@@ -418,6 +468,18 @@
         selectedAgent = name || "";
         markActiveCards();
         renderSelectedHistory();
+    }
+
+    if (historyList) {
+        historyList.addEventListener("click", function (event) {
+            var button = event.target.closest(".agent-range-btn");
+            if (!button) return;
+            var panel = button.closest(".agent-history-panel");
+            var name = panel ? panel.getAttribute("data-agent-name") : "";
+            if (!name) return;
+            agentRanges[name] = button.getAttribute("data-range") || "";
+            renderSelectedHistory();
+        });
     }
 
     if (agentHealthList) {

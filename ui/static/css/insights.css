@@ -1030,6 +1030,36 @@
     margin-top: 2px;
 }
 
+.agent-range-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.agent-range-btn {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--glass-soft);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.agent-range-btn:hover {
+    border-color: var(--crimson);
+    color: var(--text);
+}
+
+.agent-range-btn.is-active {
+    background: var(--crimson);
+    border-color: var(--crimson);
+    color: #fff;
+}
+
 .agent-history-stats {
     display: flex;
     flex-wrap: wrap;

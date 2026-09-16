@@ -64,7 +64,8 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    flex: 1 1 260px;
+    flex: 0 1 150px;
+    min-width: 130px;
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -719,6 +720,10 @@
 .fw-combo-clear:hover {
     background: #f1f5f9;
     color: #334155;
+}
+
+.fw-combo-clear[hidden] {
+    display: none;
 }
 .fw-combo-clear svg {
     width: 12px;

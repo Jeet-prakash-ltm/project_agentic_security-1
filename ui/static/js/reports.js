@@ -6,7 +6,7 @@
     var chips = document.getElementById("reportTypeChips");
     if (!body || !chips) return;
 
-    var DEFAULT_FW = "vmpafw01";
+    var DEFAULT_FW = "all";
     var state = {
         firewall: DEFAULT_FW,
         type: "all",

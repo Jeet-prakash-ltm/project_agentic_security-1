@@ -5,7 +5,7 @@
 {% block page_title %}Asset Inventory{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=36">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=37">
 {% endblock %}
 
 {% block content %}
@@ -16,6 +16,18 @@
         <h1>Asset Inventory</h1>
         {% if not is_admin %}<p>Registered firewalls and their live status.</p>{% endif %}
     </div>
+    {% if is_admin %}
+    <div class="settings-header-actions">
+        <button class="btn btn-ghost" id="fwSingularBtn" type="button" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            Singular Inventory
+        </button>
+        <button class="btn btn-primary" id="fwBulkBtn" type="button" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8"/><path d="M8 13h8"/><path d="M8 17h4"/></svg>
+            Bulk Inventory
+        </button>
+    </div>
+    {% endif %}
 </div>
 
 <section class="settings-grid" data-is-admin="{{ 'true' if is_admin else 'false' }}">
@@ -49,8 +61,22 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
 
-            {% if is_admin %}
+</section>
+
+{% if is_admin %}
+<div class="fw-drawer-backdrop" id="fwDrawerBackdrop" hidden></div>
+<aside class="fw-drawer" id="fwDrawer" hidden aria-label="Firewall inventory actions">
+    <div class="fw-drawer-head">
+        <h3 id="fwDrawerTitle">Add a single firewall</h3>
+        <button type="button" class="fw-drawer-close" id="fwDrawerClose" aria-label="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+    </div>
+    <div class="fw-drawer-body">
+        <div class="fw-drawer-panel" id="fwPanelSingular">
             <div class="invite-user">
                 <strong>Add a firewall</strong>
                 <div class="invite-user-row invite-user-row--fw">
@@ -63,7 +89,8 @@
                     <button class="btn btn-primary" id="fwAddBtn" type="button">Add Firewall</button>
                 </div>
             </div>
-
+        </div>
+        <div class="fw-drawer-panel" id="fwPanelBulk" hidden>
             <div class="bulk-import">
                 <strong>Bulk firewall addition</strong>
                 <div class="bulk-actions">
@@ -79,14 +106,13 @@
                 <input type="file" id="fwUploadInput" accept=".xlsx" hidden>
                 <div class="bulk-messages" id="fwBulkMessages" role="status" aria-live="polite"></div>
             </div>
-            {% endif %}
         </div>
     </div>
-
-</section>
+</aside>
+{% endif %}
 
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=12"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=13"></script>
 {% endblock %}

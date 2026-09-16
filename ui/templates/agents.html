@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Agents — Settings{% endblock %}
+
+{% block page_title %}Agents{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=32">
+{% endblock %}
+
+{% block content %}
+
+<div class="settings-header">
+    <div>
+        <span class="hero-eyebrow">Settings · Agents</span>
+        <h1>Agents</h1>
+        <p>Registered security copilots for the AI Workspace.</p>
+    </div>
+    <div class="user-chip settings-user-chip" title="{{ current_user.name if current_user else 'LTM Security' }}">
+        <span class="avatar">{{ current_user.name|initials if current_user else 'LTM' }}</span>
+        <div class="user-meta">
+            <span class="user-name">{{ current_user.name if current_user else 'LTM Security' }}</span>
+            <span class="user-role">{{ current_user.role if current_user else 'Security Operations' }}</span>
+        </div>
+    </div>
+</div>
+
+{% include "_settings_nav.html" %}
+
+<section class="settings-grid" data-is-admin="{{ 'true' if is_admin else 'false' }}">
+
+    {% if is_admin %}
+    <div class="settings-card card settings-card-wide">
+        <div class="settings-card-head">
+            <span class="settings-icon settings-icon-purple">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3"/><path d="M2 9h2M2 15h2M20 9h2M20 15h2"/></svg>
+            </span>
+            <div>
+                <h3>AI Agents</h3>
+                <p>Registered security copilots for the AI Workspace — manage who can be used in chat</p>
+            </div>
+            <span class="status-chip status-on" id="agentCountChip">Total 0</span>
+        </div>
+        <div class="settings-body">
+            <div class="users-table-wrap" id="agentsCard" data-is-admin="true">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Agent Name</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="agentsBody">
+                        <tr><td colspan="4" class="users-empty">Loading agents…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="invite-user">
+                <strong>Add an agent</strong>
+                <div class="invite-user-row invite-user-row--agent">
+                    <input type="text" id="agentName" placeholder="Agent name, e.g. Cloud Workload Guardian" autocomplete="off">
+                    <input type="url" id="agentEndpoint" placeholder="Agent endpoint URL" autocomplete="off">
+                    <input type="password" id="agentKey" placeholder="API key" autocomplete="off">
+                    <button class="btn btn-primary" id="agentAddBtn" type="button">Add Agent</button>
+                </div>
+                <p class="users-hint">Agents appear in the AI Workspace where team members can switch to them. Status shows whether the agent endpoint is currently reachable (Live), probed the same way as Agent Insights. Use <strong>Remove</strong> to take an agent out of the workspace — the record stays in the database but is hidden from chat.</p>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="settings-card card settings-card-wide">
+        <div class="settings-card-head">
+            <span class="settings-icon settings-icon-purple">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3"/><path d="M2 9h2M2 15h2M20 9h2M20 15h2"/></svg>
+            </span>
+            <div>
+                <h3>AI Agents</h3>
+                <p>Administrators manage the agents available in the AI Workspace.</p>
+            </div>
+        </div>
+        <div class="settings-body">
+            <p class="users-empty">You need administrator access to manage AI agents.</p>
+        </div>
+    </div>
+    {% endif %}
+
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=8"></script>
+{% endblock %}

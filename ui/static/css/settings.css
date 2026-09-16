@@ -360,3 +360,109 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* --------------------------------------------------
+   SETTINGS SUB-NAVIGATION + OVERVIEW HUB
+-------------------------------------------------- */
+
+.settings-subnav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 5px;
+    margin-bottom: 22px;
+    width: fit-content;
+    border-radius: 14px;
+    background: var(--glass-soft);
+    border: 1px solid var(--glass-border);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    backdrop-filter: blur(20px) saturate(160%);
+}
+
+.settings-subnav-link {
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-2);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.18s ease, color 0.18s ease;
+}
+
+.settings-subnav-link:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.settings-subnav-link.active {
+    color: #fff;
+    background: var(--gradient-red);
+    box-shadow: 0 8px 20px rgba(255, 94, 79, 0.3);
+}
+
+.settings-hub {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+.settings-hub-card {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 20px;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.settings-hub-card .settings-icon {
+    width: 46px;
+    height: 46px;
+}
+
+.settings-hub-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.settings-hub-body h3 {
+    font-size: 15px;
+    font-weight: 700;
+    font-family: var(--font-display);
+    color: var(--text);
+    margin-bottom: 3px;
+}
+
+.settings-hub-body p {
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--muted);
+}
+
+.settings-hub-chevron {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: var(--muted);
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.settings-hub-card:hover .settings-hub-chevron {
+    transform: translateX(3px);
+    color: var(--red);
+}
+
+@media (max-width: 640px) {
+    .settings-subnav {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .settings-subnav-link {
+        flex: 1;
+        text-align: center;
+        padding: 9px 8px;
+    }
+}

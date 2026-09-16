@@ -369,8 +369,12 @@ input, select, textarea {
     box-shadow: 0 10px 26px rgba(255, 94, 79, 0.4);
 }
 
-.nav-link.active::before {
-    display: none;
+.nav-logout {
+    margin-top: 6px;
+}
+
+.nav-logout:hover {
+    color: var(--red);
 }
 
 /* ---- Expandable nav group (Dashboard) ---- */
@@ -472,6 +476,7 @@ input, select, textarea {
 @media (min-width: 769px) {
     .sidebar {
         width: var(--sidebar-width);
+        top: 68px;
     }
 
     .sidebar.expanded {
@@ -509,6 +514,38 @@ input, select, textarea {
 
     body.sidebar-expanded .content {
         margin-left: calc(var(--sidebar-expanded-width) + var(--sidebar-inset) + var(--page-gap));
+    }
+
+    /* Collapsed sidebar: the Dashboard group reveals its pages as a flyout. */
+    .sidebar:not(.expanded) .nav-group {
+        position: relative;
+    }
+
+    .sidebar:not(.expanded) .nav-group-btn::before {
+        display: none;
+    }
+
+    .sidebar:not(.expanded) .nav-submenu {
+        position: absolute;
+        left: calc(100% + 16px);
+        top: 0;
+        display: none;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 196px;
+        margin: 0;
+        padding: 8px;
+        border: 1px solid var(--glass-border);
+        border-radius: 14px;
+        background: var(--glass-strong);
+        -webkit-backdrop-filter: blur(30px) saturate(170%);
+        backdrop-filter: blur(30px) saturate(170%);
+        box-shadow: var(--shadow-glass);
+        z-index: 80;
+    }
+
+    .sidebar:not(.expanded) .nav-group:hover .nav-submenu {
+        display: flex;
     }
 }
 
@@ -555,6 +592,57 @@ input, select, textarea {
 .menu-toggle svg {
     width: 20px;
     height: 20px;
+}
+
+/* --------------------------------------------------
+   SIDEBAR EXPAND BUTTON — desktop only, above the rail
+-------------------------------------------------- */
+
+.sidebar-expand-toggle {
+    display: none;
+    position: fixed;
+    top: 14px;
+    left: calc(var(--sidebar-inset) + (var(--sidebar-width) - 44px) / 2);
+    z-index: 62;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid var(--glass-border);
+    border-radius: 13px;
+    background: rgba(255, 255, 255, 0.16);
+    -webkit-backdrop-filter: blur(50px) saturate(185%);
+    backdrop-filter: blur(50px) saturate(185%);
+    color: var(--text-2);
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-glass);
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.sidebar-expand-toggle:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.28);
+    transform: scale(1.04);
+}
+
+.sidebar-expand-toggle svg {
+    width: 20px;
+    height: 20px;
+    transition: transform 0.3s ease;
+}
+
+body.sidebar-expanded .sidebar-expand-toggle {
+    color: var(--red);
+}
+
+body.sidebar-expanded .sidebar-expand-toggle svg {
+    transform: rotate(180deg);
+}
+
+@media (min-width: 769px) {
+    .sidebar-expand-toggle {
+        display: inline-flex;
+    }
 }
 
 /* Global Agent Selector */
@@ -631,28 +719,6 @@ input, select, textarea {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-.user-logout {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-    margin-left: 2px;
-    border-radius: 999px;
-    color: var(--text-2);
-    transition: color 0.2s ease, background 0.2s ease;
-}
-
-.user-logout svg {
-    width: 16px;
-    height: 16px;
-}
-
-.user-logout:hover {
-    color: #fff;
-    background: rgba(255, 94, 79, 0.16);
 }
 
 /* ---- Settings page user chip (top-right corner) ---- */

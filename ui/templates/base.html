@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}LTM Security Platform{% endblock %}</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='LTM_LOGO.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=13">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=14">
     {% if page_css %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=31">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=32">
     {% endif %}
+    {% block head_extra %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v=7">
 </head>
 <body class="{% block body_class %}{% endblock %}" data-logout-url="{{ url_for('logout') }}">
@@ -19,6 +20,10 @@
 
     <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+
+    <button class="sidebar-expand-toggle" id="sidebarExpandToggle" type="button" aria-label="Expand navigation" aria-expanded="false" aria-controls="sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/><path d="M15 6l6 6-6 6" opacity="0.55"/></svg>
     </button>
 
     <aside class="sidebar" id="sidebar">
@@ -70,9 +75,13 @@
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h8l4 4V21.5H6V2.5z"/><path d="M14 2.5v4h4"/><path d="M9 12h6M9 16h6"/></svg>
                 <span>Reports</span>
             </a>
-            <a href="{{ url_for('settings') }}" class="nav-link {{ 'active' if request.endpoint == 'settings' else '' }}" data-label="Settings">
+            <a href="{{ url_for('settings') }}" class="nav-link {{ 'active' if request.endpoint in ['settings', 'settings_accounts', 'settings_inventory', 'settings_agents'] else '' }}" data-label="Settings">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06A1.7 1.7 0 0015 19.4a1.7 1.7 0 00-1 .1 1.7 1.7 0 00-.83 1.2V21a2 2 0 11-4 0v-.09a1.7 1.7 0 00-1.2-1.6 1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.7 1.7 0 00.34-1.87 1.7 1.7 0 00-1.1-1 1.7 1.7 0 00-1.2-.1H3a2 2 0 110-4h.09a1.7 1.7 0 001.6-1.2 1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06a1.7 1.7 0 001.87.34h.01a1.7 1.7 0 001-1.1 1.7 1.7 0 00-.1-1.2V3a2 2 0 114 0v.09a1.7 1.7 0 001.2 1.6h.01a1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06a1.7 1.7 0 00-.34 1.87v.01a1.7 1.7 0 001.1 1 1.7 1.7 0 001.2.1H21a2 2 0 110 4h-.09a1.7 1.7 0 00-1.51 1z"/></svg>
                 <span>Settings</span>
+            </a>
+            <a href="{{ url_for('logout') }}" class="nav-link nav-logout" data-label="Logout">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+                <span>Logout</span>
             </a>
         </nav>
     </aside>
@@ -87,7 +96,7 @@
 
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=9"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=10"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

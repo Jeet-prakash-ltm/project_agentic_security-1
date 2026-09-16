@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Accounts — Settings{% endblock %}
+
+{% block page_title %}Accounts{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=32">
+{% endblock %}
+
+{% block content %}
+
+<div class="settings-header">
+    <div>
+        <span class="hero-eyebrow">Settings · Accounts</span>
+        <h1>Accounts</h1>
+        <p>{% if is_admin %}Provision accounts and control who can sign in.{% else %}Platform roster.{% endif %}</p>
+    </div>
+    <div class="user-chip settings-user-chip" title="{{ current_user.name if current_user else 'LTM Security' }}">
+        <span class="avatar">{{ current_user.name|initials if current_user else 'LTM' }}</span>
+        <div class="user-meta">
+            <span class="user-name">{{ current_user.name if current_user else 'LTM Security' }}</span>
+            <span class="user-role">{{ current_user.role if current_user else 'Security Operations' }}</span>
+        </div>
+    </div>
+</div>
+
+{% include "_settings_nav.html" %}
+
+<section class="settings-grid" data-is-admin="{{ 'true' if is_admin else 'false' }}">
+
+    <div class="settings-card card settings-card-wide">
+        <div class="settings-card-head">
+            <span class="settings-icon settings-icon-blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            </span>
+            <div>
+                <h3>User Accounts</h3>
+                <p>{% if is_admin %}Provision accounts and control who can sign in{% else %}Platform roster{% endif %}</p>
+            </div>
+            {% if is_admin %}
+            <span class="status-chip status-on" id="pendingCountChip">Pending 0</span>
+            {% endif %}
+        </div>
+        <div class="settings-body">
+            <div class="users-table-wrap" id="userAccountsCard"
+                 data-self-user="{{ current_user.id if current_user else '' }}"
+                 data-is-admin="{{ 'true' if is_admin else 'false' }}">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            {% if is_admin %}
+                            <th>Email</th>
+                            {% endif %}
+                            <th>Role</th>
+                            {% if is_admin %}
+                            <th>Status</th>
+                            <th>Actions</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody id="usersBody">
+                        <tr><td colspan="5" class="users-empty">Loading accounts…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            {% if is_admin %}
+            <div class="invite-user">
+                <strong>Add an account</strong>
+                <div class="invite-user-row">
+                    <input type="text" id="inviteName" placeholder="Full name">
+                    <input type="email" id="inviteEmail" placeholder="Email">
+                    <select id="inviteRole">
+                        <option value="Security Analyst">Security Analyst</option>
+                        <option value="SOC Analyst">SOC Analyst</option>
+                        <option value="Auditor">Auditor</option>
+                        <option value="Viewer">Viewer</option>
+                        <option value="Admin">Admin</option>
+                    </select>
+                    <input type="password" id="invitePassword" placeholder="Temporary password" autocomplete="off">
+                    <button class="btn btn-primary" id="inviteBtn" type="button">Add User</button>
+                </div>
+                <p class="users-hint">Accounts are created here by an administrator and can sign in right away. Self-registration on the sign-in page is disabled. Use <strong>Remove</strong> to stop a user from signing in — the account and its data are retained in the database but stay hidden from the workspace, reports and insights.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=8"></script>
+{% endblock %}

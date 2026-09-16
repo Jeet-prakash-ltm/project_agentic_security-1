@@ -772,6 +772,39 @@ def settings():
         is_admin=_is_admin(current_user()),
     )
 
+
+@app.route("/settings/accounts")
+@login_required
+def settings_accounts():
+
+    return render_with_css(
+        "accounts.html",
+
+        is_admin=_is_admin(current_user()),
+    )
+
+
+@app.route("/settings/inventory")
+@login_required
+def settings_inventory():
+
+    return render_with_css(
+        "inventory.html",
+
+        is_admin=_is_admin(current_user()),
+    )
+
+
+@app.route("/settings/agents")
+@login_required
+def settings_agents():
+
+    return render_with_css(
+        "agents.html",
+
+        is_admin=_is_admin(current_user()),
+    )
+
 # --------------------------------------------------
 # API ROUTES
 # --------------------------------------------------

@@ -1,0 +1,8 @@
+<nav class="settings-subnav" aria-label="Settings sections">
+    <a href="{{ url_for('settings') }}" class="settings-subnav-link {{ 'active' if request.endpoint == 'settings' else '' }}">Overview</a>
+    <a href="{{ url_for('settings_accounts') }}" class="settings-subnav-link {{ 'active' if request.endpoint == 'settings_accounts' else '' }}">Accounts</a>
+    <a href="{{ url_for('settings_inventory') }}" class="settings-subnav-link {{ 'active' if request.endpoint == 'settings_inventory' else '' }}">Inventory</a>
+    {% if is_admin %}
+    <a href="{{ url_for('settings_agents') }}" class="settings-subnav-link {{ 'active' if request.endpoint == 'settings_agents' else '' }}">Agents</a>
+    {% endif %}
+</nav>

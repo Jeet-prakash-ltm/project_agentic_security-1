@@ -4,6 +4,7 @@
     var sidebar = document.getElementById("sidebar");
     var backdrop = document.getElementById("sidebarBackdrop");
     var menuToggle = document.getElementById("menuToggle");
+    var expandToggle = document.getElementById("sidebarExpandToggle");
 
     function isDesktop() {
         return window.innerWidth > 768;
@@ -20,6 +21,13 @@
         if (!sidebar) return;
         sidebar.classList.toggle("expanded", expanded);
         document.body.classList.toggle("sidebar-expanded", expanded);
+        if (expandToggle) {
+            expandToggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+            expandToggle.setAttribute(
+                "aria-label",
+                expanded ? "Collapse navigation" : "Expand navigation"
+            );
+        }
     }
 
     if (menuToggle) {
@@ -35,14 +43,11 @@
         });
     }
 
-    // Desktop: expand the sidebar while the pointer is over it, otherwise
-    // collapse back to icons only.
-    if (sidebar) {
-        sidebar.addEventListener("mouseenter", function () {
-            if (isDesktop()) toggleDesktopSidebar(true);
-        });
-        sidebar.addEventListener("mouseleave", function () {
-            if (isDesktop()) toggleDesktopSidebar(false);
+    // The sidebar stays collapsed to an icon rail. It is expanded only from
+    // the dedicated toggle above the rail, and collapses again on click.
+    if (expandToggle) {
+        expandToggle.addEventListener("click", function () {
+            toggleDesktopSidebar(!sidebar.classList.contains("expanded"));
         });
     }
 
@@ -52,8 +57,7 @@
             if (backdrop) backdrop.classList.remove("show");
             document.body.style.overflow = "";
         } else if (sidebar) {
-            sidebar.classList.remove("expanded");
-            document.body.classList.remove("sidebar-expanded");
+            toggleDesktopSidebar(false);
         }
     });
 
@@ -63,19 +67,31 @@
     var dashGroup = document.getElementById("navDashboardGroup");
     var dashToggle = document.getElementById("navDashboardToggle");
 
+    function closeDashGroup() {
+        if (!dashGroup || !dashToggle) return;
+        dashGroup.classList.remove("is-open");
+        dashToggle.setAttribute("aria-expanded", "false");
+    }
+
     if (dashGroup && dashToggle) {
         dashToggle.addEventListener("click", function () {
-            if (isDesktop() && sidebar && !sidebar.classList.contains("expanded")) {
-                dashGroup.classList.add("is-open");
-                dashToggle.setAttribute("aria-expanded", "true");
-                toggleDesktopSidebar(true);
-                return;
-            }
             var willOpen = !dashGroup.classList.contains("is-open");
             dashGroup.classList.toggle("is-open", willOpen);
             dashToggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
         });
+
+        // Collapsed rail: hide the flyout once the pointer leaves.
+        dashGroup.addEventListener("mouseleave", function () {
+            if (isDesktop() && sidebar && !sidebar.classList.contains("expanded")) {
+                closeDashGroup();
+            }
+        });
     }
+
+    document.addEventListener("click", function (event) {
+        if (!dashGroup || !dashToggle) return;
+        if (!dashGroup.contains(event.target)) closeDashGroup();
+    });
 
     // Collapse the sidebar again once a Dashboard sub-page is chosen.
     var dashSubLinks = document.querySelectorAll(".nav-submenu .nav-sublink");

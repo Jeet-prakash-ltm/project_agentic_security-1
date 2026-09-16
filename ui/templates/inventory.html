@@ -5,7 +5,7 @@
 {% block page_title %}Inventory{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=32">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=33">
 {% endblock %}
 
 {% block content %}
@@ -24,8 +24,6 @@
         </div>
     </div>
 </div>
-
-{% include "_settings_nav.html" %}
 
 <section class="settings-grid" data-is-admin="{{ 'true' if is_admin else 'false' }}">
 

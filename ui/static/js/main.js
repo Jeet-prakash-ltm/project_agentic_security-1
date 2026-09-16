@@ -62,41 +62,45 @@
     });
 
     // ------------------------------------------------------------
-    // SIDEBAR NAV GROUP — Dashboard expands to its sub-pages
+    // SIDEBAR NAV GROUPS — expand/collapse to their sub-pages
     // ------------------------------------------------------------
-    var dashGroup = document.getElementById("navDashboardGroup");
-    var dashToggle = document.getElementById("navDashboardToggle");
+    var navGroups = [
+        { group: document.getElementById("navDashboardGroup"), toggle: document.getElementById("navDashboardToggle") },
+        { group: document.getElementById("navSettingsGroup"), toggle: document.getElementById("navSettingsToggle") }
+    ];
 
-    function closeDashGroup() {
-        if (!dashGroup || !dashToggle) return;
-        dashGroup.classList.remove("is-open");
-        dashToggle.setAttribute("aria-expanded", "false");
-    }
+    navGroups.forEach(function (entry) {
+        if (!entry.group || !entry.toggle) return;
 
-    if (dashGroup && dashToggle) {
-        dashToggle.addEventListener("click", function () {
-            var willOpen = !dashGroup.classList.contains("is-open");
-            dashGroup.classList.toggle("is-open", willOpen);
-            dashToggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
-        });
-
-        // Collapsed rail: hide the flyout once the pointer leaves.
-        dashGroup.addEventListener("mouseleave", function () {
-            if (isDesktop() && sidebar && !sidebar.classList.contains("expanded")) {
-                closeDashGroup();
+        (function (group, toggle) {
+            function closeGroup() {
+                group.classList.remove("is-open");
+                toggle.setAttribute("aria-expanded", "false");
             }
-        });
-    }
 
-    document.addEventListener("click", function (event) {
-        if (!dashGroup || !dashToggle) return;
-        if (!dashGroup.contains(event.target)) closeDashGroup();
+            toggle.addEventListener("click", function () {
+                var willOpen = !group.classList.contains("is-open");
+                group.classList.toggle("is-open", willOpen);
+                toggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
+            });
+
+            // Collapsed rail: hide the flyout once the pointer leaves.
+            group.addEventListener("mouseleave", function () {
+                if (isDesktop() && sidebar && !sidebar.classList.contains("expanded")) {
+                    closeGroup();
+                }
+            });
+
+            document.addEventListener("click", function (event) {
+                if (!group.contains(event.target)) closeGroup();
+            });
+        })(entry.group, entry.toggle);
     });
 
-    // Collapse the sidebar again once a Dashboard sub-page is chosen.
-    var dashSubLinks = document.querySelectorAll(".nav-submenu .nav-sublink");
-    for (var s = 0; s < dashSubLinks.length; s++) {
-        dashSubLinks[s].addEventListener("click", function () {
+    // Collapse the sidebar again once a sub-page is chosen.
+    var navSubLinks = document.querySelectorAll(".nav-submenu .nav-sublink");
+    for (var s = 0; s < navSubLinks.length; s++) {
+        navSubLinks[s].addEventListener("click", function () {
             if (isDesktop() && sidebar) {
                 toggleDesktopSidebar(false);
             }

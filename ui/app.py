@@ -63,7 +63,8 @@ def require_authentication():
 
 @app.context_processor
 def inject_current_user():
-    return {"current_user": current_user()}
+    user = getattr(g, "user", None) or current_user()
+    return {"current_user": user, "is_admin": _is_admin(user)}
 
 
 def _is_admin(user):
@@ -766,11 +767,9 @@ def telemetry_map():
 @login_required
 def settings():
 
-    return render_with_css(
-        "settings.html",
-
-        is_admin=_is_admin(current_user()),
-    )
+    # Settings is a sidebar group (Accounts / Inventory / Agents); the bare
+    # path lands on the first section.
+    return redirect(url_for("settings_accounts"))
 
 
 @app.route("/settings/accounts")

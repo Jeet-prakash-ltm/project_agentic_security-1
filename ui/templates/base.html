@@ -75,10 +75,27 @@
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h8l4 4V21.5H6V2.5z"/><path d="M14 2.5v4h4"/><path d="M9 12h6M9 16h6"/></svg>
                 <span>Reports</span>
             </a>
-            <a href="{{ url_for('settings') }}" class="nav-link {{ 'active' if request.endpoint in ['settings', 'settings_accounts', 'settings_inventory', 'settings_agents'] else '' }}" data-label="Settings">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06A1.7 1.7 0 0015 19.4a1.7 1.7 0 00-1 .1 1.7 1.7 0 00-.83 1.2V21a2 2 0 11-4 0v-.09a1.7 1.7 0 00-1.2-1.6 1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.7 1.7 0 00.34-1.87 1.7 1.7 0 00-1.1-1 1.7 1.7 0 00-1.2-.1H3a2 2 0 110-4h.09a1.7 1.7 0 001.6-1.2 1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06a1.7 1.7 0 001.87.34h.01a1.7 1.7 0 001-1.1 1.7 1.7 0 00-.1-1.2V3a2 2 0 114 0v.09a1.7 1.7 0 001.2 1.6h.01a1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06a1.7 1.7 0 00-.34 1.87v.01a1.7 1.7 0 001.1 1 1.7 1.7 0 001.2.1H21a2 2 0 110 4h-.09a1.7 1.7 0 00-1.51 1z"/></svg>
-                <span>Settings</span>
-            </a>
+            {% set settings_endpoints = ['settings', 'settings_accounts', 'settings_inventory', 'settings_agents'] %}
+            <div class="nav-group {{ 'is-open' if request.endpoint in settings_endpoints else '' }}" id="navSettingsGroup">
+                <button type="button" class="nav-link nav-group-btn {{ 'active' if request.endpoint in settings_endpoints else '' }}" id="navSettingsToggle" data-label="Settings" aria-expanded="{{ 'true' if request.endpoint in settings_endpoints else 'false' }}" aria-controls="navSettingsSub">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06A1.7 1.7 0 0015 19.4a1.7 1.7 0 00-1 .1 1.7 1.7 0 00-.83 1.2V21a2 2 0 11-4 0v-.09a1.7 1.7 0 00-1.2-1.6 1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.7 1.7 0 00.34-1.87 1.7 1.7 0 00-1.1-1 1.7 1.7 0 00-1.2-.1H3a2 2 0 110-4h.09a1.7 1.7 0 001.6-1.2 1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06a1.7 1.7 0 001.87.34h.01a1.7 1.7 0 001-1.1 1.7 1.7 0 00-.1-1.2V3a2 2 0 114 0v.09a1.7 1.7 0 001.2 1.6h.01a1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06a1.7 1.7 0 00-.34 1.87v.01a1.7 1.7 0 001.1 1 1.7 1.7 0 001.2.1H21a2 2 0 110 4h-.09a1.7 1.7 0 00-1.51 1z"/></svg>
+                    <span>Settings</span>
+                    <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="nav-submenu" id="navSettingsSub">
+                    <a href="{{ url_for('settings_accounts') }}" class="nav-sublink {{ 'active' if request.endpoint == 'settings_accounts' else '' }}">
+                        <span class="nav-subdot"></span><span>Accounts</span>
+                    </a>
+                    <a href="{{ url_for('settings_inventory') }}" class="nav-sublink {{ 'active' if request.endpoint == 'settings_inventory' else '' }}">
+                        <span class="nav-subdot"></span><span>Inventory</span>
+                    </a>
+                    {% if is_admin %}
+                    <a href="{{ url_for('settings_agents') }}" class="nav-sublink {{ 'active' if request.endpoint == 'settings_agents' else '' }}">
+                        <span class="nav-subdot"></span><span>Agents</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
             <a href="{{ url_for('logout') }}" class="nav-link nav-logout" data-label="Logout">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
                 <span>Logout</span>
@@ -96,7 +113,7 @@
 
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=10"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=11"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -581,7 +581,7 @@
         }
         el.innerHTML = state.firewalls.map(function (fw) {
             return '<span class="dash-chip">' +
-                '<span class="dash-chip-dot" style="background:' + colorFor(fw) + '"></span>' +
+                '<span class="dash-chip-dot"></span>' +
                 escapeHtml(fw) +
                 '<button type="button" class="dash-chip-x" data-fw="' + escapeHtml(fw) + '" aria-label="Remove ' + escapeHtml(fw) + '">&times;</button>' +
                 "</span>";

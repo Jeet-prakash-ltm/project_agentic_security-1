@@ -1,14 +1,17 @@
-# LTM Security Platform — Project Structure & Architecture
+# netsec-agent — Project Structure & Integration
+
+Palo Alto Networks firewall auditor and the network-security half of the LTM
+Security Platform. This document covers the `netsec-agent/` Azure Functions
+app and how the Flask web console (`ui/`) consumes it. For the full platform
+layout see the repository-root `PROJECT_STRUCTURE.md`.
 
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)
 2. [Directory Map](#directory-map)
-3. [Component Deep Dive](#component-deep-dive)
-   - [Azure Functions Backend (`functions/`)](#azure-functions-backend-functionss)
-   - [Flask Frontend (`ui/`)](#flask-frontend-ui)
-4. [Data Flow](#data-flow)
-5. [Page Routing](#page-routing)
+3. [Azure Functions Backend (`functions/`)](#azure-functions-backend-functions)
+4. [Flask UI Integration (`ui/`)](#flask-ui-integration-ui)
+5. [Data Flow](#data-flow)
 6. [Design Patterns](#design-patterns)
 7. [Configuration & Persistence](#configuration--persistence)
 
@@ -17,59 +20,63 @@
 ## Architecture Overview
 
 ```
-+----------------------------------------------------+
-|                  Browser (Client)                   |
-|  Dashboard | Workspace | Telemetry Map | Insights  |
-|  Findings  | Reports   | Settings                   |
-+---------+------------------------------------------+
-          |
-          | HTTP (port 8003)
-          v
-+---------+------------------------------------------+
-|             Flask Frontend (ui/app.py)              |
-|  +-----------+ +-------------+ +----------------+  |
-|  |  gateway/ | |  services/  | |   config/      |  |
-|  |  (agent   | | (assessment | | (settings,     |  |
-|  |   chat,   | |  dashboard, | |  keyvault,     |  |
-|  |   session | |  insights,  | |  agents.json,  |  |
-|  |   manager,| |  telemetry, | |  sessions.json)|  |
-|  |   tools,  | |  system     | |                |  |
-|  |   foundry) | |  status)   | |                |  |
-|  +-----+-----+ +------+------+ +----------------+  |
-+--------+---------------+----------------------------+
++-------------------------------------------------------+
+|                     Browser (Client)                   |
+|  Network Security | Cloud Security | System Info |     |
+|  AI Workspace | Investigation Centre | Reports |       |
+|  Agent Insights | Telemetry Map | Settings             |
++-------------------------+-----------------------------+
+                          |
+                          | HTTP (Flask, port 8003)
+                          v
++-------------------------+-----------------------------+
+|             Flask Frontend (ui/app.py)                 |
+|  +-----------+ +-------------+ +------------------+    |
+|  |  gateway/ | |  services/  | | config/settings  |    |
+|  |  (agent   | | (assessment | | (env-driven,     |    |
+|  |   chat,   | |  dashboard, | |  no Key Vault)   |    |
+|  |   session | |  insights,  | +------------------+    |
+|  |   manager,| |  telemetry, | | database/ (PG)   |    |
+|  |   tools,  | |  netsec)    | | repositories     |    |
+|  |   foundry)| |             | |                  |    |
+|  +-----+-----+ +------+------+ +------------------+    |
++--------+---------------+-------------------------------+
          |               |
          |               v
-         |   +-----------+-----------+
-         |   | Azure AI Foundry      |
-         |   | (LLM chat backend)    |
-         |   +-----------------------+
+         |      +-----------------------+
+         |      | Azure AI Foundry      |
+         |      | (LLM chat backend)    |
+         |      +-----------------------+
          |
-         | HTTP (function key auth)
+         | HTTP (function-key auth)
          v
-+--------+-------------------------------------------+
-|       Azure Functions Backend (function_app.py)     |
-|  +-------------+ +-------------+ +--------------+  |
-|  | connectors/ | | compliance/ | |  reports/    |  |
-|  | (paloalto   | | (engine +   | | (summary,    |  |
-|  |  collector  | |  findings)  | |  excel,      |  |
-|  |  modules)   | |             | |  risk)       |  |
-|  +------+------+ +------+------+ +------+-------+  |
-+---------+----------------+----------------+--------+
-          |                |                |
-          v                v                v
-    +---------+     +-----------+     +---------+
-    | Palo    |     | Baseline  |     | .xlsx   |
-    | Alto    |     | Rules     |     | Reports |
-    | Firewall|     | (44 rules)|     |         |
-    +---------+     +-----------+     +---------+
++--------+----------------------------------------------+
+|       Azure Functions Backend (functions/)             |
+|  +-------------+ +-------------+ +--------------+      |
+|  | connectors/ | | compliance/ | |  reports/    |      |
+|  | (paloalto   | | (engine +   | | (summary,    |      |
+|  |  collector  | |  findings)  | |  pdf, excel, |      |
+|  |  modules)   | |             | |  risk)       |      |
+|  +------+------+ +------+------+ +------+-------+      |
+|         |               |               |              |
+|         v               v               v              |
+|   +---------+    +-----------+    +---------+          |
+|   | Palo    |    | Baseline  |    | .xlsx / |          |
+|   | Alto    |    | Rules     |    | .pdf    |          |
+|   | Firewall|    | (44 rules)|    | Reports |          |
+|   +---------+    +-----------+    +---------+          |
+|         |                                              |
+|         v                                              |
+|   dbwriter/persist.py  ---> PostgreSQL (optional)      |
++--------------------------------------------------------+
 ```
 
-The platform is split into two independently deployable components:
+The platform separates two components:
 
 | Component | Location | Runtime | Port | Purpose |
 |-----------|----------|---------|------|---------|
-| **Functions** | `functions/` | Azure Functions (Python 3.11) | — | Connects to Palo Alto firewalls, collects config & health data, evaluates compliance, generates reports |
-| **UI** | `ui/` | Flask dev server (Python 3.11) | 8003 | Web dashboard, AI chat, telemetry visualization, agent management |
+| **Functions** | `netsec-agent/functions/` | Azure Functions (Python 3.11) | — | Connects to Palo Alto firewalls, collects config & health data, evaluates compliance, generates findings and reports |
+| **UI** | repo-root `ui/` | Flask (Python 3.11) | 8003 | Web console: dashboards, AI chat, investigation centre, reports, insights, telemetry, settings |
 
 ---
 
@@ -77,332 +84,190 @@ The platform is split into two independently deployable components:
 
 ```
 netsec-agent/
-|
-+-- test_inventory.py              Quick test: connects to firewall at 10.1.0.5
-|                                   and prints device inventory
-|
-+-- functions/                     === AZURE FUNCTIONS BACKEND ===
-|   +-- function_app.py            Main entry: 15 HTTP endpoints
-|   +-- host.json                  Azure Functions host config (v2)
-|   +-- local.settings.json        Local dev settings (storage emulator)
-|   +-- requirements.txt           deps: azure-functions, requests,
-|   |                               pan-os-python, openpyxl, azure-*
-|   +-- test_excel.py              Test script for ExcelReport generation
-|   +-- PaloAlto_Assessment.xlsx   Sample assessment workbook output
-|   +-- functionapp.zip            Deployable package (~518 KB)
-|   +-- webapp_logs.zip            Web app logs archive (~247 KB)
-|   |
-|   +-- baseline/
-|   |   +-- baseline_rules.json    44 compliance rules (PA-01 to PA-67)
-|   |   +-- PaloAlto_Compliance_Baseline.txt
-|   |                               Human-readable compliance doc (67+ controls)
-|   |
-|   +-- compliance/
-|   |   +-- compliance_engine.py   Evaluates assessment data against rules
-|   |   +-- findings_generator.py  Converts non-compliant results into
-|   |                               detailed findings with remediation
-|   |
-|   +-- connectors/
-|   |   +-- utils/
-|   |   |   +-- xml_parser.py      XML parsing utility (get_text, get_int,
-|   |   |                            get_float, get_elements, to_dict...)
-|   |   |
-|   |   +-- paloalto/             === 11 Collector Modules ===
-|   |       +-- paloalto_connector.py  Facade orchestrating all collectors
-|   |       +-- inventory.py           Device info (hostname, model, version)
-|   |       +-- health_status.py       CPU, memory, disk, session utilization
-|   |       +-- ha_configuration.py    HA state, peer status, sync monitoring
-|   |       +-- policy_configuration.py Security rules, NAT, zones, App-ID %
-|   |       +-- security_services.py   Threat/AV/AS/DNS/WildFire/URL/SSL
-|   |       +-- routing_configuration.py Virtual routers, BGP, OSPF
-|   |       +-- vpn_configuration.py   GlobalProtect, IKE, IPsec, MFA
-|   |       +-- logging_configuration.py Syslog, SIEM, SNMP, profiles
-|   |       +-- administration_configuration.py Admins, IPs, HTTPS, NTP
-|   |       +-- zone_protection_configuration.py Zone/DoS profiles
-|   |       +-- backup_configuration.py Scheduled backup jobs
-|   |
-|   +-- reports/
-|   |   +-- report_generator.py    Thin wrapper delegating to summaries
-|   |   +-- executive_summary.py   Management-level summary text
-|   |   +-- excel_report.py        Multi-sheet Excel workbook (openpyxl)
-|   |   +-- risk_summary.py        CRITICAL/HIGH/MEDIUM/LOW risk level
-|   |
-|   +-- openapi/
-|   |   +-- firewall-auditor-openapi.json  OpenAPI 3.0.1 spec (15 endpoints)
-|   |
-|   +-- applogs/                   Azure deployment logs (runtime artifacts,
-|       |                           not application code)
-|       +-- LogFiles/StartupLogs/  Container startup success logs
-|       +-- LogFiles/Application/  Function host debug logs
-|       +-- LogFiles/kudu/trace/   Kudu deployment engine traces (~50 files)
-|       +-- deployments/           Per-deployment status.xml + log.log
-|
-+-- ui/                            === FLASK FRONTEND ===
-    +-- app.py                     Flask app: routes + REST APIs, port 8003
-    +-- requirements.txt           deps: flask, requests, azure-*
-    |
-    +-- config/
-    |   +-- settings.py            Platform settings (function URL, key,
-    |   |                            live mode, cache TTL, app insights)
-    |   +-- keyvault.py            Azure Key Vault secret client with
-    |   |                            in-memory cache + env var fallback
-    |   +-- agents.json            Persisted agent registrations
-    |   +-- sessions.json          Chat conversation history
-    |   +-- insights.json          Token usage, latency, cost per turn
-    |   +-- assessment_stats.json  Assessment run counter + last run time
-    |   +-- reports_history.json   Report generation history (demo seeded)
-    |   +-- telemetry_metrics.json Per-agent request/error metrics
-    |   +-- telemetry_history.json Time-series map snapshots for slider
-    |
-    +-- gateway/                   === Agent Chat Orchestration ===
-    |   +-- agent_gateway.py       Routes chat to foundry_client, persists
-    |   |                            sessions, records telemetry & insights
-    |   +-- session_manager.py     Conversation CRUD with thread-safe locking
-    |   +-- tools.py               Tool registry: run_compliance_assessment,
-    |   |                            run_full_assessment, executive_summary,
-    |   |                            generate_excel_report
-    |   +-- foundry_client.py      Azure AI Foundry chat client
-    |                              (OpenAI Responses API format)
-    |
-    +-- services/                  === Business Logic Services ===
-    |   +-- assessment_service.py  Assessment orchestrator: live Azure call
-    |   |                            first, sample fallback, 120s cache
-    |   +-- sample_assessment.py   Static demo data (hostname "edge-fw-01",
-    |   |                            model PA-3220)
-    |   +-- agents_service.py      Agent CRUD: add, list, get, remove,
-    |   |                            set-connected, key masking
-    |   +-- function_client.py     HTTP client for Azure Function endpoints
-    |   +-- firewall_service.py    Thin delegation to function_client
-    |   +-- dashboard_service.py   Aggregates compliance stats, agent health,
-    |   |                            findings, cost, token, top cost drivers
-    |   +-- chat_service.py        Delegates chat to gateway (single + multi)
-    |   +-- insights_service.py    Per-conversation token/latency/cost
-    |   |                            tracking; pricing: $1.25/$10 per M
-    |   +-- report_history_service.py Report history with demo seed, 50 max
-    |   +-- system_status_service.py  Probes 8 components (agent, functions,
-    |   |                            firewall, foundry, model, keyvault,
-    |   |                            appinsights, gateway); 30s cache;
-    |   |                            returns overall/source/components
-    |   +-- telemetry_map_service.py Builds node/edge ontology graph for
-    |   |                            Cytoscape.js; history snapshots;
-    |   |                            health scores; status lookup
-    |   +-- app_insights.py        Azure App Insights telemetry sender
-    |   +-- empty files: foundry_client.py, report_client.py
-    |
-    +-- templates/                 === Jinja2 HTML Templates ===
-    |   +-- base.html              Sidebar nav (7 pages), top bar with
-    |   |                            live badge + user chip, empty/loading/
-    |   |                            skeleton states
-    |   +-- dashboard.html         KPI cards, compliance ring, agent health
-    |   +-- workspace.html         Chat UI, agent grid, add-agent modal,
-    |   |                            quick action pills
-    |   +-- findings.html          Agent Operations Center: search, risk/
-    |   |                            status/impact filters, findings cards
-    |   +-- reports.html           Report generation cards, recent reports
-    |   |                            table, result display
-    |   +-- insights.html          Agent KPI overview, per-agent cards,
-    |   |                            cost observability, conversations table
-    |   +-- telemetry_map.html     Cytoscape.js canvas, agent selector,
-    |   |                            node detail panel, legend, KPI bar,
-    |   |                            status/group filter chips, history
-    |   |                            slider, zoom controls, source chip
-    |   +-- settings.html          Azure Function, Foundry, Agent, API Keys,
-    |   |                            Security config forms
-    |
-    +-- static/
-        +-- images/
-        |   +-- logo.svg           Red hexagon "LTM" brand logo
-        |
-        +-- vendor/
-        |   +-- cytoscape.min.js   Cytoscape.js graph library
-        |   +-- fonts/
-        |       +-- inter.woff2        Inter variable font (400-800)
-        |       +-- grotesk.woff2      Space Grotesk variable font (400-700)
-        |       +-- inter-latin.css    Inter @font-face declarations
-        |       +-- grotesk-latin.css  Space Grotesk @font-face declarations
-        |       +-- inter-urls.txt     Original Inter download URLs
-        |       +-- grotesk-urls.txt   Original Space Grotesk download URLs
-        |
-        +-- js/
-        |   +-- main.js            Shared: sidebar toggle, responsive resize,
-        |   |                        toast notifications, system status
-        |   |                        polling (/api/system-status),
-        |   |                        live badge updates
-        |   +-- dashboard.js       Fetches /api/dashboard, animated KPI
-        |   |                        counters, security posture ring,
-        |   |                        agent health cards
-        |   +-- workspace.js       Agent CRUD via /api/agents, chat via
-        |   |                        /api/chat, quick actions, message
-        |   |                        rendering, localStorage persistence
-        |   +-- findings.js        Fetches /api/compliance, findings list
-        |   |                        with filtering + collapsible cards
-        |   +-- reports.js         Report history table from /api/reports,
-        |   |                        download/view actions
-        |   +-- insights.js        /api/insights, agent cards, cost KPI
-        |   +-- settings.js        Save/test connection form handlers
-        |   +-- telemetry_map.js   Cytoscape.js graph rendering, node/edge
-        |                            visualization, detail panel, history
-        |                            slider, zoom controls, group/status
-        |                            filters, system source chip
-        |
-        +-- css/
-        |   +-- main.css           Global design system (1423 lines): CSS
-        |   |                        custom properties, fonts, hexagon
-        |   |                        motifs, sidebar, top bar, content
-        |   |                        layout, toasts, KPIs, forms, modals,
-        |   |                        skeletons, system-status indicators,
-        |   |                        responsive breakpoints
-        |   +-- dashboard.css      Hero section, KPI grid, quick actions,
-        |   |                        agent health cards, ring chart
-        |   +-- workspace.css      Agent grid, chat section, message bubbles,
-        |   |                        quick action pills, add-agent modal
-        |   +-- findings.css       Toolbar, filters, findings cards,
-        |   |                        summary chips, collapsible toggles
-        |   +-- reports.css        Generation cards, report table, results
-        |   +-- insights.css       Agent cards, cost observability grid,
-        |   |                        conversation table
-        |   +-- settings.css       Settings cards, toggle rows, form layouts
-        |   +-- telemetry_map.css  Cytoscape canvas, detail panel, legend
-        |                            (operational/stopped/faulted/changed),
-        |                            KPI bar, history slider, zoom controls,
-        |                            map-source chip
-        |
-        +-- reports/
-            +-- PaloAlto_Assessment.xlsx  Exported assessment workbook
-                                          (served as static download)
+├── PROJECT_STRUCTURE.md            # This document
+├── test_inventory.py               # Quick test: connect to a firewall and print inventory
+│
+└── functions/                      === AZURE FUNCTIONS BACKEND ===
+    ├── function_app.py             Main entry: 15 HTTP routes (function-key auth)
+    ├── host.json                   Azure Functions host config (v2)
+    ├── local.settings.json         Local dev settings
+    ├── requirements.txt            azure-functions, requests, pan-os-python, openpyxl, psycopg2-binary
+    ├── test_excel.py               ExcelReport smoke test
+    ├── PaloAlto_Assessment.xlsx    Sample assessment workbook output
+    │
+    ├── baseline/
+    │   ├── baseline_rules.json               44 compliance rules (PA-01 … PA-67)
+    │   └── PaloAlto_Compliance_Baseline.txt  Human-readable compliance reference
+    │
+    ├── compliance/
+    │   ├── compliance_engine.py    ComplianceEngine: evaluates assessment data against baseline rules
+    │   └── findings_generator.py   FindingsGenerator: turns non-compliant results into findings + remediation
+    │
+    ├── connectors/
+    │   ├── utils/
+    │   │   └── xml_parser.py       XMLParser: get_root/get_text/get_int/get_float/get_elements…
+    │   └── paloalto/              === 11 collector modules ===
+    │       ├── paloalto_connector.py          Facade orchestrating all collectors
+    │       ├── inventory.py                   Device info (hostname, model, version)
+    │       ├── health_status.py               CPU, memory, disk, session utilization
+    │       ├── ha_configuration.py            HA state, peer status, sync monitoring
+    │       ├── policy_configuration.py        Security rules, NAT, zones, App-ID %
+    │       ├── security_services.py           Threat/AV/AS/DNS/WildFire/URL/SSL
+    │       ├── routing_configuration.py       Virtual routers, BGP, OSPF
+    │       ├── vpn_configuration.py           GlobalProtect, IKE, IPsec, MFA
+    │       ├── logging_configuration.py       Syslog, SIEM, SNMP, profiles
+    │       ├── administration_configuration.py Admins, management IPs, HTTPS, NTP
+    │       ├── zone_protection_configuration.py Zone/DoS profiles
+    │       └── backup_configuration.py        Scheduled backup jobs
+    │
+    ├── reports/
+    │   ├── report_generator.py     ReportGenerator: thin wrapper delegating to summaries
+    │   ├── executive_summary.py    ExecutiveSummary: management-level summary text
+    │   ├── executive_summary_pdf.py PDF rendering of the executive summary
+    │   ├── excel_report.py         ExcelReport: multi-sheet workbook (openpyxl)
+    │   ├── risk_summary.py         RiskSummary: CRITICAL/HIGH/MEDIUM/LOW risk level
+    │   └── timeutil.py
+    │
+    ├── dbwriter/
+    │   └── persist.py              Optional PostgreSQL persistence (agent_activity_logs,
+    │                               assessments, findings) for the function app
+    │
+    └── openapi/
+        └── firewall-auditor-openapi.json   OpenAPI 3.0.1 spec (15 endpoints)
 ```
 
 ---
 
-## Component Deep Dive
+## Azure Functions Backend (`functions/`)
 
-### Azure Functions Backend (`functions/`)
+**Entry point:** `function_app.py` — a Flask `FunctionApp` exposing 15 HTTP
+routes, all with `AuthLevel.FUNCTION`.
 
-**Entry point:** `function_app.py` — exposed as a Blueprint with 15 HTTP-triggered endpoints:
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `get_inventory` | GET | Device info (hostname, model, serial, version) |
+| `get_health_status` | GET | CPU, memory, disk, session utilization |
+| `get_ha_configuration` | GET | HA state, peer status, sync monitoring |
+| `get_policy_configuration` | GET | Security rules, NAT, zones, App-ID analysis |
+| `get_security_services` | GET | Threat/AV/AS/DNS/WildFire/URL/SSL config |
+| `get_routing_configuration` | GET | Virtual routers, static routes, BGP/OSPF |
+| `get_vpn_configuration` | GET | GlobalProtect, IKE, IPsec, MFA |
+| `get_logging_configuration` | GET | Syslog, SIEM, SNMP, profiles |
+| `get_administration_configuration` | GET | Admins, management IPs, HTTPS/SSH, NTP |
+| `get_zone_protection_configuration` | GET | Zone protection, DoS profiles |
+| `get_backup_configuration` | GET | Scheduled backup jobs |
+| `run_full_assessment` | GET | Runs all 11 collectors, returns full JSON |
+| `run_compliance_assessment` | GET | Full assessment -> compliance evaluation -> findings |
+| `executive_summary` | GET | Management-level summary text |
+| `generate_excel_report` | GET | Multi-sheet `.xlsx` workbook |
 
-| Endpoint | Method | Function |
-|----------|--------|----------|
-| `/get_inventory` | GET | Device info (hostname, model, serial, version) |
-| `/get_health_status` | GET | CPU, memory, disk, session utilization |
-| `/get_ha_configuration` | GET | HA state, peer status, sync monitoring |
-| `/get_policy_configuration` | GET | Security rules, NAT, zones, App-ID analysis |
-| `/get_security_services` | GET | Threat/AV/AS/DNS/WildFire/URL/SSL config |
-| `/get_routing_configuration` | GET | Virtual routers, static routes, BGP/OSPF |
-| `/get_vpn_configuration` | GET | GlobalProtect, IKE, IPsec, MFA |
-| `/get_logging_configuration` | GET | Syslog, SIEM, SNMP, profiles |
-| `/get_administration_configuration` | GET | Admins, management IPs, HTTPS/SSH, NTP |
-| `/get_zone_protection` | GET | Zone protection, DoS profiles |
-| `/get_backup_configuration` | GET | Scheduled backup jobs |
-| `/run_full_assessment` | POST | Runs all 11 collectors, returns full JSON |
-| `/run_compliance_assessment` | POST | Full assessment → compliance evaluation → findings |
-| `/get_executive_summary` | POST | Management-level summary text |
-| `/generate_excel_report` | POST | Multi-sheet .xlsx workbook |
+`run_full_assessment` and `run_compliance_assessment` additionally log an
+`agent_activity_logs` row and call `dbwriter.persist_assessment(...)` when a
+database is reachable.
 
-**Connector architecture:** `PaloAltoConnector` in `paloalto_connector.py` is a Facade that wraps 11 individual collector modules. Each collector:
-1. Connects to the firewall via `pan-os-python` SDK
-2. Runs XML API commands (`show system info`, `show session info`, etc.)
-3. Parses responses with `XmlParser` utility
-4. Returns structured Python dicts
+**Connector architecture:** `PaloAltoConnector` in `paloalto_connector.py` is a
+Facade wrapping 11 collector modules. Each collector:
 
-`function_app.py` instantiates the connector once per request and delegates to the appropriate collector.
+1. Connects to the firewall via the PAN-OS XML API (`pan-os-python`).
+2. Runs XML API commands (`show system info`, `show session info`, …).
+3. Parses responses with the `XMLParser` utility.
+4. Returns structured Python dicts.
+
+`get_connector()` builds the connector per request and delegates to the
+appropriate collector.
 
 **Compliance pipeline:**
+
 ```
-Assessment JSON → ComplianceEngine.evaluate() → 44-rule baseline → 
-COMPLIANT / NON_COMPLIANT / NOT_ASSESSED statuses → 
-FindingsGenerator.generate() → remediation-guidance-augmented findings
+Assessment JSON -> ComplianceEngine.evaluate() -> 44-rule baseline ->
+COMPLIANT / NON_COMPLIANT / NOT_ASSESSED ->
+FindingsGenerator.generate() -> remediation-guided findings
 ```
 
 **Reports pipeline:**
+
 ```
-Assessment JSON → ExecutiveSummary.generate() → text summary
-Assessment JSON → ExcelReport.generate() → 7-sheet .xlsx workbook
-Findings JSON   → RiskSummary.calculate() → CRITICAL/HIGH/MEDIUM/LOW
+Assessment JSON -> ExecutiveSummary.generate() -> text/PDF summary
+Assessment JSON -> ExcelReport.generate()      -> multi-sheet .xlsx workbook
+Findings JSON   -> RiskSummary.calculate()     -> CRITICAL/HIGH/MEDIUM/LOW
 ```
 
 ---
 
-### Flask Frontend (`ui/`)
+## Flask UI Integration (`ui/`)
 
-**Entry point:** `app.py` — Flask application serving on port 8003 with 26 routes:
+The console consumes the auditor through `services/function_client.py`
+(function-key auth, live-first with sample fallback). `firewall_data_service.py`
+exposes the per-connector payloads. Key page/API routes for network security:
 
-**Page routes (HTML):**
+**Pages** (all `@login_required`):
+
 | Route | Template | Description |
 |-------|----------|-------------|
-| `/` | redirect → `/workspace` | Root redirect |
-| `/dashboard` | `dashboard.html` | Security posture overview |
-| `/workspace` | `workspace.html` | AI chat interface |
-| `/findings` | `findings.html` | Agent Operations Center |
-| `/reports` | `reports.html` | Report generation center |
-| `/insights` | `insights.html` | Agent usage analytics |
-| `/telemetry-map` | `telemetry_map.html` | Graph visualization |
-| `/settings` | `settings.html` | Configuration forms |
+| `/dashboard` | `dashboard.html` | Network Security posture dashboard (multi-firewall) |
+| `/dashboard/cloud-security` | `cloud_security.html` | Cloud Security view |
+| `/dashboard/system-info` | `system_info.html` | System Info view |
+| `/findings` | `findings.html` | Investigation Centre |
+| `/run-assessment` | `findings.html` | Force a fresh assessment, then render findings |
+| `/reports` | `reports.html` | Report history |
+| `/insights` | `insights.html` | Agent insights / Agent Health |
 
-**API routes (JSON):**
-| Route | Method | Service Used | Returns |
-|-------|--------|-------------|---------|
+**API** (subset):
+
+| Route | Method | Service | Returns |
+|-------|--------|---------|---------|
 | `/api/compliance` | GET | `assessment_service` | Compliance results + findings |
-| `/api/summary` | GET | `assessment_service` | Executive summary text |
-| `/api/excel` | GET | `assessment_service` | .xlsx file download |
-| `/api/agents` | GET/POST/DELETE | `agents_service` | Agent CRUD |
-| `/api/chat` | POST | `chat_service` | LLM chat response |
-| `/api/tools` | GET | `tools.py` | Available tool list |
-| `/api/conversations` | GET | `session_manager` | Conversation list |
-| `/api/conversations/<id>` | GET | `session_manager` | Conversation details |
-| `/api/insights` | GET | `insights_service` | Usage analytics |
-| `/api/dashboard` | GET | `dashboard_service` | Aggregated KPIs |
+| `/api/findings` | GET | `assessment_service` | Posture + findings |
+| `/api/firewall/*` | GET | `firewall_data_service` | inventory, health, ha, policy, services, status, routing, vpn, logging, administration, zone-protection, backup |
+| `/api/firewall-inventory` | GET | `managed_firewalls_service` | Managed firewall registry |
+| `/api/estate/assessment` | GET | `assessment_service` | Estate-wide assessment |
+| `/api/summary` | GET | `assessment_service` | Aggregated summary |
+| `/api/excel` | GET | `assessment_service` | `.xlsx` file download |
+| `/api/dashboard` | GET | `dashboard_service` | Aggregated KPIs + history |
 | `/api/reports` | GET | `report_history_service` | Report history |
-| `/api/system-status` | GET | `system_status_service` | 8-component health |
-| `/api/telemetry-map` | GET | `telemetry_map_service` | Node/edge graph |
-| `/api/telemetry-map/history` | GET | `telemetry_map_service` | Time-series snapshots |
+| `/api/system-status` | GET | `system_status_service` | Component health |
+| `/api/chat` | POST | `chat_service` | LLM chat response |
+| `/api/conversations*` | GET/POST | `session_manager` | Conversation read/write |
+
+See the repository-root `PROJECT_STRUCTURE.md` for the complete route and table
+reference.
 
 **Chat orchestration flow:**
+
 ```
-Browser → POST /api/chat → ChatService → AgentGateway
-  ├── SessionManager — load/save conversation state
-  ├── FoundryClient — POST to Azure AI Foundry endpoint
+Browser -> POST /api/chat -> ChatService -> AgentGateway
+  ├── SessionManager  — load/save conversation (PostgreSQL)
+  ├── FoundryClient   — POST to Azure AI Foundry endpoint
   ├── InsightsService — record token usage, latency, cost
-  └── AppInsights — send telemetry events
-→ JSON response back to browser
+  └── AppInsights     — send telemetry events
+-> JSON response back to browser
 ```
 
 **Assessment flow:**
+
 ```
-Browser → GET /api/compliance → AssessmentService
-  ├── Try: FunctionClient.get() → Azure Functions /run_compliance_assessment
-  ├── Catch: fallback to SampleAssessment static data
-  └── Cache for 120 seconds
-→ JSON response with compliance results + findings
+Browser -> GET /api/compliance -> AssessmentService
+  ├── Try: FunctionClient -> Azure Functions /run_compliance_assessment
+  ├── Catch: fall back to SampleAssessment static data
+  └── Cache for CACHE_TTL (120s)
+-> JSON response with compliance results + findings
 ```
 
-**System status probe:**
-```
-Browser → GET /api/system-status → SystemStatusService
-  ├── Agent: check /api/agents for connected agent
-  ├── Functions: GET {URL}/get_inventory (6s timeout)
-  │   ├── 200 OK → functions=operational, firewall=operational
-  │   ├── 5xx → functions=operational, firewall=degraded
-  │   └── exception → functions=offline
-  ├── Foundry: check FOUNDRY_ENDPOINT config
-  ├── Model: check LLM_MODEL config
-  ├── Key Vault: check VAULT_URL config
-  ├── AppInsights: check APPINSIGHTS_CONNECTION_STRING
-  └── Gateway: always operational if server running
-→ Returns: overall (operational/degraded/offline),
-          source (live/sample),
-          components list with statuses
-```
+**System status probe** (`system_status_service.py`, 30s cache) reports 7
+components: `agent`, `functions`, `firewall`, `foundry`, `model`,
+`appinsights`, `gateway` -> overall `operational` / `degraded` / `offline`.
 
 ---
 
 ## Data Flow
 
-### 1. Firewall Assessment (Real-Time)
+### 1. Firewall Assessment (real-time)
+
 ```
 Browser                Flask UI              Azure Functions           Palo Alto FW
   |                      |                        |                        |
   |--GET /api/compliance->|                        |                        |
-  |                      |--POST /run_compliance->|                        |
+  |                      |--GET /run_compliance-->|                        |
   |                      |                        |--XML API commands----->|
   |                      |                        |<--device config/data---|
   |                      |                        |--run 44 rules--------->|
@@ -412,12 +277,13 @@ Browser                Flask UI              Azure Functions           Palo Alto
 ```
 
 ### 2. AI Chat (Agent Gateway)
+
 ```
 Browser                Flask UI            Gateway           Azure AI Foundry
   |                      |                   |                     |
   |--POST /api/chat----->|                   |                     |
   |                      |--delegate-------->|                     |
-  |                      |                   |--load session------>|
+  |                      |                   |--load session------>| (PostgreSQL)
   |                      |                   |--POST chat--------->|
   |                      |                   |<--LLM response------|
   |                      |                   |--save session------>|
@@ -428,42 +294,21 @@ Browser                Flask UI            Gateway           Azure AI Foundry
 ```
 
 ### 3. Telemetry Map Construction
+
 ```
 Browser                Flask UI              TelemetryMapService
   |                      |                        |
   |--GET /api/telemetry->|                        |
   |                      |--build_map()----------->|
-  |                      |                        |--query metrics.json
+  |                      |                        |--query telemetry metrics
   |                      |                        |--resolve system status
   |                      |                        |--build node/edge graph
   |                      |                        |--compute health scores
   |                      |                        |--save history snapshot
   |                      |<--JSON graph------------|
   |<--JSON response-------|                        |
-  |                      |                        |
   |--render Cytoscape.js->|                        |
 ```
-
----
-
-## Page Routing
-
-All pages share `base.html` as the parent template, which provides:
-- **Sidebar:** 7 navigation links (Dashboard, AI Workspace, Telemetry Map, Agent Insights, Agent Ops Center, Reports, Settings)
-- **Top bar:** Live/Sample badge, user chip
-- **System status:** Dynamic dot + label (green/yellow/red) in sidebar footer
-- **Shared JS:** `main.js` loads system status, handles toasts, sidebar toggle
-
-Each page loads its own page-specific JS and CSS:
-| Page | Template | JS File | CSS File |
-|------|----------|---------|----------|
-| Dashboard | `dashboard.html` | `dashboard.js` | `dashboard.css` |
-| Workspace | `workspace.html` | `workspace.js` | `workspace.css` |
-| Findings | `findings.html` | `findings.js` | `findings.css` |
-| Reports | `reports.html` | `reports.js` | `reports.css` |
-| Insights | `insights.html` | `insights.js` | `insights.css` |
-| Telemetry Map | `telemetry_map.html` | `telemetry_map.js` | `telemetry_map.css` |
-| Settings | `settings.html` | `settings.js` | `settings.css` |
 
 ---
 
@@ -472,28 +317,35 @@ Each page loads its own page-specific JS and CSS:
 | Pattern | Where Used | Description |
 |---------|-----------|-------------|
 | **Facade** | `paloalto_connector.py` | Single entry point wrapping 11 collector modules |
-| **Strategy** | `assessment_service.py` | Live → sample fallback; `system_status_service.py` probe with 6s timeout |
-| **Gateway** | `gateway/agent_gateway.py` | Centralized chat routing with session, insight, telemetry hooks |
-| **Repository** | `config/*.json` files | JSON file-backed persistence with thread-safe file locking |
-| **Cache-Aside** | `assessment_service.py` (120s), `system_status_service.py` (30s), `keyvault.py` (in-memory) | Avoid redundant API calls |
-| **Observer** | `insights_service.py` → `app_insights.py` | Cost/token events broadcast to Azure telemetry |
-| **Singleton** | `config/settings.py` | Single `Settings` instance across app |
-| **Template Method** | `base.html` extending to 7 page templates | Shared layout with per-page content blocks |
+| **Strategy** | `assessment_service.py`, `system_status_service.py` | Live -> sample fallback; probe with timeout |
+| **Gateway** | `gateway/agent_gateway.py` | Centralised chat routing with session/insight/telemetry hooks |
+| **Repository** | `database/repositories/*` | PostgreSQL-backed persistence per entity |
+| **Cache-Aside** | `assessment_service.py` (120s), `system_status_service.py` (30s), `agents_service`, `firewall_data_service` | Avoid redundant calls |
+| **Observer** | `insights_service.py` -> `app_insights.py` | Cost/token events forwarded to Azure telemetry |
+| **Singleton** | `config/settings.py`, `database/db.py` engine | One settings object / engine per process |
+| **Template Method** | `base.html` -> page templates | Shared layout with per-page blocks |
 
 ---
 
 ## Configuration & Persistence
 
-All data is stored in `ui/config/` as JSON files:
+Configuration is read **directly from environment variables** (Azure App Service
+> Configuration > Application Settings). There is no `config/keyvault.py` and no
+Key Vault dependency.
 
-| File | Schema | Purpose |
-|------|--------|---------|
-| `agents.json` | `{name, type, endpoint, model, api_key, connected}` | Agent registrations |
-| `sessions.json` | `{id, agent_id, messages[], created_at}` | Chat history |
-| `insights.json` | `{conversation_id, tokens_in, tokens_out, latency_ms, cost}` | Usage tracking |
-| `assessment_stats.json` | `{total_runs, last_run}` | Assessment run counter |
-| `reports_history.json` | `{id, type, filename, created_at, findings_count}` | Report records |
-| `telemetry_metrics.json` | `{request_count, error_count, avg_latency_ms}` | Per-agent metrics |
-| `telemetry_history.json` | `[{timestamp, nodes[], edges[]}]` | Map time series |
+**UI settings** (`ui/config/settings.py`): `SECRET_KEY`, `DATABASE_URL`,
+`FIREWALL_FUNCTION_URL`/`BASE_URL`, `FIREWALL_FUNCTION_KEY`,
+`FULL_ASSESSMENT_KEY`, `EXCEL_KEY`, `EXECUTIVE_SUMMARY_KEY`, `LIVE_ENABLED`,
+`LIVE_TIMEOUT`, `CACHE_TTL`, `SESSION_IDLE_SECONDS`,
+`SAMPLE_ASSESSMENT_ENABLED`, `APP_INSIGHTS_CONNECTION_STRING`,
+`APP_INSIGHTS_ENABLED`, SMTP/`MAIL_*`, `APP_BASE_URL`, and `NETSEC_FW_*`.
 
-Key Vault secrets (if provisioned) are fetched via `config/keyvault.py` with a fallback to environment variables: `FUNCTION_KEY`, `FOUNDRY_KEY`, `FOUNDRY_ENDPOINT`.
+**Function app settings**: `PA_FIREWALL_HOST` (default `10.1.0.5`),
+`PA_USERNAME` (default `fwadmin`), `PA_PASSWORD`, plus optional `DATABASE_URL`
+and `DB_PERSIST_ASSESSMENTS` for `dbwriter/persist.py`, and standard Azure
+Functions storage settings.
+
+**Persistence**: PostgreSQL is the platform's single store. The JSON files under
+`ui/config/` are legacy seed/backup data used only by the one-time migration
+scripts (`ui/scripts/migrate_json_to_postgres.py`). The Function app writes to
+PostgreSQL only when `DATABASE_URL` is present; otherwise it operates statelessly.

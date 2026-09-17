@@ -279,12 +279,25 @@ input, select, textarea {
     min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+    scrollbar-width: none;
     padding-right: 2px;
 }
 
+/* Scrollbar appears only when the sidebar is expanded (desktop) or the
+   mobile drawer is open; the collapsed icon rail stays clean. */
+.sidebar.expanded .nav-menu,
+.sidebar.open .nav-menu {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+
 .nav-menu::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+}
+
+.sidebar.expanded .nav-menu::-webkit-scrollbar,
+.sidebar.open .nav-menu::-webkit-scrollbar {
     width: 6px;
 }
 

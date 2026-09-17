@@ -372,6 +372,25 @@
     // COMPLIANCE TREND
     // ============================================================
 
+    function aggregateDaily(points) {
+        var byDay = {};
+        var order = [];
+        (points || []).forEach(function (p) {
+            if (p == null || typeof p.ts !== "number") return;
+            var day = Math.floor(p.ts / 86400);
+            if (byDay[day] === undefined) {
+                byDay[day] = { ts: p.ts, value: p.value };
+                order.push(day);
+            } else {
+                byDay[day].ts = p.ts;
+                byDay[day].value = p.value;
+            }
+        });
+        return order.sort(function (a, b) { return a - b; }).map(function (d) {
+            return byDay[d];
+        });
+    }
+
     function buildTrendSeries(history, firewallId) {
         var snapshots = (history || []).filter(function (s) {
             return s && typeof s.compliance_pct === "number";
@@ -435,9 +454,9 @@
             return;
         }
 
-        var points = series[0].points;
+        var points = aggregateDaily(series[0].points);
         var times = points.map(function (p) { return p.ts; });
-        if (times.length > 12) times = times.slice(times.length - 12);
+        if (times.length > 30) times = times.slice(times.length - 30);
         var n = times.length;
 
         var W = 900, H = 160;

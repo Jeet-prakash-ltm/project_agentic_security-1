@@ -245,6 +245,54 @@
         }
     });
 
+    // ------------------------------------------------------------
+    // SECTION LOADERS — a spinner + "Loading" label rendered inside any
+    // section while its data is in flight. Pages call these before a
+    // fetch and replace the markup once the data arrives.
+    // ------------------------------------------------------------
+    window.loadingHtml = function (text) {
+        return '<div class="section-loading" role="status" aria-live="polite">' +
+            '<span class="spinner" aria-hidden="true"></span>' +
+            '<span class="section-loading-text">' + (text || "Loading") + "</span>" +
+            "</div>";
+    };
+
+    window.setSectionLoading = function (el, text) {
+        if (!el) return;
+        el.innerHTML = window.loadingHtml(text);
+    };
+
+    // Spinner markup for a table body row that is waiting on data.
+    window.loadingRow = function (colspan, text) {
+        return '<tr><td colspan="' + colspan + '" class="users-empty">' +
+            '<span class="table-loading"><span class="spinner"></span>' +
+            (text || "Loading") + "</span></td></tr>";
+    };
+
+    // Adds a centred spinner overlay on top of a section without wiping its
+    // existing content. Call `.remove()` on the returned node to clear it.
+    window.overlayLoading = function (el, text) {
+        if (!el) return null;
+        el.classList.add("is-loading");
+        var node = document.createElement("div");
+        node.className = "section-loading section-loading-overlay";
+        node.setAttribute("role", "status");
+        node.setAttribute("aria-live", "polite");
+        node.innerHTML = '<span class="spinner" aria-hidden="true"></span>' +
+            '<span class="section-loading-text">' + (text || "Loading") + "</span>";
+        el.appendChild(node);
+        return node;
+    };
+
+    window.clearSectionLoading = function (el) {
+        if (!el) return;
+        el.classList.remove("is-loading");
+        var overlays = el.querySelectorAll(":scope > .section-loading-overlay");
+        for (var i = 0; i < overlays.length; i++) {
+            overlays[i].parentNode.removeChild(overlays[i]);
+        }
+    };
+
     window.showToast = function (message, type, duration) {
         var container = document.getElementById("toastContainer");
         if (!container) return;

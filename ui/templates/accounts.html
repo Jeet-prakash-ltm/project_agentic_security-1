@@ -46,7 +46,7 @@
                         </tr>
                     </thead>
                     <tbody id="usersBody">
-                        <tr><td colspan="4" class="users-empty">Loading accounts…</td></tr>
+                        <tr><td colspan="4" class="users-empty"><span class="table-loading"><span class="spinner"></span>Loading accounts…</span></td></tr>
                     </tbody>
                 </table>
             </div>
@@ -77,5 +77,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=14"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=15"></script>
 {% endblock %}

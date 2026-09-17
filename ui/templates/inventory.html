@@ -57,7 +57,7 @@
                         </tr>
                     </thead>
                     <tbody id="fwInventoryBody">
-                        <tr><td colspan="5" class="users-empty">Loading firewall inventory…</td></tr>
+                        <tr><td colspan="5" class="users-empty"><span class="table-loading"><span class="spinner"></span>Loading firewall inventory…</span></td></tr>
                     </tbody>
                 </table>
             </div>
@@ -114,5 +114,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=14"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=15"></script>
 {% endblock %}

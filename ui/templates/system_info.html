@@ -21,12 +21,12 @@
         <span class="sys-count-chip" id="agentCountChip">Total —</span>
     </div>
     <div class="sys-agent-grid" id="sysAgentCards">
-        <p class="sys-agent-note">Loading agents…</p>
+        <div class="section-loading"><span class="spinner"></span><span class="section-loading-text">Loading agents…</span></div>
     </div>
 </section>
 
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/system_info.js') }}?v=2"></script>
+<script src="{{ url_for('static', filename='js/system_info.js') }}?v=3"></script>
 {% endblock %}

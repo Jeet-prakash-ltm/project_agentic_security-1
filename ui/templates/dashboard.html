@@ -21,15 +21,15 @@
     <div class="dash-meta">
         <div class="dash-fw-search">
             <span class="dash-fw-label">Firewall</span>
-            <div class="rep-combobox" id="dashCombobox">
+            <div class="rep-combobox" id="dashCombobox" data-initial-firewall="{{ firewall_id }}">
                 <svg class="rep-combo-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-                <input type="text" id="dashFwInput" class="rep-combo-input" value="{{ 'all' if firewall_id == 'all' else (firewall_id or 'vmpafw01') }}" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Search firewall inventory">
-                <button type="button" class="rep-combo-clear" id="dashFwClear" hidden aria-label="Clear firewall filter">
+                <input type="text" id="dashFwInput" class="rep-combo-input" placeholder="All Firewalls — search estate" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Search firewall inventory">
+                <button type="button" class="rep-combo-clear" id="dashFwClear" hidden aria-label="Clear firewall search">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
                 </button>
-                <ul class="rep-combo-list" id="dashFwList" role="listbox" hidden></ul>
+                <ul class="rep-combo-list" id="dashFwList" role="listbox" aria-multiselectable="true" hidden></ul>
             </div>
-            <button type="button" class="dash-fw-go" id="dashFwGo" aria-label="Load firewall data">
+            <button type="button" class="dash-fw-go" id="dashFwGo" aria-label="Add firewall to view">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
             </button>
         </div>
@@ -46,54 +46,14 @@
             Generate Report
         </a>
     </div>
+    <div class="dash-selection" id="dashSelection" aria-live="polite"></div>
 </div>
 
-<section class="dash-grid-2">
-    <div class="card dash-panel pie-panel">
-        <div class="section-head"><h3>Compliance Score</h3></div>
-        <div class="donut-wrap">
-            <svg id="compliancePie" viewBox="0 0 200 200" aria-label="Compliance donut"></svg>
-            <div class="donut-center" id="donutCenter">
-                <strong id="donutPercent">—%</strong>
-                <span>Compliance Score</span>
-                <em id="donutStatus">—</em>
-            </div>
-        </div>
-        <div class="donut-pills" id="donutPills"></div>
-    </div>
-    <div class="card dash-panel">
-        <div class="section-head"><h3>Findings by Severity</h3></div>
-        <div class="severity-grid" id="severityGrid"></div>
-    </div>
-</section>
-
-<section class="card dash-panel">
-    <div class="section-head">
-        <h3>Recent Findings</h3>
-        <a href="{{ url_for('findings') }}" class="view-all">View All &rarr;</a>
-    </div>
-    <div class="recent-findings" id="recentFindings"></div>
-</section>
-
-<section class="card dash-panel">
-    <div class="section-head"><h3>Top Risk Domains</h3></div>
-    <div class="vertical-bars" id="verticalBars"></div>
-</section>
-
-<section class="compliance-trend-section card">
-    <div class="section-head">
-        <div>
-            <h3>Compliance Trend</h3>
-            <span class="section-sub">Historical compliance score over time</span>
-        </div>
-        <div class="trend-stats" id="trendStats"></div>
-    </div>
-    <div class="trend-chart" id="trendChart"></div>
-</section>
+<div class="dash-groups" id="dashGroups"></div>
 
 {% endblock %}
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=7"></script>
-<script src="{{ url_for('static', filename='js/dashboard.js') }}?v=14"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}?v=15"></script>
 {% endblock %}

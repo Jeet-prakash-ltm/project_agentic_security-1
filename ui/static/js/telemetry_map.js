@@ -5,6 +5,7 @@
     var mapSection = document.getElementById("telemetryMapSection");
     var mapContainer = document.getElementById("telemetryMap");
     var mapEmpty = document.getElementById("mapEmpty");
+    var mapLoading = document.getElementById("mapLoading");
     var mapAgentSelect = document.getElementById("mapAgentSelect");
     var mapDetailContent = document.getElementById("mapDetailContent");
     var mapDetailEmpty = document.getElementById("mapDetailEmpty");
@@ -116,6 +117,20 @@
     var cy = null;
     var mapData = null;
     var historySnapshots = [];
+    var mapRendered = false;
+
+    function showMapLoading() {
+        if (mapLoading) mapLoading.hidden = false;
+        if (mapEmpty) mapEmpty.style.display = "none";
+        if (mapToolbar) mapToolbar.hidden = true;
+        if (mapKpis) mapKpis.hidden = true;
+        if (ontologyPanel) ontologyPanel.hidden = true;
+        if (mapHistory) mapHistory.hidden = true;
+    }
+
+    function hideMapLoading() {
+        if (mapLoading) mapLoading.hidden = true;
+    }
     var currentGroupFilter = "all";
     var currentStatusFilter = "all";
     var flowRaf = null;
@@ -748,6 +763,7 @@
             return;
         }
         if (mapEmpty) mapEmpty.style.display = "none";
+        if (nodes && nodes.length) mapRendered = true;
         if (mapToolbar) mapToolbar.hidden = false;
         renderFilterChips(nodes);
         renderStatusChips();
@@ -809,6 +825,8 @@
     function loadMap(agentId) {
         if (!mapSection) return;
         if (!agentId) {
+            mapRendered = false;
+            hideMapLoading();
             renderMap([], [], "");
             if (mapEmpty) {
                 mapEmpty.style.display = "flex";
@@ -823,10 +841,12 @@
             return;
         }
 
+        if (!mapRendered) showMapLoading();
         Promise.all([
             fetch("/api/telemetry-map?agent_id=" + encodeURIComponent(agentId)).then(function (r) { return r.json(); }),
             fetch("/api/telemetry-map/history?agent_id=" + encodeURIComponent(agentId)).then(function (r) { return r.json(); }),
         ]).then(function (results) {
+            hideMapLoading();
             mapData = results[0];
             historySnapshots = results[1].snapshots || [];
             updateKpis(mapData.summary);
@@ -843,6 +863,7 @@
             renderHistorySlider();
             applyHistoryIndex(historySnapshots.length - 1);
         }).catch(function () {
+            hideMapLoading();
             if (mapEmpty) {
                 mapEmpty.style.display = "flex";
                 mapEmpty.querySelector("h4").textContent = "Unable to load telemetry map";

@@ -71,6 +71,7 @@
     }
 
     function loadUsers() {
+        if (window.loadingRow) usersBody.innerHTML = window.loadingRow(isUsersAdmin ? 4 : 2, "Loading accounts…");
         fetch("/api/admin/users", { headers: { "Accept": "application/json" } })
             .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error("Failed to load accounts")); })
             .then(function (data) { renderUsers(data.users || []); })
@@ -342,6 +343,7 @@
     }
 
     function loadFirewalls() {
+        if (window.loadingRow) body.innerHTML = window.loadingRow(isFwAdmin ? 5 : 4, "Loading firewall inventory…");
         fetch("/api/admin/firewalls", { headers: { "Accept": "application/json" } })
             .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error("Failed to load firewall inventory")); })
             .then(function (data) { renderFirewalls(data.firewalls || []); })
@@ -483,8 +485,9 @@
 
     function uploadWorkbook(file) {
         if (bulkMessages) {
-            bulkMessages.innerHTML = '<p class="bulk-message bulk-message-pending">Processing ' +
-                escapeHtml(file.name) + "…</p>";
+            bulkMessages.innerHTML = '<p class="bulk-message bulk-message-pending">' +
+                '<span class="table-loading"><span class="spinner"></span>Processing ' +
+                escapeHtml(file.name) + "…</span></p>";
         }
         if (bulkTimer) window.clearTimeout(bulkTimer);
         if (uploadBtn) uploadBtn.disabled = true;
@@ -584,6 +587,7 @@
     }
 
     function loadAgents() {
+        if (window.loadingRow) body.innerHTML = window.loadingRow(isAgentsAdmin ? 4 : 3, "Loading agents…");
         fetch("/api/agent-status", { headers: { "Accept": "application/json" } })
             .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error("Failed to load agent status")); })
             .then(function (data) { renderAgents(data.agents || []); })

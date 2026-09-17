@@ -298,6 +298,9 @@
     }
 
     function loadMessages(id) {
+        if (chatWindow && window.loadingHtml) {
+            chatWindow.innerHTML = window.loadingHtml("Loading conversation…");
+        }
         fetch("/api/conversations/" + encodeURIComponent(id) + "/messages")
             .then(function (r) { return r.json(); })
             .then(function (data) {
@@ -311,10 +314,13 @@
                 renderActiveConversation();
                 updateSessionMetrics();
             })
-            .catch(function () {});
+            .catch(function () { renderActiveConversation(); });
     }
 
     function loadConversations() {
+        if (convList && window.loadingHtml) {
+            convList.innerHTML = window.loadingHtml("Loading conversations…");
+        }
         return fetch("/api/conversations")
             .then(function (r) { return r.json(); })
             .then(function (data) {
@@ -1728,6 +1734,9 @@
     }
 
     function loadAgents() {
+        if (wsAgentSelect) {
+            wsAgentSelect.innerHTML = '<option value="">Loading agents…</option>';
+        }
         fetch("/api/agents")
             .then(function (r) { return r.json(); })
             .then(function (data) {
@@ -1759,6 +1768,8 @@
             updateSessionMetrics();
             return;
         }
+        if (insightTokens) insightTokens.innerHTML = '<span class="spinner"></span>';
+        if (insightCost) insightCost.innerHTML = '<span class="spinner"></span>';
         fetch("/api/insights/conversation/" + encodeURIComponent(state.activeId))
             .then(function (r) { return r.json(); })
             .then(function (data) {

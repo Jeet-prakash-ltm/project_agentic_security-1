@@ -10,7 +10,6 @@
     <div>
         <span class="hero-eyebrow">Firewall Posture Investigation</span>
         <h1>Investigation Centre</h1>
-        <p>Investigate findings, prioritize remediation, and track posture over time.</p>
     </div>
     <div class="findings-header-actions">
         <button class="btn btn-ghost" id="btnExportReport" type="button">
@@ -118,7 +117,7 @@
             </div>
         </div>
         <div class="findings-groups" id="findingsRoot">
-            <div class="empty-state card"><h3>Loading findings...</h3></div>
+            <div class="empty-state card"><div class="section-loading"><span class="spinner"></span><span class="section-loading-text">Loading findings…</span></div></div>
         </div>
     </div>
 </div>
@@ -151,6 +150,6 @@
 {% block scripts %}
 {% if not assessment_blocked %}
 <script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=7"></script>
-<script src="{{ url_for('static', filename='js/findings.js') }}?v=14"></script>
+<script src="{{ url_for('static', filename='js/findings.js') }}?v=15"></script>
 {% endif %}
 {% endblock %}

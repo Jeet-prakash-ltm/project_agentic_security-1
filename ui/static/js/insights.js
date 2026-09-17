@@ -16,6 +16,8 @@
     var insightsAgents = [];
     var selectedAgent = "";
     var agentRanges = {};
+    var insightsRendered = false;
+    var healthRendered = false;
 
     var POLL_MS = 5000;
     var TICKS = 5;
@@ -419,6 +421,7 @@
 
     function renderAgentHealth(agents) {
         if (!agentHealthList) return;
+        healthRendered = true;
 
         var list = agents || [];
         if (!list.length) {
@@ -500,6 +503,9 @@
     function loadAgentHealth() {
         if (!agentHealthList) return;
         if (agentHealthList.getAttribute("data-loading") === "1") return;
+        if (!healthRendered && window.loadingHtml) {
+            agentHealthList.innerHTML = window.loadingHtml("Checking agents…");
+        }
         agentHealthList.setAttribute("data-loading", "1");
         fetch("/api/agent-status")
             .then(function (res) { return res.json(); })
@@ -515,14 +521,32 @@
 
     function render(data) {
         if (!data) return;
+        insightsRendered = true;
         renderCost(data.totals, data.agents);
         renderHistory(data.agents);
     }
 
+    function showInsightsLoading(force) {
+        if (insightsRendered && !force) return;
+        [costTotal, costTokens, costConvs, costLatency].forEach(function (el) {
+            if (el) el.innerHTML = '<span class="spinner"></span>';
+        });
+        if (costDrivers && window.loadingHtml) {
+            costDrivers.innerHTML = window.loadingHtml("Loading cost data…");
+        }
+        if (historyList && window.loadingHtml) {
+            historyList.removeAttribute("hidden");
+            historyList.innerHTML = '<div class="empty-state card">' +
+                window.loadingHtml("Loading agent usage history…") + "</div>";
+        }
+    }
+
     var loading = false;
-    function load() {
+    function load(force) {
         if (loading) return;
         loading = true;
+        if (force) { insightsRendered = false; healthRendered = false; }
+        showInsightsLoading(force);
         fetch("/api/insights")
             .then(function (res) { return res.json(); })
             .then(function (data) {
@@ -537,7 +561,7 @@
 
     if (refreshBtn) {
         refreshBtn.addEventListener("click", function () {
-            load();
+            load(true);
             loadAgentHealth();
             window.showToast("Insights refreshed.", "success");
         });

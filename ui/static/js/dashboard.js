@@ -15,12 +15,35 @@
     ];
 
     var COLORS = { vmpafw01: "#ff5e4f", vmpafw02: "#2563EB" };
+    var FALLBACK_COLORS = ["#ff5e4f", "#2563EB", "#16A34A", "#F59E0B", "#8B5CF6", "#06B6D4", "#EC4899", "#14B8A6"];
 
-    var DEFAULT_FW = "vmpafw01";
+    var ALL = "all";
+
     var state = {
-        firewall: DEFAULT_FW,
-        inventory: []
+        firewalls: [ALL],
+        inventory: [],
+        source: null
     };
+
+    function isAll() {
+        return !state.firewalls.length || state.firewalls.indexOf(ALL) !== -1;
+    }
+
+    function selectedFirewalls() {
+        return isAll() ? [ALL] : state.firewalls.slice();
+    }
+
+    function scopeFirewall() {
+        return isAll() ? ALL : state.firewalls[0];
+    }
+
+    function colorFor(fw) {
+        if (fw === ALL) return "#ff5e4f";
+        if (COLORS[fw]) return COLORS[fw];
+        var hash = 0;
+        for (var i = 0; i < fw.length; i++) hash = (hash * 31 + fw.charCodeAt(i)) % 9973;
+        return FALLBACK_COLORS[hash % FALLBACK_COLORS.length];
+    }
 
     function setSource(source) {
         if (!sourceBadge) return;
@@ -36,12 +59,17 @@
         return d.innerHTML;
     }
 
-    function findingsUrl(key, value) {
-        var url = "/findings?" + key + "=" + encodeURIComponent(value);
-        if (state.firewall && state.firewall !== "all") {
-            url += "&firewall=" + encodeURIComponent(state.firewall);
-        }
-        return url;
+    function loadingHtml(text) {
+        if (typeof window.loadingHtml === "function") return window.loadingHtml(text);
+        return '<div class="section-loading"><span class="spinner"></span><span>' + text + "</span></div>";
+    }
+
+    // Every dashboard link is scoped to the firewall group it belongs to.
+    function findingsUrl(fw, key, value) {
+        var params = [];
+        if (key) params.push(key + "=" + encodeURIComponent(value));
+        if (fw && fw !== ALL) params.push("firewall=" + encodeURIComponent(fw));
+        return "/findings" + (params.length ? "?" + params.join("&") : "");
     }
 
     function parseDate(ts) {
@@ -54,6 +82,85 @@
         var d = parseDate(ts);
         if (!d) return "";
         return d.toLocaleString(undefined, { month: "short", day: "numeric" });
+    }
+
+    // ============================================================
+    // GROUP SHELL (one block of sections per selected firewall)
+    // ============================================================
+
+    function sectionPanel(title, extraHead, bodyHtml) {
+        return '<section class="card dash-panel is-loading">' +
+            '<div class="section-head"><h3>' + escapeHtml(title) + "</h3>" + (extraHead || "") + "</div>" +
+            (bodyHtml || "") +
+            '<div class="section-loading section-loading-overlay"><span class="spinner"></span><span class="section-loading-text">Loading</span></div>' +
+            "</section>";
+    }
+
+    function groupShell(fw) {
+        var label = fw === ALL ? "All Firewalls" : fw;
+        var sub = fw === ALL
+            ? "Cumulative posture across the entire estate"
+            : "Individual firewall posture";
+        var head =
+            '<div class="dash-group-head">' +
+            '<span class="dash-group-dot" style="background:' + colorFor(fw) + '"></span>' +
+            "<div><h2>" + escapeHtml(label) + "</h2><span>" + escapeHtml(sub) + "</span></div>" +
+            "</div>";
+
+        var pie =
+            '<section class="dash-grid-2">' +
+            '<div class="card dash-panel pie-panel is-loading">' +
+            '<div class="section-head"><h3>Compliance Score</h3></div>' +
+            '<div class="donut-wrap">' +
+            '<svg class="compliance-pie" viewBox="0 0 200 200" aria-label="Compliance donut"></svg>' +
+            '<div class="donut-center">' +
+            '<strong class="donut-percent">—%</strong>' +
+            "<span>Compliance Score</span>" +
+            '<em class="donut-status">—</em>' +
+            "</div>" +
+            "</div>" +
+            '<div class="donut-pills"></div>' +
+            '<div class="section-loading section-loading-overlay"><span class="spinner"></span><span class="section-loading-text">Loading</span></div>' +
+            "</div>" +
+            sectionPanel("Findings by Severity", "", '<div class="severity-grid"></div>') +
+            "</section>";
+
+        var recent =
+            '<section class="card dash-panel is-loading">' +
+            '<div class="section-head"><h3>Recent Findings</h3>' +
+            '<a href="' + findingsUrl(fw, null, null) + '" class="view-all">View All &rarr;</a></div>' +
+            '<div class="recent-findings"></div>' +
+            '<div class="section-loading section-loading-overlay"><span class="spinner"></span><span class="section-loading-text">Loading</span></div>' +
+            "</section>";
+
+        var domains = sectionPanel("Top Risk Domains", "", '<div class="vertical-bars"></div>');
+
+        var trend =
+            '<section class="compliance-trend-section card is-loading">' +
+            '<div class="section-head">' +
+            "<div><h3>Compliance Trend</h3>" +
+            '<span class="section-sub">Historical compliance score over time</span></div>' +
+            '<div class="trend-stats"></div>' +
+            "</div>" +
+            '<div class="trend-chart"></div>' +
+            '<div class="section-loading section-loading-overlay"><span class="spinner"></span><span class="section-loading-text">Loading</span></div>' +
+            "</section>";
+
+        return '<section class="dash-group" data-fw="' + escapeHtml(fw) + '">' +
+            head + pie + recent + domains + trend + "</section>";
+    }
+
+    function clearSection(el) {
+        if (!el) return;
+        el.classList.remove("is-loading");
+        var overlays = el.querySelectorAll(":scope > .section-loading-overlay");
+        for (var i = 0; i < overlays.length; i++) {
+            overlays[i].parentNode.removeChild(overlays[i]);
+        }
+    }
+
+    function groupSection(root, selector) {
+        return root ? root.querySelector(selector) : null;
     }
 
     // ============================================================
@@ -77,17 +184,20 @@
             " A" + innerR + " " + innerR + " 0 " + large + " 0 " + ie.x.toFixed(1) + " " + ie.y.toFixed(1) + " Z";
     }
 
-    function renderCompliancePie(c) {
-        var svg = document.getElementById("compliancePie");
-        if (!svg) return;
+    function renderCompliancePie(root, c, fw) {
+        var panel = groupSection(root, ".pie-panel");
+        if (!panel) return;
+        var svg = panel.querySelector(".compliance-pie");
+        var percentEl = panel.querySelector(".donut-percent");
+        var statusEl = panel.querySelector(".donut-status");
+        var pills = panel.querySelector(".donut-pills");
+
         var compliant = Number(c.compliant) || 0;
         var nonCompliant = Number(c.non_compliant) || 0;
         var notAssessed = Number(c.not_assessed) || 0;
         var total = compliant + nonCompliant + notAssessed;
         var pct = total ? Math.round(compliant / total * 100) : 0;
 
-        var percentEl = document.getElementById("donutPercent");
-        var statusEl = document.getElementById("donutStatus");
         function statusText(v) {
             return v >= 80 ? "Healthy Posture" : v >= 50 ? "At Risk" : "Critical Posture";
         }
@@ -114,23 +224,24 @@
         if (html === "") {
             html = '<circle class="donut-empty" cx="100" cy="100" r="92" fill="#F1F5F9"/>';
         }
-        svg.innerHTML = html;
+        if (svg) svg.innerHTML = html;
 
-        svg.querySelectorAll(".donut-seg").forEach(function (seg) {
-            seg.addEventListener("mouseover", function () {
-                if (percentEl) percentEl.textContent = seg.getAttribute("data-value");
-                if (statusEl) statusEl.textContent = seg.getAttribute("data-label");
+        if (svg) {
+            svg.querySelectorAll(".donut-seg").forEach(function (seg) {
+                seg.addEventListener("mouseover", function () {
+                    if (percentEl) percentEl.textContent = seg.getAttribute("data-value");
+                    if (statusEl) statusEl.textContent = seg.getAttribute("data-label");
+                });
+                seg.addEventListener("mouseout", function () {
+                    if (percentEl) percentEl.textContent = pct + "%";
+                    if (statusEl) statusEl.textContent = statusText(pct);
+                });
+                seg.addEventListener("click", function () {
+                    window.location.href = findingsUrl(fw, "status", seg.getAttribute("data-status"));
+                });
             });
-            seg.addEventListener("mouseout", function () {
-                if (percentEl) percentEl.textContent = pct + "%";
-                if (statusEl) statusEl.textContent = statusText(pct);
-            });
-            seg.addEventListener("click", function () {
-                window.location.href = findingsUrl("status", seg.getAttribute("data-status"));
-            });
-        });
+        }
 
-        var pills = document.getElementById("donutPills");
         if (pills) {
             var defs = [
                 { label: "Compliant", count: compliant, color: "#16A34A", status: "compliant" },
@@ -150,19 +261,21 @@
             pills.innerHTML = pillHtml;
             pills.querySelectorAll(".donut-pill").forEach(function (pill) {
                 pill.addEventListener("click", function () {
-                    window.location.href = findingsUrl("status", pill.getAttribute("data-status"));
+                    window.location.href = findingsUrl(fw, "status", pill.getAttribute("data-status"));
                 });
             });
         }
+
+        clearSection(panel);
     }
 
     // ============================================================
     // FINDINGS BY SEVERITY (horizontal bar graph)
     // ============================================================
 
-    function renderSeverityGrid(f) {
-        var el = document.getElementById("severityGrid");
-        if (!el) return;
+    function renderSeverityGrid(root, f, fw) {
+        var panel = groupSection(root, ".severity-grid");
+        if (!panel) return;
         var sev = [
             { label: "Critical", color: "#DC2626", count: f.critical || 0, status: "critical" },
             { label: "High", color: "#F97316", count: f.high || 0, status: "high" },
@@ -174,7 +287,7 @@
         var html = "";
         sev.forEach(function (s) {
             var width = Math.round(s.count / max * 100);
-            html += '<a class="sev-bar" href="' + findingsUrl("severity", s.status) + '" title="' + s.label + ': ' + s.count + ' findings">' +
+            html += '<a class="sev-bar" href="' + findingsUrl(fw, "severity", s.status) + '" title="' + s.label + ': ' + s.count + ' findings">' +
                 '<span class="sev-bar-head">' +
                 '<span class="sev-bar-label">' + s.label + "</span>" +
                 '<span class="sev-bar-count">' + s.count + "</span>" +
@@ -184,17 +297,22 @@
                 "</span>" +
                 "</a>";
         });
-        el.innerHTML = html;
+        panel.innerHTML = html;
+        clearSection(panel.closest(".dash-panel"));
     }
 
     // ============================================================
     // RECENT FINDINGS
     // ============================================================
 
-    function renderRecentFindings(recent) {
-        var el = document.getElementById("recentFindings");
-        if (!el) return;
-        if (!recent.length) { el.innerHTML = '<p class="empty-inline">No findings.</p>'; return; }
+    function renderRecentFindings(root, recent) {
+        var panel = groupSection(root, ".recent-findings");
+        if (!panel) return;
+        if (!recent.length) {
+            panel.innerHTML = '<p class="empty-inline">No findings.</p>';
+            clearSection(panel.closest(".dash-panel"));
+            return;
+        }
         var html = "";
         recent.forEach(function (f) {
             var risk = (f.risk || "LOW").toLowerCase();
@@ -205,7 +323,8 @@
                 '<span class="recent-finding-risk ' + cls + '">' + escapeHtml(f.risk || "LOW") + "</span>" +
                 "</div>";
         });
-        el.innerHTML = html;
+        panel.innerHTML = html;
+        clearSection(panel.closest(".dash-panel"));
     }
 
     // ============================================================
@@ -219,9 +338,9 @@
         return (typeof FINDING_ENRICHMENT_CATEGORIES !== "undefined" && FINDING_ENRICHMENT_CATEGORIES[domain]) || domain;
     }
 
-    function renderVerticalBars(findingsList) {
-        var el = document.getElementById("verticalBars");
-        if (!el) return;
+    function renderVerticalBars(root, findingsList, fw) {
+        var panel = groupSection(root, ".vertical-bars");
+        if (!panel) return;
         var counts = {};
         (findingsList || []).forEach(function (f) {
             var cat = categoryForControl(f.control);
@@ -234,14 +353,15 @@
         CATEGORY_ORDER.forEach(function (cat) {
             var n = counts[cat] || 0;
             var h = max ? Math.round(n / max * 100) : 0;
-            html += '<a class="vbar" href="' + findingsUrl("domain", cat) + '" title="' + escapeHtml(cat) + ": " + n + '">' +
+            html += '<a class="vbar" href="' + findingsUrl(fw, "domain", cat) + '" title="' + escapeHtml(cat) + ": " + n + '">' +
                 '<span class="vbar-count">' + n + "</span>" +
                 '<span class="vbar-track"><span class="vbar-fill" style="height:' + h + '%"></span></span>' +
                 '<span class="vbar-label">' + escapeHtml(shortLabel(cat)) + "</span>" +
                 "</a>";
         });
         html += "</div>";
-        el.innerHTML = html;
+        panel.innerHTML = html;
+        clearSection(panel.closest(".dash-panel"));
     }
 
     function shortLabel(cat) {
@@ -281,15 +401,15 @@
         return [{ name: "All Firewalls", points: points }];
     }
 
-    function renderTrendStats(history, firewallId, complianceScore) {
-        var el = document.getElementById("trendStats");
+    function renderTrendStats(root, history, firewallId, complianceScore) {
+        var el = groupSection(root, ".trend-stats");
         if (!el) return;
         var series = buildTrendSeries(history, firewallId);
         var points = (series[0] && series[0].points) || [];
         var current = points.length
             ? points[points.length - 1].value
             : (typeof complianceScore === "number" ? complianceScore : null);
-        if (current == null) return;
+        if (current == null) { el.innerHTML = ""; return; }
         var prev = points.length > 1 ? points[points.length - 2].value : null;
         var improvement = prev != null ? Math.round((current - prev) * 10) / 10 : null;
         var impCls = improvement == null ? "" : improvement > 0 ? "good" : improvement < 0 ? "bad" : "flat";
@@ -301,8 +421,9 @@
             '<span class="trend-stat"><span>Improvement</span><strong class="' + impCls + '">' + impText + "</strong></span>";
     }
 
-    function renderComplianceTrend(history, firewallId) {
-        var el = document.getElementById("trendChart");
+    function renderComplianceTrend(root, history, firewallId) {
+        var el = groupSection(root, ".trend-chart");
+        var section = groupSection(root, ".compliance-trend-section");
         if (!el) return;
 
         var series = buildTrendSeries(history, firewallId).filter(function (s) {
@@ -310,6 +431,7 @@
         });
         if (!series.length) {
             el.innerHTML = '<p class="trend-summary">No history yet. Run an assessment to start tracking compliance.</p>';
+            clearSection(section);
             return;
         }
 
@@ -331,7 +453,7 @@
             return PAD_TOP + (1 - (v - min) / (max - min)) * (H - PAD_TOP - PAD_BOTTOM);
         }
 
-        var color = firewallId === "all" ? "#ff5e4f" : (COLORS[firewallId] || "#ff5e4f");
+        var color = firewallId === "all" ? "#ff5e4f" : colorFor(firewallId);
 
         var html = '<svg class="trend-line-svg" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" role="img" aria-label="Compliance score over time">';
 
@@ -368,17 +490,18 @@
         html += '<div class="trend-legend"><span class="trend-legend-item"><i style="background:' + color + '"></i>' + escapeHtml(series[0].name) + "</span></div>";
 
         el.innerHTML = html;
+        clearSection(section);
     }
 
     // ============================================================
     // MAIN
     // ============================================================
 
-    function updateScope(fw) {
+    function updateScope() {
+        var fw = scopeFirewall();
         var assess = document.getElementById("quickAssess");
         var summary = document.getElementById("quickSummary");
         var report = document.getElementById("quickReport");
-        var query = "?firewall=" + encodeURIComponent(fw || "all");
         if (assess) {
             assess.href = fw === "all"
                 ? "/workspace"
@@ -387,67 +510,149 @@
         if (summary) {
             summary.href = fw === "all"
                 ? "/reports?firewall=all"
-                : "/executive-summary" + query;
+                : "/executive-summary?firewall=" + encodeURIComponent(fw);
         }
-        if (report) report.href = "/generate-excel" + query;
+        if (report) report.href = "/generate-excel?firewall=" + encodeURIComponent(fw);
     }
 
-    function applyNetsecData(data) {
+    function applyNetsecData(root, data, fw) {
         var c = data.compliance || {};
-        var fw = data.firewall_id || "vmpafw01";
-        setSource(c.source);
-        renderCompliancePie(c);
-        renderSeverityGrid(data.findings || {});
-        renderRecentFindings(data.recent_findings || []);
-        renderVerticalBars(data.findings_list || []);
-        renderTrendStats(data.history || [], fw, c.compliance_score);
-        renderComplianceTrend(data.history || [], fw);
-        updateScope(fw);
+        var cid = data.firewall_id || fw;
+        if (c.source === "live") state.source = "live";
+        else if (!state.source) state.source = "sample";
+        renderCompliancePie(root, c, cid);
+        renderSeverityGrid(root, data.findings || {}, cid);
+        renderRecentFindings(root, data.recent_findings || []);
+        renderVerticalBars(root, data.findings_list || [], cid);
+        renderTrendStats(root, data.history || [], cid, c.compliance_score);
+        renderComplianceTrend(root, data.history || [], cid);
+    }
+
+    function applyGroupError(root) {
+        var sections = root.querySelectorAll(".is-loading");
+        for (var i = 0; i < sections.length; i++) {
+            clearSection(sections[i]);
+        }
+        var recent = groupSection(root, ".recent-findings");
+        if (recent) recent.innerHTML = '<p class="empty-inline">Data unavailable.</p>';
     }
 
     function load() {
-        fetch("/api/dashboard?firewall=" + encodeURIComponent(state.firewall))
-            .then(function (r) { return r.json(); })
-            .then(function (data) { applyNetsecData(data); })
-            .catch(function () { window.showToast("Dashboard data unavailable.", "error"); });
+        var container = document.getElementById("dashGroups");
+        if (!container) return Promise.resolve();
+        var targets = selectedFirewalls();
+        container.innerHTML = targets.map(groupShell).join("");
+        state.source = null;
+
+        var roots = {};
+        var groups = container.querySelectorAll(".dash-group");
+        for (var i = 0; i < groups.length; i++) {
+            roots[groups[i].getAttribute("data-fw")] = groups[i];
+        }
+
+        var jobs = targets.map(function (fw) {
+            return fetch("/api/dashboard?firewall=" + encodeURIComponent(fw))
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data && data.error) throw new Error(data.error);
+                    applyNetsecData(roots[fw], data, fw);
+                })
+                .catch(function () {
+                    if (roots[fw]) applyGroupError(roots[fw]);
+                    if (!state.source) state.source = "sample";
+                });
+        });
+
+        return Promise.all(jobs).then(function () {
+            setSource(state.source || "sample");
+        });
     }
 
-    // ---- Firewall inventory search combobox ----
+    // ---- Selection chips ----
 
+    function renderSelection() {
+        var el = document.getElementById("dashSelection");
+        if (!el) return;
+        if (isAll()) {
+            el.innerHTML = '<span class="dash-chip is-all"><span class="dash-chip-dot"></span>' +
+                "All Firewalls" +
+                '<span class="dash-chip-note">cumulative view</span></span>';
+            return;
+        }
+        el.innerHTML = state.firewalls.map(function (fw) {
+            return '<span class="dash-chip">' +
+                '<span class="dash-chip-dot" style="background:' + colorFor(fw) + '"></span>' +
+                escapeHtml(fw) +
+                '<button type="button" class="dash-chip-x" data-fw="' + escapeHtml(fw) + '" aria-label="Remove ' + escapeHtml(fw) + '">&times;</button>' +
+                "</span>";
+        }).join("");
+        el.querySelectorAll(".dash-chip-x").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                var name = btn.getAttribute("data-fw");
+                var i = state.firewalls.indexOf(name);
+                if (i !== -1) state.firewalls.splice(i, 1);
+                if (!state.firewalls.length) state.firewalls = [ALL];
+                reflectSelection();
+                load();
+            });
+        });
+    }
+
+    // ---- Firewall inventory search combobox (multi-select) ----
+
+    var wrap = document.getElementById("dashCombobox");
     var input = document.getElementById("dashFwInput");
     var list = document.getElementById("dashFwList");
     var clear = document.getElementById("dashFwClear");
-    var wrap = document.getElementById("dashCombobox");
 
-    if (input) {
-        var initial = (input.value || "").trim();
-        if (initial) state.firewall = initial;
+    if (wrap) {
+        var seed = (wrap.getAttribute("data-initial-firewall") || "").trim();
+        state.firewalls = seed && seed.toLowerCase() !== "all" ? [seed] : [ALL];
     }
 
-    function reflectFirewallUI() {
-        if (!input) return;
-        if (state.firewall === "all") {
+    function inputPlaceholder() {
+        if (isAll()) return "All Firewalls — search estate";
+        if (state.firewalls.length === 1) return state.firewalls[0] + " — add another";
+        return state.firewalls.length + " firewalls selected — add another";
+    }
+
+    function reflectSelection() {
+        if (input) {
             input.value = "";
-            input.placeholder = "All Firewalls — search estate";
-        } else {
-            input.value = state.firewall;
-            input.placeholder = "";
+            input.placeholder = inputPlaceholder();
         }
-        if (clear) clear.hidden = state.firewall === "all";
+        if (clear) clear.hidden = true;
+        renderSelection();
+        updateScope();
+        if (list && !list.hidden) list.innerHTML = comboRows("");
     }
 
     function inventorySource() {
         return (state.inventory || []).filter(function (e) { return e && e.device_name; });
     }
 
+    function rowHtml(value, name, sub, selected, disabled) {
+        var cls = "rep-combo-row is-multi" +
+            (selected ? " is-selected" : "") +
+            (disabled ? " is-disabled" : "");
+        return '<li class="' + cls + '" role="option" aria-selected="' + (selected ? "true" : "false") +
+            '" data-value="' + escapeHtml(value) + '">' +
+            '<span class="rep-combo-check" aria-hidden="true">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>' +
+            "</span>" +
+            '<span class="rep-combo-body">' +
+            '<span class="rep-combo-name">' + escapeHtml(name) + "</span>" +
+            '<span class="rep-combo-sub">' + escapeHtml(sub) + "</span>" +
+            "</span>" +
+            "</li>";
+    }
+
     function comboRows(query) {
         var q = String(query || "").trim().toLowerCase();
+        var allSelected = isAll();
         var out = "";
         if (!q || q.indexOf("all") !== -1 || q.indexOf("full") !== -1 || q.indexOf("device") !== -1 || q.indexOf("inventory") !== -1) {
-            out += '<li class="rep-combo-row' + (state.firewall === "all" ? " is-active" : "") +
-                '" role="option" data-value="all">' +
-                '<span class="rep-combo-name">All Firewalls</span>' +
-                '<span class="rep-combo-sub">Cumulative data across every managed firewall</span></li>';
+            out += rowHtml(ALL, "All Firewalls", "Cumulative data across every managed firewall", allSelected, false);
         }
         inventorySource().forEach(function (fw) {
             var name = fw.device_name || "";
@@ -457,17 +662,26 @@
             var bits = [fw.host_ip || "", fw.status ? (fw.status === "live" ? "Live" : "Down") : ""];
             if (fw.clone_of) bits.push("Clone of " + fw.clone_of);
             var sub = bits.filter(Boolean).join(" \u00b7 ") || "Managed device";
-            out += '<li class="rep-combo-row' + (state.firewall === name ? " is-active" : "") +
-                '" role="option" data-value="' + escapeHtml(name) + '">' +
-                '<span class="rep-combo-name">' + escapeHtml(name) + "</span>" +
-                '<span class="rep-combo-sub">' + escapeHtml(sub) + "</span></li>";
+            var selected = state.firewalls.indexOf(name) !== -1;
+            out += rowHtml(name, name, sub, selected, allSelected);
         });
+        if (!out) out = '<li class="rep-combo-empty">No firewalls match</li>';
         return out;
     }
 
-    function setFirewall(value) {
-        state.firewall = value || "all";
-        reflectFirewallUI();
+    function selectAll() {
+        state.firewalls = [ALL];
+        reflectSelection();
+        load();
+    }
+
+    function toggleFirewall(name) {
+        if (isAll()) return;
+        var i = state.firewalls.indexOf(name);
+        if (i === -1) state.firewalls.push(name);
+        else state.firewalls.splice(i, 1);
+        if (!state.firewalls.length) state.firewalls = [ALL];
+        reflectSelection();
         load();
     }
 
@@ -488,18 +702,27 @@
             document.addEventListener("click", outside);
         };
         input.addEventListener("focus", function () { open(false); });
-        input.addEventListener("input", function () { open(true); });
+        input.addEventListener("click", function () { if (list.hidden) open(false); });
+        input.addEventListener("input", function () {
+            if (clear) clear.hidden = !input.value;
+            open(true);
+        });
         list.addEventListener("mousedown", function (e) { e.preventDefault(); });
         list.addEventListener("click", function (e) {
+            e.stopPropagation();
             var row = e.target.closest(".rep-combo-row");
-            if (!row) return;
-            setFirewall(row.getAttribute("data-value") || "all");
-            close();
+            if (!row || row.classList.contains("is-disabled")) return;
+            var value = row.getAttribute("data-value") || ALL;
+            if (value === ALL) selectAll();
+            else toggleFirewall(value);
+            if (list && !list.hidden) list.innerHTML = comboRows(input.value);
         });
         if (clear) {
             clear.addEventListener("click", function () {
-                setFirewall("all");
-                close();
+                input.value = "";
+                clear.hidden = true;
+                open(true);
+                input.focus();
             });
         }
         var goBtn = document.getElementById("dashFwGo");
@@ -507,8 +730,8 @@
             var query = (input.value || "").trim();
             var lower = query.toLowerCase();
             if (!query || lower === "all") {
-                setFirewall("all");
-                close();
+                open(false);
+                input.focus();
                 return;
             }
             var exact = null;
@@ -519,8 +742,11 @@
                 if (hay === lower) exact = exact || name;
                 else if (!partial && hay.indexOf(lower) !== -1) partial = name;
             });
-            setFirewall(exact || partial || state.firewall || "all");
-            close();
+            var match = exact || partial;
+            if (match) toggleFirewall(match);
+            input.value = "";
+            if (clear) clear.hidden = true;
+            open(false);
         };
 
         input.addEventListener("keydown", function (e) {
@@ -534,12 +760,12 @@
     }
 
     function loadInventory() {
-        fetch("/api/firewall-inventory", { headers: { "Accept": "application/json" } })
+        return fetch("/api/firewall-inventory", { headers: { "Accept": "application/json" } })
             .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error("failed")); })
             .then(function (data) {
                 state.inventory = (data && data.firewalls) || [];
                 if (list && !list.hidden) list.innerHTML = comboRows("");
-                updateScope(state.firewall);
+                updateScope();
             })
             .catch(function () { state.inventory = []; });
     }
@@ -555,8 +781,8 @@
         });
     }
 
-    reflectFirewallUI();
-    updateScope(state.firewall);
+    reflectSelection();
+    updateScope();
     loadInventory();
     load();
 })();

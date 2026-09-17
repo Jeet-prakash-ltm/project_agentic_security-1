@@ -634,3 +634,11 @@
         grid-template-columns: 1fr;
     }
 }
+
+.map-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    border-radius: inherit;
+    background: rgba(26, 26, 26, 0.72);
+}

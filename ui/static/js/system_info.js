@@ -129,6 +129,7 @@
         if (!grid) {
             return;
         }
+        if (window.loadingHtml) grid.innerHTML = window.loadingHtml("Loading agents…");
         fetch("/api/agent-status", { headers: { Accept: "application/json" } })
             .then(function (response) {
                 if (!response.ok) {

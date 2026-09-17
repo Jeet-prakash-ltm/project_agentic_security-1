@@ -1252,6 +1252,9 @@
     function loadData(fw) {
         state.loadedFirewall = fw || "all";
         state.filters.firewall = state.loadedFirewall;
+        if (root && window.loadingHtml) {
+            root.innerHTML = '<div class="empty-state card">' + window.loadingHtml("Loading findings…") + "</div>";
+        }
         var req = state.loadedFirewall === "all"
             ? "/api/estate/assessment"
             : "/api/findings?firewall=" + encodeURIComponent(state.loadedFirewall);

@@ -709,7 +709,7 @@
             if (fw.clone_of) bits.push("Clone of " + fw.clone_of);
             var sub = bits.filter(Boolean).join(" \u00b7 ") || "Managed device";
             var selected = state.firewalls.indexOf(name) !== -1;
-            out += rowHtml(name, name, sub, selected, allSelected);
+            out += rowHtml(name, name, sub, selected, false);
         });
         if (!out) out = '<li class="rep-combo-empty">No firewalls match</li>';
         return out;
@@ -722,7 +722,14 @@
     }
 
     function toggleFirewall(name) {
-        if (isAll()) return;
+        if (isAll()) {
+            // Picking a specific device while "All Firewalls" is active
+            // replaces the estate view with that single firewall.
+            state.firewalls = [name];
+            reflectSelection();
+            load();
+            return;
+        }
         var i = state.firewalls.indexOf(name);
         if (i === -1) state.firewalls.push(name);
         else state.firewalls.splice(i, 1);

@@ -871,8 +871,24 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #22c55e;
+    background: rgba(255, 255, 255, 0.38);
     flex-shrink: 0;
+}
+
+/* Firewall liveness dot: green = live, red = down, grey = still checking. */
+.dash-group-dot.is-live,
+.dash-chip-dot.is-live {
+    background: #22c55e;
+}
+
+.dash-group-dot.is-down,
+.dash-chip-dot.is-down {
+    background: #ef4444;
+}
+
+.dash-group-dot.is-pending,
+.dash-chip-dot.is-pending {
+    background: rgba(255, 255, 255, 0.38);
 }
 
 .dash-chip-note {

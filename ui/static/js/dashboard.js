@@ -22,7 +22,8 @@
     var state = {
         firewalls: [ALL],
         inventory: [],
-        source: null
+        source: null,
+        status: {}
     };
 
     function isAll() {
@@ -43,6 +44,21 @@
         var hash = 0;
         for (var i = 0; i < fw.length; i++) hash = (hash * 31 + fw.charCodeAt(i)) % 9973;
         return FALLBACK_COLORS[hash % FALLBACK_COLORS.length];
+    }
+
+    function statusClass(fw) {
+        var s = state.status[fw];
+        return s === "live" ? "is-live" : s === "down" ? "is-down" : "is-pending";
+    }
+
+    function updateChipDots() {
+        var chips = document.querySelectorAll("#dashSelection .dash-chip");
+        for (var i = 0; i < chips.length; i++) {
+            var dot = chips[i].querySelector(".dash-chip-dot");
+            if (!dot) continue;
+            var fw = chips[i].getAttribute("data-fw") || ALL;
+            dot.className = "dash-chip-dot " + statusClass(fw);
+        }
     }
 
     function setSource(source) {
@@ -103,7 +119,7 @@
             : "Individual firewall posture";
         var head =
             '<div class="dash-group-head">' +
-            '<span class="dash-group-dot" style="background:' + colorFor(fw) + '"></span>' +
+            '<span class="dash-group-dot ' + statusClass(fw) + '"></span>' +
             "<div><h2>" + escapeHtml(label) + "</h2><span>" + escapeHtml(sub) + "</span></div>" +
             "</div>";
 
@@ -537,8 +553,12 @@
     function applyNetsecData(root, data, fw) {
         var c = data.compliance || {};
         var cid = data.firewall_id || fw;
+        state.status[fw] = c.source === "live" ? "live" : "down";
         if (c.source === "live") state.source = "live";
         else if (!state.source) state.source = "sample";
+        var dot = root && root.querySelector(".dash-group-dot");
+        if (dot) dot.className = "dash-group-dot " + statusClass(fw);
+        updateChipDots();
         renderCompliancePie(root, c, cid);
         renderSeverityGrid(root, data.findings || {}, cid);
         renderRecentFindings(root, data.recent_findings || []);
@@ -547,7 +567,13 @@
         renderComplianceTrend(root, data.history || [], cid);
     }
 
-    function applyGroupError(root) {
+    function applyGroupError(root, fw) {
+        if (fw) state.status[fw] = "down";
+        if (root) {
+            var dot = root.querySelector(".dash-group-dot");
+            if (dot) dot.className = "dash-group-dot " + statusClass(fw);
+        }
+        updateChipDots();
         var sections = root.querySelectorAll(".is-loading");
         for (var i = 0; i < sections.length; i++) {
             clearSection(sections[i]);
@@ -562,6 +588,7 @@
         var targets = selectedFirewalls();
         container.innerHTML = targets.map(groupShell).join("");
         state.source = null;
+        state.status = {};
 
         var roots = {};
         var groups = container.querySelectorAll(".dash-group");
@@ -577,7 +604,7 @@
                     applyNetsecData(roots[fw], data, fw);
                 })
                 .catch(function () {
-                    if (roots[fw]) applyGroupError(roots[fw]);
+                    if (roots[fw]) applyGroupError(roots[fw], fw);
                     if (!state.source) state.source = "sample";
                 });
         });
@@ -593,14 +620,14 @@
         var el = document.getElementById("dashSelection");
         if (!el) return;
         if (isAll()) {
-            el.innerHTML = '<span class="dash-chip is-all"><span class="dash-chip-dot"></span>' +
+            el.innerHTML = '<span class="dash-chip is-all" data-fw="' + ALL + '"><span class="dash-chip-dot ' + statusClass(ALL) + '"></span>' +
                 "All Firewalls" +
                 '<span class="dash-chip-note">cumulative view</span></span>';
             return;
         }
         el.innerHTML = state.firewalls.map(function (fw) {
-            return '<span class="dash-chip">' +
-                '<span class="dash-chip-dot"></span>' +
+            return '<span class="dash-chip" data-fw="' + escapeHtml(fw) + '">' +
+                '<span class="dash-chip-dot ' + statusClass(fw) + '"></span>' +
                 escapeHtml(fw) +
                 '<button type="button" class="dash-chip-x" data-fw="' + escapeHtml(fw) + '" aria-label="Remove ' + escapeHtml(fw) + '">&times;</button>' +
                 "</span>";

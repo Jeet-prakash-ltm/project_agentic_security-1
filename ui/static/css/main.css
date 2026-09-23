@@ -208,8 +208,9 @@ input, select, textarea {
     display: flex;
     align-items: center;
     justify-content: flex-start;
+    gap: 10px;
     height: var(--top-navbar-height);
-    padding: 0 22px;
+    padding: 0 16px;
     background: rgba(255, 255, 255, 0.12);
     -webkit-backdrop-filter: blur(28px) saturate(170%);
     backdrop-filter: blur(28px) saturate(170%);
@@ -330,10 +331,44 @@ input, select, textarea {
     margin-left: auto;
 }
 
+.top-navbar .sidebar-expand-toggle {
+    position: static;
+    display: inline-flex;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    z-index: auto;
+    left: auto;
+    top: auto;
+}
+
+.top-navbar-brand {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 0;
+    margin: 0;
+    border-bottom: none;
+    overflow: visible;
+    flex-shrink: 0;
+}
+
+.top-navbar-brand .brand-logo {
+    width: 36px;
+}
+
+.top-navbar-brand .brand-text {
+    opacity: 1;
+    width: auto;
+    display: flex;
+}
+
 .sidebar {
     position: fixed;
     left: var(--sidebar-inset);
-    top: calc(var(--top-navbar-height) + 64px);
+    top: calc(var(--top-navbar-height) + 10px);
     bottom: 14px;
     width: var(--sidebar-width);
     background: rgba(255, 255, 255, 0.16);
@@ -686,7 +721,7 @@ input, select, textarea {
 @media (min-width: 769px) {
     .sidebar {
         width: var(--sidebar-width);
-        top: calc(var(--top-navbar-height) + 64px);
+        top: calc(var(--top-navbar-height) + 10px);
     }
 
     .sidebar.expanded {
@@ -826,22 +861,19 @@ input, select, textarea {
 
 .sidebar-expand-toggle {
     display: none;
-    position: fixed;
-    top: calc(var(--top-navbar-height) + 10px);
-    left: calc(var(--sidebar-inset) + (var(--sidebar-width) - 44px) / 2);
-    z-index: 62;
-    width: 44px;
-    height: 44px;
+    position: static;
+    width: 36px;
+    height: 36px;
     padding: 0;
     border: 1px solid var(--glass-border);
-    border-radius: 13px;
+    border-radius: 10px;
     background: rgba(255, 255, 255, 0.16);
     -webkit-backdrop-filter: blur(50px) saturate(185%);
     backdrop-filter: blur(50px) saturate(185%);
     color: var(--text-2);
     align-items: center;
     justify-content: center;
-    box-shadow: var(--shadow-glass);
+    box-shadow: none;
     transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
@@ -1687,7 +1719,11 @@ body.sidebar-expanded .sidebar-expand-toggle svg {
 
 @media (max-width: 768px) {
     .top-navbar {
-        padding: 0 12px 0 16px;
+        padding: 0 12px 0 12px;
+    }
+
+    .top-navbar .sidebar-expand-toggle {
+        display: none;
     }
 
     .top-navbar-links {

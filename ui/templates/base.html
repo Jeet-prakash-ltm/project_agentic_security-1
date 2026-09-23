@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}LTM Security Platform{% endblock %}</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='LTM_LOGO.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=25">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=26">
     {% if page_css %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=40">
     {% endif %}
@@ -34,6 +34,7 @@
         <span class="hero-eyebrow top-navbar-eyebrow">{% block hero_eyebrow %}{% endblock %}</span>
         <nav class="top-navbar-links" id="topNavbarLinks" aria-label="Primary pages">
         </nav>
+        <div class="top-navbar-actions">{% block navbar_actions %}{% endblock %}</div>
         <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>

@@ -326,9 +326,23 @@ input, select, textarea {
     background: rgba(255, 94, 79, 0.16);
 }
 
+.top-navbar-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.top-navbar-actions .hero-chip,
+.top-navbar-actions .hero-chip-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
 .top-navbar .menu-toggle {
     position: static;
-    margin-left: auto;
+    margin-left: 0;
 }
 
 .top-navbar .sidebar-expand-toggle {

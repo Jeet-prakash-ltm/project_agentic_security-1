@@ -6,16 +6,17 @@
 
 {% block hero_eyebrow %}Dashboard · Network Security{% endblock %}
 
+{% block navbar_actions %}
+<span class="hero-chip" id="dataSourceBadge">Connecting…</span>
+<button class="hero-chip-btn" id="refreshBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.5 15a9 9 0 102.6-8L1 10"/></svg>
+    Refresh
+</button>
+{% endblock %}
+
 {% block content %}
 
 <div class="dash-header">
-    <div class="dash-corner">
-        <span class="hero-chip" id="dataSourceBadge">Connecting…</span>
-        <button class="hero-chip-btn" id="refreshBtn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.5 15a9 9 0 102.6-8L1 10"/></svg>
-            Refresh
-        </button>
-    </div>
     <div class="dash-heading">
         <h1>Network Security</h1>
     </div>

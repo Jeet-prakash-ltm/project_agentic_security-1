@@ -4,6 +4,8 @@
 
 {% block page_title %}Network Security{% endblock %}
 
+{% block hero_eyebrow %}Dashboard · Network Security{% endblock %}
+
 {% block content %}
 
 <div class="dash-header">
@@ -15,7 +17,6 @@
         </button>
     </div>
     <div class="dash-heading">
-        <span class="hero-eyebrow">Dashboard · Network Security</span>
         <h1>Network Security</h1>
     </div>
     <div class="dash-meta">
@@ -55,5 +56,5 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=7"></script>
-<script src="{{ url_for('static', filename='js/dashboard.js') }}?v=20"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}?v=21"></script>
 {% endblock %}

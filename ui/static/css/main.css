@@ -1293,6 +1293,17 @@ body.sidebar-expanded .sidebar-expand-toggle svg {
     margin-bottom: 14px;
 }
 
+.top-navbar-eyebrow {
+    margin-bottom: 0;
+    margin-left: 4px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.top-navbar-eyebrow:empty {
+    display: none;
+}
+
 /* --------------------------------------------------
    FORMS
 -------------------------------------------------- */

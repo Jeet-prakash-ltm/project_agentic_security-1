@@ -4,6 +4,8 @@
 
 {% block page_title %}User Management{% endblock %}
 
+{% block hero_eyebrow %}Settings · User Management{% endblock %}
+
 {% block head_extra %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=42">
 {% endblock %}
@@ -12,7 +14,6 @@
 
 <div class="settings-header">
     <div>
-        <span class="hero-eyebrow">Settings · User Management</span>
         <h1>User Management</h1>
     </div>
     {% if is_admin %}

@@ -112,17 +112,7 @@
             "</section>";
     }
 
-    function groupShell(fw, meta) {
-        var label = (meta && meta.label) || (fw === ALL ? "All Firewalls" : fw);
-        var sub = (meta && meta.sub) || (fw === ALL
-            ? "Cumulative posture across the entire estate"
-            : "Individual firewall posture");
-        var head =
-            '<div class="dash-group-head">' +
-            '<span class="dash-group-dot ' + statusClass(fw) + '"></span>' +
-            "<div><h2>" + escapeHtml(label) + "</h2><span>" + escapeHtml(sub) + "</span></div>" +
-            "</div>";
-
+    function groupShell(fw) {
         var pie =
             '<section class="dash-grid-2">' +
             '<div class="card dash-panel pie-panel is-loading">' +
@@ -163,7 +153,7 @@
             "</section>";
 
         return '<section class="dash-group" data-fw="' + escapeHtml(fw) + '">' +
-            head + pie + recent + domains + trend + "</section>";
+            pie + recent + domains + trend + "</section>";
     }
 
     function clearSection(el) {
@@ -637,13 +627,7 @@
         var targets = selectedFirewalls();
         var multi = !isAll() && targets.length > 1;
         var groupId = isAll() || multi ? ALL : targets[0];
-        var meta = multi
-            ? {
-                label: "Selected Firewalls",
-                sub: "Cumulative posture across " + targets.length + " firewalls"
-            }
-            : null;
-        container.innerHTML = groupShell(groupId, meta);
+        container.innerHTML = groupShell(groupId);
         state.source = null;
         state.status = {};
 

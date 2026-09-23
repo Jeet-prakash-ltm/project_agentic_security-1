@@ -549,7 +549,10 @@
 
 .fw-drawer-backdrop {
     position: fixed;
-    inset: 0;
+    top: var(--top-navbar-height);
+    right: 0;
+    bottom: 0;
+    left: 0;
     z-index: 90;
     background: rgba(8, 10, 18, 0.6);
     opacity: 0;
@@ -562,7 +565,7 @@
 
 .fw-drawer {
     position: fixed;
-    top: 0;
+    top: var(--top-navbar-height);
     right: 0;
     bottom: 0;
     z-index: 91;

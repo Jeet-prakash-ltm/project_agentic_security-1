@@ -284,6 +284,15 @@ def import_firewall(device_name, host_ip, vendor=None, port=None, username=None,
     return _public(entry)
 
 
+def _cascade_delete(repo, entry):
+    """Delete a device and, when it is a parent, every clone of it."""
+    if not entry.clone_of:
+        for clone in repo.by_clone_of(entry.device_name):
+            repo.session.delete(clone)
+    repo.session.delete(entry)
+    repo.session.commit()
+
+
 def remove_by_device_name(device_name):
     """Remove a registered firewall by logical name (bulk import action)."""
     device_name = (device_name or "").strip()
@@ -294,7 +303,7 @@ def remove_by_device_name(device_name):
         entry = repo.by_device_name(device_name)
         if entry is None:
             raise ValueError("Firewall not found in the inventory.")
-        repo.delete_id(entry.id)
+        _cascade_delete(repo, entry)
     return device_name
 
 
@@ -349,9 +358,12 @@ def clone_firewall(source_id, clone_device_name):
 def remove_firewall(firewall_id):
     """Remove a firewall inventory entry (administrator action)."""
     with _lock:
-        deleted = _repo().delete_id(firewall_id)
-    if deleted is None:
-        raise ValueError("Firewall inventory entry not found.")
+        repo = _repo()
+        entry = repo.get(firewall_id)
+        if entry is None:
+            raise ValueError("Firewall inventory entry not found.")
+        deleted = entry.id
+        _cascade_delete(repo, entry)
     return deleted
 
 

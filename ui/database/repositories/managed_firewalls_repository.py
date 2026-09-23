@@ -27,6 +27,13 @@ class ManagedFirewallsRepository(BaseRepository):
             .first()
         )
 
+    def by_clone_of(self, device_name):
+        return (
+            self.session.query(ManagedFirewall)
+            .filter(ManagedFirewall.clone_of == device_name)
+            .all()
+        )
+
     def create(self, data):
         entry = ManagedFirewall(
             device_name=(data.get("device_name") or "").strip(),

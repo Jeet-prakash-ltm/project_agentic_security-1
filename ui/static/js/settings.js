@@ -214,7 +214,7 @@
     var isFwAdmin = card
         ? card.getAttribute("data-is-admin") === "true"
         : false;
-    var countChip = document.getElementById("fwCountChip");
+    var sectionsRoot = document.getElementById("fwInventorySections");
 
     // ---- Add/bulk inventory side drawer ----
     var drawer = document.getElementById("fwDrawer");
@@ -291,107 +291,112 @@
         return name;
     }
 
-    function renderFirewalls(firewalls) {
-        var rows = firewalls.map(function (fw) {
+    function typeKey(deviceType) {
+        return String(deviceType || "Firewall").trim() || "Firewall";
+    }
+
+    function sectionTitle(deviceType) {
+        return typeKey(deviceType) + " Inventory";
+    }
+
+    function findSection(deviceType) {
+        if (!sectionsRoot) return null;
+        var type = typeKey(deviceType);
+        var cards = sectionsRoot.querySelectorAll("[data-device-type]");
+        for (var i = 0; i < cards.length; i += 1) {
+            if (cards[i].getAttribute("data-device-type") === type) return cards[i];
+        }
+        return null;
+    }
+
+    function ensureSection(deviceType) {
+        var type = typeKey(deviceType);
+        var existing = findSection(type);
+        if (existing) return existing;
+        if (!sectionsRoot) return null;
+
+        var cardEl = document.createElement("div");
+        cardEl.className = "settings-card card settings-card-wide";
+        cardEl.setAttribute("data-device-type", type);
+        cardEl.innerHTML =
+            '<div class="settings-card-head">' +
+            '<span class="settings-icon settings-icon-cyan">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01"/><path d="M7 16.5h.01"/><path d="M10.5 7.5h.01"/><path d="M10.5 16.5h.01"/></svg>' +
+            "</span>" +
+            "<div><h3>" + escapeHtml(sectionTitle(type)) + "</h3></div>" +
+            '<span class="status-chip status-on" data-count-chip>Total 0</span>' +
+            "</div>" +
+            '<div class="settings-body"><div class="users-table-wrap">' +
+            '<table class="users-table"><thead><tr>' +
+            "<th>Device Name</th><th>Vendor</th><th>IP</th><th>Status</th>" +
+            (isFwAdmin ? "<th>Actions</th>" : "") +
+            "</tr></thead><tbody></tbody></table></div></div>";
+        sectionsRoot.appendChild(cardEl);
+        return cardEl;
+    }
+
+    function renderDeviceRows(tbody, devices) {
+        var colSpan = isFwAdmin ? 5 : 4;
+        var rows = (devices || []).map(function (fw) {
             var cells =
                 "<td>" + deviceHtml(fw) + "</td>" +
                 "<td>" + escapeHtml(fw.vendor || "Palo Alto Networks") + "</td>" +
                 "<td class=\"fw-ip\">" + escapeHtml(fw.host_ip || "—") + "</td>" +
                 "<td>" + statusHtml(fw.status) + "</td>";
             if (isFwAdmin) {
-                var cloneButton = fw.clone_of
-                    ? ""
-                    : '<button class="btn btn-sm btn-ghost" data-action="clone" data-id="' + fw.id + '">Clone</button>';
                 cells +=
                     "<td class=\"users-actions\">" +
-                    cloneButton +
                     '<button class="btn btn-sm btn-danger" data-action="remove" data-id="' + fw.id + '">Remove</button>' +
                     "</td>";
             }
             return "<tr data-id=\"" + fw.id + "\">" + cells + "</tr>";
         }).join("");
-
-        body.innerHTML = rows ||
-            '<tr><td colspan="' + (isFwAdmin ? 5 : 4) + '" class="users-empty">No firewalls registered yet.</td></tr>';
-
-        if (countChip) countChip.textContent = "Total " + firewalls.length;
+        tbody.innerHTML = rows ||
+            '<tr><td colspan="' + colSpan + '" class="users-empty">No devices registered yet.</td></tr>';
     }
 
-    function removeCloneRows() {
-        var rows = body.querySelectorAll("tr.fw-clone-row");
-        for (var i = 0; i < rows.length; i += 1) rows[i].remove();
+    function renderSection(deviceType, devices) {
+        var cardEl = ensureSection(deviceType);
+        if (!cardEl) return;
+        var tbody = cardEl.querySelector("tbody");
+        var chip = cardEl.querySelector("[data-count-chip]");
+        if (tbody) renderDeviceRows(tbody, devices);
+        if (chip) chip.textContent = "Total " + (devices ? devices.length : 0);
     }
 
-    function beginClone(fw, anchorRow) {
-        removeCloneRows();
-        var tr = document.createElement("tr");
-        tr.className = "fw-clone-row";
-        tr.setAttribute("data-source-id", fw.id);
-        tr.innerHTML =
-            '<td colspan="5">' +
-            '<div class="fw-clone-form">' +
-            '<span class="fw-clone-form-label">Clone of <strong>' + escapeHtml(fw.device_name || "") + "</strong></span>" +
-            '<input type="text" class="fw-clone-input" placeholder="Enter a device name for the clone" autocomplete="off" value="' + escapeHtml(fw.device_name + "-clone") + '">' +
-            '<button type="button" class="btn btn-sm btn-primary" data-clone-confirm>Clone</button>' +
-            '<button type="button" class="btn btn-sm btn-ghost" data-clone-cancel>Cancel</button>' +
-            "</div>" +
-            "</td>";
-
-        var confirmBtn = tr.querySelector("[data-clone-confirm]");
-        var cancelBtn = tr.querySelector("[data-clone-cancel]");
-        var input = tr.querySelector(".fw-clone-input");
-
-        confirmBtn.addEventListener("click", function () {
-            var name = (input.value || "").trim();
-            if (!name) {
-                window.showToast("A device name is required to clone.", "error");
-                input.focus();
-                return;
-            }
-            confirmBtn.disabled = true;
-            postJson("/api/admin/firewalls/" + encodeURIComponent(fw.id) + "/clone", { device_name: name })
-                .then(function () {
-                    window.showToast("Firewall cloned as " + name + ".", "success");
-                    removeCloneRows();
-                    loadFirewalls();
-                })
-                .catch(function (err) {
-                    confirmBtn.disabled = false;
-                    window.showToast(err.message, "error");
-                    input.focus();
-                });
+    function renderInventory(devices) {
+        var groups = {};
+        (devices || []).forEach(function (fw) {
+            var type = typeKey(fw.device_type);
+            if (!groups[type]) groups[type] = [];
+            groups[type].push(fw);
         });
 
-        cancelBtn.addEventListener("click", function () {
-            removeCloneRows();
+        renderSection("Firewall", groups.Firewall || []);
+
+        var seen = { Firewall: true };
+        Object.keys(groups).forEach(function (type) {
+            if (type === "Firewall") return;
+            seen[type] = true;
+            renderSection(type, groups[type]);
         });
 
-        input.addEventListener("keydown", function (event) {
-            if (event.key === "Enter") {
-                event.preventDefault();
-                confirmBtn.click();
-            } else if (event.key === "Escape") {
-                event.preventDefault();
-                removeCloneRows();
-            }
-        });
-
-        if (anchorRow && anchorRow.nextSibling) {
-            anchorRow.parentNode.insertBefore(tr, anchorRow.nextSibling);
-        } else {
-            body.appendChild(tr);
+        if (!sectionsRoot) return;
+        var cards = sectionsRoot.querySelectorAll("[data-device-type]");
+        for (var i = 0; i < cards.length; i += 1) {
+            var type = cards[i].getAttribute("data-device-type");
+            if (type !== "Firewall" && !seen[type]) cards[i].remove();
         }
-        input.focus();
-        input.select();
     }
 
     function loadFirewalls() {
-        if (window.loadingRow) body.innerHTML = window.loadingRow(isFwAdmin ? 5 : 4, "Loading firewall inventory…");
+        var colSpan = isFwAdmin ? 5 : 4;
+        if (window.loadingRow) body.innerHTML = window.loadingRow(colSpan, "Loading inventory…");
         fetch("/api/admin/firewalls", { headers: { "Accept": "application/json" } })
-            .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error("Failed to load firewall inventory")); })
-            .then(function (data) { renderFirewalls(data.firewalls || []); })
+            .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error("Failed to load inventory")); })
+            .then(function (data) { renderInventory(data.firewalls || []); })
             .catch(function (err) {
-                body.innerHTML = '<tr><td colspan="' + (isFwAdmin ? 5 : 4) + '" class="users-empty">' + escapeHtml(err.message) + '</td></tr>';
+                body.innerHTML = '<tr><td colspan="' + colSpan + '" class="users-empty">' + escapeHtml(err.message) + '</td></tr>';
             });
     }
 
@@ -447,8 +452,8 @@
         });
     }
 
-    if (isFwAdmin) {
-        body.addEventListener("click", function (event) {
+    if (isFwAdmin && sectionsRoot) {
+        sectionsRoot.addEventListener("click", function (event) {
             var button = event.target.closest("[data-action]");
             if (!button) return;
             var action = button.getAttribute("data-action");
@@ -458,27 +463,8 @@
                 ? anchorRow.querySelector(".fw-device").textContent.trim()
                 : "";
 
-            if (action === "clone") {
-                var firewalls = Array.prototype.map.call(
-                    body.querySelectorAll("tr[data-id]"),
-                    function (tr) {
-                        return {
-                            id: tr.getAttribute("data-id"),
-                            device_name: tr.querySelector(".fw-device") ? tr.querySelector(".fw-device").textContent.trim() : ""
-                        };
-                    }
-                );
-                var fw = null;
-                for (var i = 0; i < firewalls.length; i += 1) {
-                    if (firewalls[i].id === id) { fw = firewalls[i]; break; }
-                }
-                if (!fw) return;
-                beginClone(fw, anchorRow);
-                return;
-            }
-
             if (action === "remove") {
-                if (!window.confirm("Remove \"" + deviceName + "\" from the firewall inventory?")) return;
+                if (!window.confirm("Remove \"" + deviceName + "\" from the inventory?")) return;
                 fetch("/api/admin/firewalls/" + encodeURIComponent(id), { method: "DELETE" })
                     .then(function (res) {
                         return res.json().then(function (data) {
@@ -487,7 +473,7 @@
                         });
                     })
                     .then(function () {
-                        window.showToast("Firewall removed from the inventory.", "success");
+                        window.showToast("Device removed from the inventory.", "success");
                         loadFirewalls();
                     })
                     .catch(function (err) {

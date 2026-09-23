@@ -32,7 +32,7 @@
                         '<button class="btn btn-sm btn-primary" data-action="approve" data-id="' + user.id + '">Approve</button>' +
                         '<button class="btn btn-sm btn-danger" data-action="reject" data-id="' + user.id + '">Reject</button>';
                 } else if (selfUserId && user.id === selfUserId) {
-                    actions = '<span class="users-none">This is you</span>';
+                    actions = '<span class="users-none">Logged in</span>';
                 } else {
                     actions =
                         '<button class="btn btn-sm btn-danger" data-action="remove" data-id="' + user.id + '">Remove</button>';
@@ -667,23 +667,67 @@
             });
     });
 
+    var agentDrawer = document.getElementById("agentDrawer");
+    var agentDrawerBackdrop = document.getElementById("agentDrawerBackdrop");
+    var agentDrawerClose = document.getElementById("agentDrawerClose");
+    var agentOpenBtn = document.getElementById("agentOpenBtn");
+
+    function openAgentDrawer() {
+        if (!agentDrawer) return;
+        if (agentOpenBtn) {
+            agentOpenBtn.classList.add("is-active");
+            agentOpenBtn.setAttribute("aria-pressed", "true");
+        }
+        agentDrawer.hidden = false;
+        if (agentDrawerBackdrop) agentDrawerBackdrop.hidden = false;
+        window.requestAnimationFrame(function () {
+            agentDrawer.classList.add("is-open");
+            if (agentDrawerBackdrop) agentDrawerBackdrop.classList.add("is-open");
+        });
+    }
+
+    function closeAgentDrawer() {
+        if (!agentDrawer) return;
+        agentDrawer.classList.remove("is-open");
+        if (agentDrawerBackdrop) agentDrawerBackdrop.classList.remove("is-open");
+        if (agentOpenBtn) {
+            agentOpenBtn.classList.remove("is-active");
+            agentOpenBtn.setAttribute("aria-pressed", "false");
+        }
+        window.setTimeout(function () {
+            agentDrawer.hidden = true;
+            if (agentDrawerBackdrop) agentDrawerBackdrop.hidden = true;
+        }, 220);
+    }
+
+    if (agentOpenBtn) agentOpenBtn.addEventListener("click", openAgentDrawer);
+    if (agentDrawerClose) agentDrawerClose.addEventListener("click", closeAgentDrawer);
+    if (agentDrawerBackdrop) agentDrawerBackdrop.addEventListener("click", closeAgentDrawer);
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && agentDrawer && !agentDrawer.hidden) closeAgentDrawer();
+    });
+
     var addBtn = document.getElementById("agentAddBtn");
     if (addBtn) {
         addBtn.addEventListener("click", function () {
             var name = (document.getElementById("agentName").value || "").trim();
+            var typeSelect = document.getElementById("agentType");
+            var typeName = typeSelect ? (typeSelect.value || "").trim() : "";
             var endpoint = (document.getElementById("agentEndpoint").value || "").trim();
             var key = document.getElementById("agentKey").value || "";
 
-            if (!name || !endpoint || !key) {
-                window.showToast("Agent name, endpoint, and API key are required.", "error");
+            if (!name || !typeName || !endpoint || !key) {
+                window.showToast("Agent name, type, API endpoint, and API key are required.", "error");
                 return;
             }
-            postJson("/api/agents", { name: name, endpoint: endpoint, api_key: key })
+            postJson("/api/agents", { name: name, type: typeName, endpoint: endpoint, api_key: key })
                 .then(function () {
                     window.showToast("Agent added to the workspace.", "success");
                     document.getElementById("agentName").value = "";
+                    if (typeSelect) typeSelect.selectedIndex = 0;
                     document.getElementById("agentEndpoint").value = "";
                     document.getElementById("agentKey").value = "";
+                    closeAgentDrawer();
                     loadAgents();
                 })
                 .catch(function (err) {

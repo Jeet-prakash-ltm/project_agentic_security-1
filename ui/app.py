@@ -1123,17 +1123,18 @@ def api_agents_add():
     payload = request.get_json(silent=True) or {}
 
     name = (payload.get("name") or "").strip()
+    type_name = (payload.get("type") or "").strip()
     endpoint = (payload.get("endpoint") or "").strip()
     api_key = (payload.get("api_key") or "").strip()
 
-    if not name or not endpoint or not api_key:
+    if not name or not type_name or not endpoint or not api_key:
         return jsonify(
-            {"error": "Name, endpoint, and API key are required."}
+            {"error": "Name, type, endpoint, and API key are required."}
         ), 400
 
     agent = agents_service.add_agent(
         name=name,
-        type_name=(payload.get("type") or "Custom Agent").strip(),
+        type_name=type_name,
         endpoint=endpoint,
         api_key=api_key,
         model=(payload.get("model") or "gpt-5.1").strip(),

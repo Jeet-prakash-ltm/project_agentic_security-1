@@ -5,7 +5,7 @@
 {% block page_title %}Agents{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=38">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=42">
 {% endblock %}
 
 {% block content %}
@@ -15,6 +15,14 @@
         <span class="hero-eyebrow">Settings · Agents</span>
         <h1>Agents</h1>
     </div>
+    {% if is_admin %}
+    <div class="settings-header-actions">
+        <button class="btn btn-primary" id="agentOpenBtn" type="button" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            Add Agent
+        </button>
+    </div>
+    {% endif %}
 </div>
 
 <section class="settings-grid" data-is-admin="{{ 'true' if is_admin else 'false' }}">
@@ -47,25 +55,43 @@
                     </tbody>
                 </table>
             </div>
-
-            {% if is_admin %}
-            <div class="invite-user">
-                <strong>Add an agent</strong>
-                <div class="invite-user-row invite-user-row--agent">
-                    <input type="text" id="agentName" placeholder="Agent name, e.g. Cloud Workload Guardian" autocomplete="off">
-                    <input type="url" id="agentEndpoint" placeholder="Agent endpoint URL" autocomplete="off">
-                    <input type="password" id="agentKey" placeholder="API key" autocomplete="off">
-                    <button class="btn btn-primary" id="agentAddBtn" type="button">Add Agent</button>
-                </div>
-            </div>
-            {% endif %}
         </div>
     </div>
 
 </section>
 
+{% if is_admin %}
+<div class="fw-drawer-backdrop" id="agentDrawerBackdrop" hidden></div>
+<aside class="fw-drawer" id="agentDrawer" hidden aria-label="Add agent">
+    <div class="fw-drawer-head">
+        <h3 id="agentDrawerTitle">Add agent</h3>
+        <button type="button" class="fw-drawer-close" id="agentDrawerClose" aria-label="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+    </div>
+    <div class="fw-drawer-body">
+        <div class="invite-user">
+            <strong>Agent details</strong>
+            <div class="invite-user-row invite-user-row--agent">
+                <input type="text" id="agentName" placeholder="Agent name" autocomplete="off">
+                <select id="agentType">
+                    <option value="" disabled selected>Type of agent</option>
+                    <option value="Network security Query agent">Network security Query agent</option>
+                    <option value="Network security Action agent">Network security Action agent</option>
+                    <option value="Cloud security Query agent">Cloud security Query agent</option>
+                    <option value="Cloud security Action agent">Cloud security Action agent</option>
+                </select>
+                <input type="url" id="agentEndpoint" placeholder="API Endpoint" autocomplete="off">
+                <input type="password" id="agentKey" placeholder="API KEY" autocomplete="new-password">
+                <button class="btn btn-primary" id="agentAddBtn" type="button">Add Agent</button>
+            </div>
+        </div>
+    </div>
+</aside>
+{% endif %}
+
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=15"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=19"></script>
 {% endblock %}

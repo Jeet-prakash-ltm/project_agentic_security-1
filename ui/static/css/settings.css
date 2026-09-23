@@ -641,7 +641,8 @@
 }
 
 .fw-drawer .invite-user-row--fw,
-.fw-drawer .invite-user-row--user {
+.fw-drawer .invite-user-row--user,
+.fw-drawer .invite-user-row--agent {
     grid-template-columns: 1fr;
 }
 

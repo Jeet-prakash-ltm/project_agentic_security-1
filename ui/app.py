@@ -243,13 +243,11 @@ def _firewall_param():
 def _dashboard_firewall_param():
     """Dashboard selection: a managed device, or ``all`` for full inventory."""
     fw = (request.args.get("firewall") or "").strip()
-    if fw.lower() in ("all", "estate", "full", "full inventory"):
+    if not fw or fw.lower() in ("all", "estate", "full", "full inventory"):
         return "all"
-    if not fw or fw in assessment_service.FIREWALLS:
-        return fw or "vmpafw01"
-    if _is_managed_device(fw):
+    if fw in assessment_service.FIREWALLS or _is_managed_device(fw):
         return fw
-    return "vmpafw01"
+    return "all"
 
 
 def _relabel_firewall(data, firewall_id):

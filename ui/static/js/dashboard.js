@@ -112,11 +112,11 @@
             "</section>";
     }
 
-    function groupShell(fw) {
-        var label = fw === ALL ? "All Firewalls" : fw;
-        var sub = fw === ALL
+    function groupShell(fw, meta) {
+        var label = (meta && meta.label) || (fw === ALL ? "All Firewalls" : fw);
+        var sub = (meta && meta.sub) || (fw === ALL
             ? "Cumulative posture across the entire estate"
-            : "Individual firewall posture";
+            : "Individual firewall posture");
         var head =
             '<div class="dash-group-head">' +
             '<span class="dash-group-dot ' + statusClass(fw) + '"></span>' +
@@ -582,34 +582,102 @@
         if (recent) recent.innerHTML = '<p class="empty-inline">Data unavailable.</p>';
     }
 
+    function mergeDashboardPayloads(payloads, labelId) {
+        var result = {
+            compliance: {
+                total_controls: 0,
+                compliant: 0,
+                non_compliant: 0,
+                not_assessed: 0,
+                compliance_score: 0,
+                source: "sample"
+            },
+            findings: { critical: 0, high: 0, medium: 0, low: 0, open: 0 },
+            recent_findings: [],
+            findings_list: [],
+            history: [],
+            firewall_id: labelId
+        };
+        payloads.forEach(function (data) {
+            if (!data) return;
+            var c = data.compliance || {};
+            result.compliance.total_controls += Number(c.total_controls) || 0;
+            result.compliance.compliant += Number(c.compliant) || 0;
+            result.compliance.non_compliant += Number(c.non_compliant) || 0;
+            result.compliance.not_assessed += Number(c.not_assessed) || 0;
+            if (c.source === "live") result.compliance.source = "live";
+            var f = data.findings || {};
+            result.findings.critical += Number(f.critical) || 0;
+            result.findings.high += Number(f.high) || 0;
+            result.findings.medium += Number(f.medium) || 0;
+            result.findings.low += Number(f.low) || 0;
+            result.recent_findings = result.recent_findings.concat(data.recent_findings || []);
+            result.findings_list = result.findings_list.concat(data.findings_list || []);
+            result.history = result.history.concat(data.history || []);
+        });
+        var total = result.compliance.total_controls;
+        result.compliance.compliance_score = total
+            ? Math.round(result.compliance.compliant / total * 100)
+            : 0;
+        result.findings.open =
+            result.findings.critical + result.findings.high +
+            result.findings.medium + result.findings.low;
+        var sevOrder = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+        result.recent_findings.sort(function (a, b) {
+            return (sevOrder[(a.risk || "").toUpperCase()] || 4) -
+                (sevOrder[(b.risk || "").toUpperCase()] || 4);
+        });
+        result.recent_findings = result.recent_findings.slice(0, 5);
+        return result;
+    }
+
     function load() {
         var container = document.getElementById("dashGroups");
         if (!container) return Promise.resolve();
         var targets = selectedFirewalls();
-        container.innerHTML = targets.map(groupShell).join("");
+        var multi = !isAll() && targets.length > 1;
+        var groupId = isAll() || multi ? ALL : targets[0];
+        var meta = multi
+            ? {
+                label: "Selected Firewalls",
+                sub: "Cumulative posture across " + targets.length + " firewalls"
+            }
+            : null;
+        container.innerHTML = groupShell(groupId, meta);
         state.source = null;
         state.status = {};
 
-        var roots = {};
-        var groups = container.querySelectorAll(".dash-group");
-        for (var i = 0; i < groups.length; i++) {
-            roots[groups[i].getAttribute("data-fw")] = groups[i];
-        }
+        var root = container.querySelector(".dash-group");
+        var fetchList = isAll() ? [ALL] : targets;
 
-        var jobs = targets.map(function (fw) {
+        var jobs = fetchList.map(function (fw) {
             return fetch("/api/dashboard?firewall=" + encodeURIComponent(fw))
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
                     if (data && data.error) throw new Error(data.error);
-                    applyNetsecData(roots[fw], data, fw);
+                    if (fw !== ALL) {
+                        state.status[fw] = data.compliance && data.compliance.source === "live"
+                            ? "live"
+                            : "down";
+                    }
+                    return data;
                 })
                 .catch(function () {
-                    if (roots[fw]) applyGroupError(roots[fw], fw);
+                    if (fw !== ALL) state.status[fw] = "down";
                     if (!state.source) state.source = "sample";
+                    return null;
                 });
         });
 
-        return Promise.all(jobs).then(function () {
+        return Promise.all(jobs).then(function (payloads) {
+            var ok = payloads.filter(Boolean);
+            if (!ok.length) {
+                if (root) applyGroupError(root, groupId);
+                setSource(state.source || "sample");
+                return;
+            }
+            var data = ok.length === 1 ? ok[0] : mergeDashboardPayloads(ok, groupId);
+            applyNetsecData(root, data, groupId);
             setSource(state.source || "sample");
         });
     }

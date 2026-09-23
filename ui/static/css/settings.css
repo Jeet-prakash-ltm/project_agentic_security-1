@@ -256,6 +256,10 @@
     grid-template-columns: 1fr 1.2fr 0.9fr 1.25fr auto;
 }
 
+.invite-user-row--user {
+    grid-template-columns: 1fr;
+}
+
 .invite-user-row--agent {
     grid-template-columns: 1.4fr 2fr 1.6fr auto;
 }
@@ -528,6 +532,8 @@
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    margin-left: auto;
+    align-self: flex-start;
 }
 
 .settings-header-actions .btn svg {
@@ -631,7 +637,8 @@
     margin-top: 0;
 }
 
-.fw-drawer .invite-user-row--fw {
+.fw-drawer .invite-user-row--fw,
+.fw-drawer .invite-user-row--user {
     grid-template-columns: 1fr;
 }
 

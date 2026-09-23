@@ -1,20 +1,28 @@
 {% extends "base.html" %}
 
-{% block title %}Accounts — Settings{% endblock %}
+{% block title %}User Management — Settings{% endblock %}
 
-{% block page_title %}Accounts{% endblock %}
+{% block page_title %}User Management{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=38">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=40">
 {% endblock %}
 
 {% block content %}
 
 <div class="settings-header">
     <div>
-        <span class="hero-eyebrow">Settings · Accounts</span>
-        <h1>Accounts</h1>
+        <span class="hero-eyebrow">Settings · User Management</span>
+        <h1>User Management</h1>
     </div>
+    {% if is_admin %}
+    <div class="settings-header-actions">
+        <button class="btn btn-primary" id="userAddBtn" type="button" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>
+            Add User
+        </button>
+    </div>
+    {% endif %}
 </div>
 
 <section class="settings-grid" data-is-admin="{{ 'true' if is_admin else 'false' }}">
@@ -50,32 +58,44 @@
                     </tbody>
                 </table>
             </div>
-
-            {% if is_admin %}
-            <div class="invite-user">
-                <strong>Add an account</strong>
-                <div class="invite-user-row">
-                    <input type="text" id="inviteName" placeholder="Full name">
-                    <input type="email" id="inviteEmail" placeholder="Email">
-                    <select id="inviteRole">
-                        <option value="Security Analyst">Security Analyst</option>
-                        <option value="SOC Analyst">SOC Analyst</option>
-                        <option value="Auditor">Auditor</option>
-                        <option value="Viewer">Viewer</option>
-                        <option value="Admin">Admin</option>
-                    </select>
-                    <input type="password" id="invitePassword" placeholder="Temporary password" autocomplete="off">
-                    <button class="btn btn-primary" id="inviteBtn" type="button">Add User</button>
-                </div>
-            </div>
-            {% endif %}
         </div>
     </div>
 
 </section>
 
+{% if is_admin %}
+<div class="fw-drawer-backdrop" id="userDrawerBackdrop" hidden></div>
+<aside class="fw-drawer" id="userDrawer" hidden aria-label="Add user">
+    <div class="fw-drawer-head">
+        <h3 id="userDrawerTitle">Add user</h3>
+        <button type="button" class="fw-drawer-close" id="userDrawerClose" aria-label="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+    </div>
+    <div class="fw-drawer-body">
+        <div class="invite-user">
+            <strong>User details</strong>
+            <div class="invite-user-row invite-user-row--user">
+                <input type="text" id="inviteName" placeholder="Name" autocomplete="off">
+                <input type="email" id="inviteEmail" placeholder="Email" autocomplete="off">
+                <select id="inviteRole">
+                    <option value="" disabled selected>Role</option>
+                    <option value="Security Analyst">Security Analyst</option>
+                    <option value="SOC Analyst">SOC Analyst</option>
+                    <option value="Auditor">Auditor</option>
+                    <option value="Viewer">Viewer</option>
+                    <option value="Admin">Admin</option>
+                </select>
+                <input type="password" id="invitePassword" placeholder="Password" autocomplete="new-password">
+                <button class="btn btn-primary" id="inviteBtn" type="button">Add User</button>
+            </div>
+        </div>
+    </div>
+</aside>
+{% endif %}
+
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=15"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=17"></script>
 {% endblock %}

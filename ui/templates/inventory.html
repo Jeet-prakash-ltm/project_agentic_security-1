@@ -5,7 +5,7 @@
 {% block page_title %}Asset Inventory{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=38">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=40">
 {% endblock %}
 
 {% block content %}
@@ -20,7 +20,7 @@
     <div class="settings-header-actions">
         <button class="btn btn-ghost" id="fwSingularBtn" type="button" aria-pressed="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-            Single Entry
+            Add Device
         </button>
         <button class="btn btn-primary" id="fwBulkBtn" type="button" aria-pressed="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8"/><path d="M8 13h8"/><path d="M8 17h4"/></svg>
@@ -70,7 +70,7 @@
 <div class="fw-drawer-backdrop" id="fwDrawerBackdrop" hidden></div>
 <aside class="fw-drawer" id="fwDrawer" hidden aria-label="Firewall inventory actions">
     <div class="fw-drawer-head">
-        <h3 id="fwDrawerTitle">Add a single firewall</h3>
+        <h3 id="fwDrawerTitle">Add device</h3>
         <button type="button" class="fw-drawer-close" id="fwDrawerClose" aria-label="Close">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
@@ -78,15 +78,25 @@
     <div class="fw-drawer-body">
         <div class="fw-drawer-panel" id="fwPanelSingular">
             <div class="invite-user">
-                <strong>Add a firewall</strong>
+                <strong>Add a device</strong>
                 <div class="invite-user-row invite-user-row--fw">
+                    <select id="fwDeviceType">
+                        <option value="" disabled selected>Select device type</option>
+                        <option value="Firewall">Firewall</option>
+                        <option value="NAC">NAC</option>
+                        <option value="Switch">Switch</option>
+                        <option value="Load Balancer">Load Balancer</option>
+                        <option value="Router">Router</option>
+                        <option value="Gateway">Gateway</option>
+                        <option value="Proxy">Proxy</option>
+                    </select>
                     <input type="text" id="fwDeviceName" placeholder="Device name (firewall), e.g. vmpafw03" autocomplete="off">
                     <input type="text" id="fwVendor" placeholder="Vendor" value="Palo Alto Networks" autocomplete="off">
                     <input type="text" id="fwHostIp" placeholder="IP address, e.g. 10.0.0.3" autocomplete="off">
                     <input type="text" id="fwUsername" placeholder="User name" autocomplete="off">
                     <input type="password" id="fwPassword" placeholder="Password" autocomplete="new-password">
                     <input type="text" id="fwPort" inputmode="numeric" placeholder="Port" autocomplete="off">
-                    <button class="btn btn-primary" id="fwAddBtn" type="button">Add Firewall</button>
+                    <button class="btn btn-primary" id="fwAddBtn" type="button">Add Device</button>
                 </div>
             </div>
         </div>
@@ -114,5 +124,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=15"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=17"></script>
 {% endblock %}

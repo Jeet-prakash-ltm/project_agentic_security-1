@@ -52,6 +52,7 @@ def _public(entry):
     return {
         "id": entry.id,
         "device_name": entry.device_name,
+        "device_type": entry.device_type or "Firewall",
         "host_name": entry.host_name,
         "host_ip": entry.host_ip,
         "host_key": _mask_key(entry.host_key),
@@ -223,7 +224,7 @@ def add_firewall(device_name, host_name, host_ip, host_key):
     return _public(entry)
 
 
-def import_firewall(device_name, host_ip, vendor=None, port=None, username=None, password=None):
+def import_firewall(device_name, host_ip, vendor=None, port=None, username=None, password=None, device_type=None):
     """Register a firewall from a bulk inventory import.
 
     Unlike :func:`add_firewall` the credential fields are optional - the
@@ -236,6 +237,7 @@ def import_firewall(device_name, host_ip, vendor=None, port=None, username=None,
     vendor = (vendor or "").strip()
     username = (username or "").strip()
     password = (password or "").strip()
+    device_type = (device_type or "").strip() or "Firewall"
 
     if not device_name:
         raise ValueError("Firewall name is required.")
@@ -264,6 +266,7 @@ def import_firewall(device_name, host_ip, vendor=None, port=None, username=None,
         entry = repo.create(
             {
                 "device_name": device_name,
+                "device_type": device_type,
                 "host_name": host_ip,
                 "host_ip": host_ip,
                 "host_key": password,
@@ -324,6 +327,7 @@ def clone_firewall(source_id, clone_device_name):
         entry = repo.create(
             {
                 "device_name": clone_device_name,
+                "device_type": source.device_type or "Firewall",
                 "host_name": source.host_name,
                 "host_ip": source.host_ip,
                 "host_key": source.host_key or "",

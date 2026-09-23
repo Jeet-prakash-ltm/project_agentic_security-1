@@ -30,6 +30,7 @@ class ManagedFirewallsRepository(BaseRepository):
     def create(self, data):
         entry = ManagedFirewall(
             device_name=(data.get("device_name") or "").strip(),
+            device_type=(data.get("device_type") or "").strip() or None,
             host_name=(data.get("host_name") or "").strip(),
             host_ip=(data.get("host_ip") or "").strip(),
             host_key=(data.get("host_key") or "").strip(),

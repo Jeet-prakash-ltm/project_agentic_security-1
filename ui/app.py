@@ -1630,6 +1630,7 @@ def api_admin_firewalls_add():
             port=payload.get("port"),
             username=payload.get("username") or "",
             password=payload.get("password") or "",
+            device_type=payload.get("device_type") or "",
         )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400

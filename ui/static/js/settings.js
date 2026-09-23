@@ -130,16 +130,57 @@
         });
     }
 
+    var userDrawer = document.getElementById("userDrawer");
+    var userDrawerBackdrop = document.getElementById("userDrawerBackdrop");
+    var userDrawerClose = document.getElementById("userDrawerClose");
+    var userAddBtn = document.getElementById("userAddBtn");
+
+    function openUserDrawer() {
+        if (!userDrawer) return;
+        if (userAddBtn) {
+            userAddBtn.classList.add("is-active");
+            userAddBtn.setAttribute("aria-pressed", "true");
+        }
+        userDrawer.hidden = false;
+        if (userDrawerBackdrop) userDrawerBackdrop.hidden = false;
+        window.requestAnimationFrame(function () {
+            userDrawer.classList.add("is-open");
+            if (userDrawerBackdrop) userDrawerBackdrop.classList.add("is-open");
+        });
+    }
+
+    function closeUserDrawer() {
+        if (!userDrawer) return;
+        userDrawer.classList.remove("is-open");
+        if (userDrawerBackdrop) userDrawerBackdrop.classList.remove("is-open");
+        if (userAddBtn) {
+            userAddBtn.classList.remove("is-active");
+            userAddBtn.setAttribute("aria-pressed", "false");
+        }
+        window.setTimeout(function () {
+            userDrawer.hidden = true;
+            if (userDrawerBackdrop) userDrawerBackdrop.hidden = true;
+        }, 220);
+    }
+
+    if (userAddBtn) userAddBtn.addEventListener("click", openUserDrawer);
+    if (userDrawerClose) userDrawerClose.addEventListener("click", closeUserDrawer);
+    if (userDrawerBackdrop) userDrawerBackdrop.addEventListener("click", closeUserDrawer);
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && userDrawer && !userDrawer.hidden) closeUserDrawer();
+    });
+
     var inviteBtn = document.getElementById("inviteBtn");
     if (inviteBtn) {
         inviteBtn.addEventListener("click", function () {
             var name = (document.getElementById("inviteName").value || "").trim();
             var email = (document.getElementById("inviteEmail").value || "").trim();
             var password = document.getElementById("invitePassword").value || "";
-            var role = document.getElementById("inviteRole").value || "Security Analyst";
+            var roleSelect = document.getElementById("inviteRole");
+            var role = roleSelect ? (roleSelect.value || "").trim() : "";
 
-            if (!name || !email || !password) {
-                window.showToast("Name, email, and password are required.", "error");
+            if (!name || !email || !role || !password) {
+                window.showToast("Name, email, role, and password are required.", "error");
                 return;
             }
             postJson("/api/admin/users", { name: name, email: email, password: password, role: role })
@@ -148,6 +189,8 @@
                     document.getElementById("inviteName").value = "";
                     document.getElementById("inviteEmail").value = "";
                     document.getElementById("invitePassword").value = "";
+                    if (roleSelect) roleSelect.selectedIndex = 0;
+                    closeUserDrawer();
                     loadUsers();
                 })
                 .catch(function (err) {
@@ -186,7 +229,7 @@
     function openDrawer(mode) {
         if (!drawer) return;
         var singular = mode !== "bulk";
-        if (drawerTitle) drawerTitle.textContent = singular ? "Single entry" : "Bulk firewall addition";
+        if (drawerTitle) drawerTitle.textContent = singular ? "Add device" : "Bulk firewall addition";
         if (panelSingular) panelSingular.hidden = !singular;
         if (panelBulk) panelBulk.hidden = singular;
         if (singularBtn) {
@@ -368,6 +411,8 @@
     var addBtn = document.getElementById("fwAddBtn");
     if (addBtn) {
         addBtn.addEventListener("click", function () {
+            var deviceTypeEl = document.getElementById("fwDeviceType");
+            var deviceType = deviceTypeEl ? (deviceTypeEl.value || "").trim() : "";
             var deviceName = (document.getElementById("fwDeviceName").value || "").trim();
             var vendor = (document.getElementById("fwVendor").value || "").trim();
             var hostIp = (document.getElementById("fwHostIp").value || "").trim();
@@ -375,11 +420,12 @@
             var password = document.getElementById("fwPassword").value || "";
             var port = (document.getElementById("fwPort").value || "").trim();
 
-            if (!deviceName || !hostIp) {
-                window.showToast("Device name and IP address are required.", "error");
+            if (!deviceType || !deviceName || !hostIp) {
+                window.showToast("Device type, device name, and IP address are required.", "error");
                 return;
             }
             postJson("/api/admin/firewalls", {
+                device_type: deviceType,
                 device_name: deviceName,
                 vendor: vendor,
                 host_ip: hostIp,
@@ -387,7 +433,8 @@
                 password: password,
                 port: port
             }).then(function () {
-                window.showToast("Firewall added to the inventory.", "success");
+                window.showToast("Device added to the inventory.", "success");
+                if (deviceTypeEl) deviceTypeEl.selectedIndex = 0;
                 document.getElementById("fwDeviceName").value = "";
                 document.getElementById("fwHostIp").value = "";
                 document.getElementById("fwUsername").value = "";

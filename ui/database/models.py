@@ -243,6 +243,7 @@ class ManagedFirewall(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     device_name = Column(String(64), unique=True, nullable=False)
+    device_type = Column(String(64))
     host_name = Column(String(255), nullable=False)
     host_ip = Column(String(64), nullable=False)
     host_key = Column(String(1024))

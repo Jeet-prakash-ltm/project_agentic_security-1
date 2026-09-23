@@ -234,11 +234,52 @@
         document.addEventListener("click", hide);
     })();
 
+    // ------------------------------------------------------------
+    // TOP NAVBAR GROUPS — Dashboard / Settings dropdowns
+    // ------------------------------------------------------------
+    var topNavGroups = [
+        { group: document.getElementById("topNavDashboardGroup"), toggle: document.getElementById("topNavDashboardToggle") },
+        { group: document.getElementById("topNavSettingsGroup"), toggle: document.getElementById("topNavSettingsToggle") }
+    ];
+
+    topNavGroups.forEach(function (entry) {
+        if (!entry.group || !entry.toggle) return;
+
+        (function (group, toggle) {
+            function closeGroup() {
+                group.classList.remove("is-open");
+                toggle.setAttribute("aria-expanded", "false");
+            }
+
+            function openGroup() {
+                topNavGroups.forEach(function (other) {
+                    if (other.group && other.group !== group) {
+                        other.group.classList.remove("is-open");
+                        if (other.toggle) other.toggle.setAttribute("aria-expanded", "false");
+                    }
+                });
+                group.classList.add("is-open");
+                toggle.setAttribute("aria-expanded", "true");
+            }
+
+            toggle.addEventListener("click", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (group.classList.contains("is-open")) closeGroup();
+                else openGroup();
+            });
+
+            document.addEventListener("click", function (event) {
+                if (!group.contains(event.target)) closeGroup();
+            });
+        })(entry.group, entry.toggle);
+    });
+
     // Telemetry Map is intentionally inert: the icon stays visible but the
     // page is never opened.
     document.addEventListener("click", function (event) {
         if (!event.target || !event.target.closest) return;
-        var disabledLink = event.target.closest('.nav-link[data-disabled="true"]');
+        var disabledLink = event.target.closest('.nav-link[data-disabled="true"], .top-nav-link[data-disabled="true"]');
         if (disabledLink) {
             event.preventDefault();
             event.stopPropagation();

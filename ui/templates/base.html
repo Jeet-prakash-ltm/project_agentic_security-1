@@ -5,22 +5,55 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}LTM Security Platform{% endblock %}</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='LTM_LOGO.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=21">
     {% if page_css %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=40">
     {% endif %}
     {% block head_extra %}{% endblock %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v=7">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v=8">
 </head>
 <body class="{% block body_class %}{% endblock %}" data-logout-url="{{ url_for('logout') }}">
+    {% set dash_endpoints = ['dashboard', 'cloud_security', 'system_info'] %}
+    {% set settings_endpoints = ['settings', 'settings_accounts', 'settings_inventory', 'settings_agents'] %}
 
     <div class="bg-scene">
         <div class="bg-layer bg-photo"></div>
     </div>
 
-    <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-    </button>
+    <header class="top-navbar" id="topNavbar">
+        <nav class="top-navbar-links" id="topNavbarLinks" aria-label="Primary pages">
+            <div class="top-nav-group" id="topNavDashboardGroup">
+                <button type="button" class="top-nav-link top-nav-group-btn {{ 'active' if request.endpoint in dash_endpoints else '' }}" id="topNavDashboardToggle" aria-expanded="false" aria-controls="topNavDashboardMenu">
+                    <span>Dashboard</span>
+                    <svg class="top-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="top-nav-dropdown" id="topNavDashboardMenu">
+                    <a href="{{ url_for('dashboard') }}" class="top-nav-sublink {{ 'active' if request.endpoint == 'dashboard' else '' }}">Network Security</a>
+                    <a href="{{ url_for('cloud_security') }}" class="top-nav-sublink {{ 'active' if request.endpoint == 'cloud_security' else '' }}">Cloud Security</a>
+                    <a href="{{ url_for('system_info') }}" class="top-nav-sublink {{ 'active' if request.endpoint == 'system_info' else '' }}">System Info</a>
+                </div>
+            </div>
+            <a href="{{ url_for('workspace') }}" class="top-nav-link {{ 'active' if request.endpoint == 'workspace' else '' }}">AI Workspace</a>
+            <a href="{{ url_for('telemetry_map') }}" class="top-nav-link is-disabled {{ 'active' if request.endpoint == 'telemetry_map' else '' }}" data-disabled="true" aria-disabled="true">Telemetry Map</a>
+            <a href="{{ url_for('findings') }}" class="top-nav-link {{ 'active' if request.endpoint in ['findings', 'run_assessment'] else '' }}">Investigation Centre</a>
+            <a href="{{ url_for('insights') }}" class="top-nav-link {{ 'active' if request.endpoint == 'insights' else '' }}">Agent Insights</a>
+            <a href="{{ url_for('reports') }}" class="top-nav-link {{ 'active' if request.endpoint in ['reports', 'executive_report', 'generate_excel'] else '' }}">Reports</a>
+            <div class="top-nav-group" id="topNavSettingsGroup">
+                <button type="button" class="top-nav-link top-nav-group-btn {{ 'active' if request.endpoint in settings_endpoints else '' }}" id="topNavSettingsToggle" aria-expanded="false" aria-controls="topNavSettingsMenu">
+                    <span>Settings</span>
+                    <svg class="top-nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="top-nav-dropdown" id="topNavSettingsMenu">
+                    <a href="{{ url_for('settings_accounts') }}" class="top-nav-sublink {{ 'active' if request.endpoint == 'settings_accounts' else '' }}">Accounts</a>
+                    <a href="{{ url_for('settings_inventory') }}" class="top-nav-sublink {{ 'active' if request.endpoint == 'settings_inventory' else '' }}">Asset Inventory</a>
+                    <a href="{{ url_for('settings_agents') }}" class="top-nav-sublink {{ 'active' if request.endpoint == 'settings_agents' else '' }}">Agents</a>
+                </div>
+            </div>
+        </nav>
+        <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+    </header>
 
     <button class="sidebar-expand-toggle" id="sidebarExpandToggle" type="button" aria-label="Expand navigation" aria-expanded="false" aria-controls="sidebar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/><path d="M15 6l6 6-6 6" opacity="0.55"/></svg>
@@ -44,7 +77,6 @@
         </a>
 
         <nav class="nav-menu">
-            {% set dash_endpoints = ['dashboard', 'cloud_security', 'system_info'] %}
             <div class="nav-group {{ 'is-open' if request.endpoint in dash_endpoints else '' }}" id="navDashboardGroup">
                 <button type="button" class="nav-link nav-group-btn {{ 'active' if request.endpoint in dash_endpoints else '' }}" id="navDashboardToggle" data-label="Dashboard" aria-expanded="{{ 'true' if request.endpoint in dash_endpoints else 'false' }}" aria-controls="navDashboardSub">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
@@ -83,7 +115,6 @@
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h8l4 4V21.5H6V2.5z"/><path d="M14 2.5v4h4"/><path d="M9 12h6M9 16h6"/></svg>
                 <span>Reports</span>
             </a>
-            {% set settings_endpoints = ['settings', 'settings_accounts', 'settings_inventory', 'settings_agents'] %}
             <div class="nav-group {{ 'is-open' if request.endpoint in settings_endpoints else '' }}" id="navSettingsGroup">
                 <button type="button" class="nav-link nav-group-btn {{ 'active' if request.endpoint in settings_endpoints else '' }}" id="navSettingsToggle" data-label="Settings" aria-expanded="{{ 'true' if request.endpoint in settings_endpoints else 'false' }}" aria-controls="navSettingsSub">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06A1.7 1.7 0 0015 19.4a1.7 1.7 0 00-1 .1 1.7 1.7 0 00-.83 1.2V21a2 2 0 11-4 0v-.09a1.7 1.7 0 00-1.2-1.6 1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.7 1.7 0 00.34-1.87 1.7 1.7 0 00-1.1-1 1.7 1.7 0 00-1.2-.1H3a2 2 0 110-4h.09a1.7 1.7 0 001.6-1.2 1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06a1.7 1.7 0 001.87.34h.01a1.7 1.7 0 001-1.1 1.7 1.7 0 00-.1-1.2V3a2 2 0 114 0v.09a1.7 1.7 0 001.2 1.6h.01a1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06a1.7 1.7 0 00-.34 1.87v.01a1.7 1.7 0 001.1 1 1.7 1.7 0 001.2.1H21a2 2 0 110 4h-.09a1.7 1.7 0 00-1.51 1z"/></svg>
@@ -119,7 +150,7 @@
 
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=15"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=16"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

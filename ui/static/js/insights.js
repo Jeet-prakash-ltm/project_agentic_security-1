@@ -23,10 +23,12 @@
     var TICKS = 5;
 
     var RANGES = [
-        { key: "week", label: "Past week", seconds: 7 * 86400 },
+        { key: "day", label: "Previous Day", seconds: 86400 },
+        { key: "week", label: "Past 1 week", seconds: 7 * 86400 },
         { key: "month", label: "Past month", seconds: 30 * 86400 },
         { key: "6mo", label: "Past 6 months", seconds: 182 * 86400 },
-        { key: "year", label: "Past year", seconds: 365 * 86400 }
+        { key: "year", label: "Past 1 year", seconds: 365 * 86400 },
+        { key: "custom", label: "Custom range" }
     ];
 
     var COLOR_INPUT = "#2563EB";
@@ -115,33 +117,102 @@
         });
     }
 
-    function availableRanges(points) {
-        var nowSec = Date.now() / 1000;
-        return RANGES.filter(function (range, index) {
-            var prevWindow = index > 0 ? RANGES[index - 1].seconds : 0;
-            return points.some(function (p) {
-                var age = nowSec - (p.ts || 0);
-                return age <= range.seconds && (index === 0 || age > prevWindow);
-            });
-        });
+    function rangeKey(stored) {
+        if (!stored) return "day";
+        if (typeof stored === "string") return stored;
+        return stored.key || "day";
     }
 
-    function filterPoints(points, range) {
-        if (!range) return points;
+    function rangeLookup(key) {
+        for (var i = 0; i < RANGES.length; i += 1) {
+            if (RANGES[i].key === key) return RANGES[i];
+        }
+        return null;
+    }
+
+    function todayIso() {
+        var d = new Date();
+        var month = d.getMonth() + 1;
+        var day = d.getDate();
+        return d.getFullYear() + "-" + (month < 10 ? "0" + month : month) + "-" +
+            (day < 10 ? "0" + day : day);
+    }
+
+    function dayBound(iso, endOfDay) {
+        var parts = String(iso || "").split("-");
+        if (parts.length !== 3) return 0;
+        var year = Number(parts[0]);
+        var month = Number(parts[1]);
+        var day = Number(parts[2]);
+        if (!year || !month || !day) return 0;
+        var d = new Date(year, month - 1, day);
+        if (endOfDay) d.setHours(23, 59, 59, 999);
+        else d.setHours(0, 0, 0, 0);
+        return d.getTime() / 1000;
+    }
+
+    function storedRange(name) {
+        var stored = agentRanges[name] || { key: "day" };
+        if (typeof stored === "string") stored = { key: stored };
+        if (!rangeLookup(stored.key)) stored.key = "day";
+        agentRanges[name] = stored;
+        return stored;
+    }
+
+    function filterPoints(points, stored) {
+        if (!stored) return points;
+        var key = rangeKey(stored);
+        if (key === "custom") {
+            if (!stored.start || !stored.end) return [];
+            var from = dayBound(stored.start, false);
+            var to = dayBound(stored.end, true);
+            if (!from || !to) return points;
+            if (to < from) {
+                var swappedFrom = dayBound(stored.end, false);
+                var swappedTo = dayBound(stored.start, true);
+                from = swappedFrom;
+                to = swappedTo;
+            }
+            return points.filter(function (p) {
+                var ts = p.ts || 0;
+                return ts >= from && ts <= to;
+            });
+        }
+        var range = rangeLookup(key);
+        if (!range || !range.seconds) return points;
         var nowSec = Date.now() / 1000;
         return points.filter(function (p) { return (p.ts || 0) >= nowSec - range.seconds; });
     }
 
-    function rangeTabsHtml(ranges, selectedKey) {
-        if (!ranges.length) return "";
-        return '<div class="agent-range-tabs" role="group" aria-label="Time range">' +
-            ranges.map(function (range) {
-                var on = range.key === selectedKey;
-                return '<button type="button" class="agent-range-btn' + (on ? " is-active" : "") +
-                    '" data-range="' + range.key + '" aria-pressed="' + (on ? "true" : "false") + '">' +
-                    escapeHtml(range.label) + "</button>";
-            }).join("") +
-            "</div>";
+    function rangeSelectHtml(stored) {
+        var key = rangeKey(stored);
+        if (!rangeLookup(key)) key = "day";
+        var options = RANGES.map(function (range) {
+            return '<option value="' + range.key + '"' +
+                (range.key === key ? " selected" : "") + ">" +
+                escapeHtml(range.label) + "</option>";
+        }).join("");
+        var custom = key === "custom";
+        var start = (stored && stored.start) || "";
+        var end = (stored && stored.end) || "";
+        var today = todayIso();
+        var startMax = end && end < today ? end : today;
+        var endMin = start || "";
+        return '<div class="agent-range-picker">' +
+            '<span class="agent-range-label">Time range</span>' +
+            '<div class="agent-range-controls">' +
+            '<select class="agent-range-select" data-range-select aria-label="Time range">' +
+            options + "</select>" +
+            '<div class="agent-range-custom"' + (custom ? "" : " hidden") + ">" +
+            '<label class="agent-range-date-field">Start date' +
+            '<input type="date" class="agent-range-date" data-range-start value="' +
+            escapeHtml(start) + '" max="' + escapeHtml(startMax) + '"></label>' +
+            '<label class="agent-range-date-field">End date' +
+            '<input type="date" class="agent-range-date" data-range-end value="' +
+            escapeHtml(end) + '" max="' + escapeHtml(today) + '"' +
+            (endMin ? ' min="' + escapeHtml(endMin) + '"' : "") +
+            "></label>" +
+            "</div></div></div>";
     }
 
     function renderCost(totals, agents) {
@@ -310,17 +381,8 @@
         var cached = agent.cached_tokens || 0;
         var reasoning = agent.reasoning_tokens || 0;
         var allPoints = sortedSeries(agent);
-        var ranges = availableRanges(allPoints);
-        var selectedRange = agentRanges[agent.agent_name] || "";
-        if (!ranges.some(function (r) { return r.key === selectedRange; })) {
-            selectedRange = ranges.length ? ranges[ranges.length - 1].key : "";
-        }
-        if (selectedRange) agentRanges[agent.agent_name] = selectedRange;
-        var activeRange = null;
-        for (var r = 0; r < ranges.length; r += 1) {
-            if (ranges[r].key === selectedRange) { activeRange = ranges[r]; break; }
-        }
-        var points = filterPoints(allPoints, activeRange);
+        var selectedRange = storedRange(agent.agent_name);
+        var points = filterPoints(allPoints, selectedRange);
 
         var stat = function (label, value) {
             return '<span class="agent-stat"><span class="agent-stat-label">' + escapeHtml(label) + '</span><strong>' + value + "</strong></span>";
@@ -338,7 +400,7 @@
             "</div>" +
             '<span class="agent-cost-badge">' + fmtCost(agent.cost) + "</span>" +
             "</div>" +
-            rangeTabsHtml(ranges, selectedRange) +
+            rangeSelectHtml(selectedRange) +
 
             '<div class="agent-history-stats">' +
             stat("Input", fmtTokens(input)) +
@@ -384,6 +446,10 @@
 
     function renderSelectedHistory() {
         if (!historyList) return;
+        if (historyList.contains(document.activeElement) &&
+            document.activeElement.closest(".agent-range-picker")) {
+            return;
+        }
 
         if (!selectedAgent) {
             historyList.setAttribute("hidden", "");
@@ -474,14 +540,40 @@
     }
 
     if (historyList) {
-        historyList.addEventListener("click", function (event) {
-            var button = event.target.closest(".agent-range-btn");
-            if (!button) return;
-            var panel = button.closest(".agent-history-panel");
+        historyList.addEventListener("change", function (event) {
+            var panel = event.target.closest(".agent-history-panel");
             var name = panel ? panel.getAttribute("data-agent-name") : "";
             if (!name) return;
-            agentRanges[name] = button.getAttribute("data-range") || "";
-            renderSelectedHistory();
+            var stored = storedRange(name);
+            if (event.target.matches("[data-range-select]")) {
+                stored.key = event.target.value || "day";
+                if (stored.key !== "custom") {
+                    stored.start = "";
+                    stored.end = "";
+                    agentRanges[name] = stored;
+                    renderSelectedHistory();
+                    return;
+                }
+                agentRanges[name] = stored;
+                var customBox = panel.querySelector(".agent-range-custom");
+                if (customBox) customBox.removeAttribute("hidden");
+                return;
+            }
+            if (event.target.matches("[data-range-start], [data-range-end]")) {
+                var startEl = panel.querySelector("[data-range-start]");
+                var endEl = panel.querySelector("[data-range-end]");
+                stored.key = "custom";
+                stored.start = startEl ? startEl.value : "";
+                stored.end = endEl ? endEl.value : "";
+                agentRanges[name] = stored;
+                if (startEl && endEl) {
+                    var today = todayIso();
+                    startEl.max = stored.end && stored.end < today ? stored.end : today;
+                    endEl.max = today;
+                    endEl.min = stored.start || "";
+                }
+                if (stored.start && stored.end) renderSelectedHistory();
+            }
         });
     }
 

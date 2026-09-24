@@ -14,6 +14,7 @@
 </head>
 <body class="{% block body_class %}{% endblock %}" data-logout-url="{{ url_for('logout') }}">
     {% set dash_endpoints = ['dashboard', 'cloud_security', 'system_info'] %}
+    {% set automation_endpoints = ['automation', 'automation_network_security', 'automation_cloud_security', 'automation_jobs'] %}
     {% set settings_endpoints = ['settings', 'settings_accounts', 'settings_inventory', 'settings_agents'] %}
 
     <div class="bg-scene">
@@ -65,6 +66,24 @@
                     </a>
                     <a href="{{ url_for('system_info') }}" class="nav-sublink {{ 'active' if request.endpoint == 'system_info' else '' }}">
                         <span class="nav-subdot"></span><span>System Info</span>
+                    </a>
+                </div>
+            </div>
+            <div class="nav-group {{ 'is-open' if request.endpoint in automation_endpoints else '' }}" id="navAutomationGroup">
+                <button type="button" class="nav-link nav-group-btn {{ 'active' if request.endpoint in automation_endpoints else '' }}" id="navAutomationToggle" data-label="Automation" aria-expanded="{{ 'true' if request.endpoint in automation_endpoints else 'false' }}" aria-controls="navAutomationSub">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+                    <span>Automation</span>
+                    <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="nav-submenu" id="navAutomationSub">
+                    <a href="{{ url_for('automation_network_security') }}" class="nav-sublink {{ 'active' if request.endpoint == 'automation_network_security' else '' }}">
+                        <span class="nav-subdot"></span><span>Network Security</span>
+                    </a>
+                    <a href="{{ url_for('automation_cloud_security') }}" class="nav-sublink {{ 'active' if request.endpoint == 'automation_cloud_security' else '' }}">
+                        <span class="nav-subdot"></span><span>Cloud Security</span>
+                    </a>
+                    <a href="{{ url_for('automation_jobs') }}" class="nav-sublink {{ 'active' if request.endpoint == 'automation_jobs' else '' }}">
+                        <span class="nav-subdot"></span><span>Jobs</span>
                     </a>
                 </div>
             </div>
@@ -123,7 +142,7 @@
 
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=17"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=18"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

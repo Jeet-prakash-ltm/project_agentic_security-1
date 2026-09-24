@@ -503,6 +503,49 @@ def system_info():
     )
 
 # --------------------------------------------------
+# AUTOMATION
+# --------------------------------------------------
+
+@app.route("/automation")
+@login_required
+def automation():
+    return redirect(url_for("automation_network_security"))
+
+
+@app.route("/automation/network-security")
+@login_required
+def automation_network_security():
+    return render_with_css(
+        "under_construction.html",
+        browser_title="Network Security",
+        page_heading="Network Security",
+        hero_text="Automation · Network Security",
+    )
+
+
+@app.route("/automation/cloud-security")
+@login_required
+def automation_cloud_security():
+    return render_with_css(
+        "under_construction.html",
+        browser_title="Cloud Security",
+        page_heading="Cloud Security",
+        hero_text="Automation · Cloud Security",
+    )
+
+
+@app.route("/automation/jobs")
+@login_required
+def automation_jobs():
+    return render_with_css(
+        "under_construction.html",
+        browser_title="Jobs",
+        page_heading="Jobs",
+        hero_text="Automation · Jobs",
+    )
+
+
+# --------------------------------------------------
 # WORKSPACE
 # --------------------------------------------------
 

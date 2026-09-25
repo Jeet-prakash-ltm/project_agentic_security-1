@@ -348,7 +348,7 @@ def login():
             session["last_activity"] = time.time()
             if next_url:
                 return redirect(next_url)
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("system_info"))
 
         state = users_service.status_for_email(email)
         if state == "pending":
@@ -378,7 +378,7 @@ def login():
     # auth page and surface the active session instead of silently skipping it.
     authenticated = current_user()
     if authenticated and not explicit_mode:
-        return redirect(url_for("dashboard"))
+        return redirect(url_for("system_info"))
 
     return render_template(
         "login.html",
@@ -496,7 +496,7 @@ def cloud_security():
 @app.route("/dashboard/system-info")
 @login_required
 def system_info():
-    """System Info view under Dashboard (placeholder for now)."""
+    """System Information view under Dashboard."""
 
     return render_with_css(
         "system_info.html"

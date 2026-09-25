@@ -40,7 +40,7 @@
                     <span>{{ authenticated_user.name }} &middot; {{ authenticated_user.role }}</span>
                 </div>
                 <div class="auth-signedin-actions">
-                    <a href="{{ url_for('dashboard') }}" class="auth-link">Go to Dashboard</a>
+                    <a href="{{ url_for('system_info') }}" class="auth-link">Go to Dashboard</a>
                     <a href="{{ url_for('logout') }}" class="auth-link auth-link-muted">Sign out</a>
                 </div>
             </div>

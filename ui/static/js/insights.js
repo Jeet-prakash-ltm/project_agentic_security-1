@@ -364,14 +364,34 @@
         return html;
     }
 
-    function chartBlock(title, legendHtml, svgHtml) {
-        return '<div class="agent-chart card">' +
+    function chartBlock(kind, title, legendHtml, svgHtml) {
+        return '<div class="agent-chart card" data-chart="' + escapeHtml(kind) + '">' +
             '<div class="agent-chart-head">' +
             '<span class="agent-chart-title">' + escapeHtml(title) + "</span>" +
             (legendHtml ? '<span class="agent-chart-legend">' + legendHtml + "</span>" : "") +
             "</div>" +
-            svgHtml +
+            '<div class="agent-chart-body">' + svgHtml + "</div>" +
             "</div>";
+    }
+
+    function findAgent(name) {
+        for (var i = 0; i < insightsAgents.length; i += 1) {
+            if ((insightsAgents[i].agent_name || "") === name) return insightsAgents[i];
+        }
+        return null;
+    }
+
+    function rangedPoints(agent) {
+        return filterPoints(sortedSeries(agent), storedRange(agent.agent_name));
+    }
+
+    function paintCharts(panel, agent) {
+        if (!panel || !agent) return;
+        var points = rangedPoints(agent);
+        var tokensBody = panel.querySelector('[data-chart="tokens"] .agent-chart-body');
+        var latencyBody = panel.querySelector('[data-chart="latency"] .agent-chart-body');
+        if (tokensBody) tokensBody.innerHTML = tokensChartSvg(points);
+        if (latencyBody) latencyBody.innerHTML = latencyChartSvg(points);
     }
 
     function renderAgentPanel(agent) {
@@ -417,6 +437,7 @@
 
             '<div class="agent-charts">' +
             chartBlock(
+                "tokens",
                 "Token usage",
                 '<span class="agent-chart-key"><i style="background:' + COLOR_INPUT + '"></i>Input</span>' +
                 '<span class="agent-chart-key"><i style="background:' + COLOR_OUTPUT + '"></i>Output</span>' +
@@ -424,6 +445,7 @@
                 tokensChartSvg(points)
             ) +
             chartBlock(
+                "latency",
                 "Latency per turn",
                 '<span class="agent-chart-key"><i style="background:' + COLOR_LATENCY + '"></i>Latency</span>',
                 latencyChartSvg(points)
@@ -444,12 +466,14 @@
         return empty;
     }
 
+    function rangePickerFocused() {
+        return historyList &&
+            historyList.contains(document.activeElement) &&
+            document.activeElement.closest(".agent-range-picker");
+    }
+
     function renderSelectedHistory() {
         if (!historyList) return;
-        if (historyList.contains(document.activeElement) &&
-            document.activeElement.closest(".agent-range-picker")) {
-            return;
-        }
 
         if (!selectedAgent) {
             historyList.setAttribute("hidden", "");
@@ -457,16 +481,17 @@
             return;
         }
 
+        var agent = findAgent(selectedAgent);
+        var existing = historyList.querySelector(".agent-history-panel");
+
+        if (rangePickerFocused() && existing &&
+            existing.getAttribute("data-agent-name") === selectedAgent) {
+            if (agent) paintCharts(existing, agent);
+            return;
+        }
+
         historyList.removeAttribute("hidden");
         historyList.innerHTML = "";
-
-        var agent = null;
-        for (var i = 0; i < insightsAgents.length; i += 1) {
-            if ((insightsAgents[i].agent_name || "") === selectedAgent) {
-                agent = insightsAgents[i];
-                break;
-            }
-        }
 
         if (!agent) {
             historyList.appendChild(historyEmpty(
@@ -551,7 +576,7 @@
                     stored.start = "";
                     stored.end = "";
                     agentRanges[name] = stored;
-                    renderSelectedHistory();
+                    paintCharts(panel, findAgent(name));
                     return;
                 }
                 agentRanges[name] = stored;
@@ -572,7 +597,7 @@
                     endEl.max = today;
                     endEl.min = stored.start || "";
                 }
-                if (stored.start && stored.end) renderSelectedHistory();
+                if (stored.start && stored.end) paintCharts(panel, findAgent(name));
             }
         });
     }

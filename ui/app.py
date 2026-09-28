@@ -516,10 +516,7 @@ def automation():
 @login_required
 def automation_network_security():
     return render_with_css(
-        "under_construction.html",
-        browser_title="Network Security",
-        page_heading="Network Security",
-        hero_text="Automation · Network Security",
+        "automation_network.html"
     )
 
 

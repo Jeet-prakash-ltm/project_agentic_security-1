@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}LTM Security Platform{% endblock %}</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='LTM_LOGO.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=26">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=27">
     {% if page_css %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=44">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=45">
     {% endif %}
     {% block head_extra %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v=8">
@@ -42,14 +42,6 @@
     </header>
 
     <aside class="sidebar" id="sidebar">
-        <div class="sidebar-user-chip" title="{{ current_user.name if current_user else 'LTM Security' }}">
-            <span class="avatar">{{ current_user.name|initials if current_user else 'LTM' }}</span>
-            <div class="user-meta">
-                <span class="user-name">{{ current_user.name if current_user else 'LTM Security' }}</span>
-                <span class="user-role">{{ current_user.role if current_user else 'Security Operations' }}</span>
-            </div>
-        </div>
-
         <nav class="nav-menu">
             <div class="nav-group {{ 'is-open' if request.endpoint in dash_endpoints else '' }}" id="navDashboardGroup">
                 <button type="button" class="nav-link nav-group-btn {{ 'active' if request.endpoint in dash_endpoints else '' }}" id="navDashboardToggle" data-label="Dashboard" aria-expanded="{{ 'true' if request.endpoint in dash_endpoints else 'false' }}" aria-controls="navDashboardSub">
@@ -125,11 +117,17 @@
                     </a>
                 </div>
             </div>
-            <a href="{{ url_for('logout') }}" class="nav-link nav-logout" data-label="Logout">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
-                <span>Logout</span>
-            </a>
         </nav>
+        <div class="sidebar-user-chip" title="{{ current_user.name if current_user else 'LTM Security' }}">
+            <span class="avatar">{{ current_user.name|initials if current_user else 'LTM' }}</span>
+            <div class="user-meta">
+                <span class="user-name">{{ current_user.name if current_user else 'LTM Security' }}</span>
+                <span class="user-role">{{ current_user.role if current_user else 'Security Operations' }}</span>
+            </div>
+            <a href="{{ url_for('logout') }}" class="sidebar-logout" title="Logout" aria-label="Logout">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+            </a>
+        </div>
     </aside>
 
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>

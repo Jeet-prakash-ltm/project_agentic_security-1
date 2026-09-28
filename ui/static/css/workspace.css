@@ -757,7 +757,7 @@
     gap: 8px;
     flex-wrap: wrap;
     margin-bottom: 10px;
-    max-width: 820px;
+    width: 100%;
 }
 
 .ws-chip {
@@ -791,7 +791,8 @@
     display: flex;
     align-items: flex-end;
     gap: 10px;
-    max-width: 820px;
+    width: 100%;
+    max-width: none;
     background: #fff;
     border: 1px solid var(--border);
     border-radius: 18px;
@@ -864,7 +865,7 @@
     align-items: center;
     gap: 12px;
     margin-top: 9px;
-    max-width: 820px;
+    width: 100%;
 }
 
 .ws-composer-agent {
@@ -1300,10 +1301,6 @@
 
     .ws-message-user {
         max-width: 92%;
-    }
-
-    .ws-chat-title-meta span {
-        display: none;
     }
 }
 

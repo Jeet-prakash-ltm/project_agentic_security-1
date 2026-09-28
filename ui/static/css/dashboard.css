@@ -729,14 +729,34 @@
     display: inline-block;
 }
 
+.domain-sev-plot {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.domain-sev-yaxis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-end;
+    width: 22px;
+    height: 150px;
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    line-height: 1;
+}
+
 .domain-cluster-axis,
 .domain-stack-axis {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
     gap: 8px;
-    height: 210px;
-    padding-top: 4px;
+    flex: 1;
+    min-width: 0;
 }
 
 .domain-cluster-group {
@@ -761,24 +781,16 @@
     flex-direction: column;
     align-items: center;
     justify-content: flex-end;
-    gap: 3px;
     flex: 1;
     min-width: 0;
     height: 100%;
     text-decoration: none;
 }
 
-.domain-cluster-count {
-    font-size: 8.5px;
-    font-weight: 700;
-    color: var(--text);
-    line-height: 1;
-}
-
 .domain-cluster-track {
     width: 100%;
     max-width: 14px;
-    height: 128px;
+    height: 150px;
     border-radius: 4px 4px 2px 2px;
     background: var(--border-soft);
     overflow: hidden;
@@ -811,14 +823,7 @@
     gap: 6px;
     flex: 1;
     min-width: 0;
-    height: 100%;
     text-decoration: none;
-}
-
-.domain-stack-count {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--text);
 }
 
 .domain-stack-track {
@@ -845,13 +850,6 @@
 .domain-stack-seg {
     width: 100%;
     min-height: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 9px;
-    font-weight: 700;
-    color: #fff;
-    line-height: 1;
 }
 
 /* ============================================================

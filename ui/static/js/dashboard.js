@@ -412,6 +412,25 @@
         return html;
     }
 
+    function niceAxisMax(max) {
+        var n = Math.max(1, Number(max) || 1);
+        if (n <= 4) return 4;
+        var exp = Math.pow(10, Math.floor(Math.log10(n)));
+        var m = n / exp;
+        var nice = m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10;
+        return nice * exp;
+    }
+
+    function domainSevYAxis(top) {
+        var steps = 4;
+        var html = '<div class="domain-sev-yaxis" aria-hidden="true">';
+        for (var i = steps; i >= 0; i--) {
+            html += "<span>" + Math.round(top * i / steps) + "</span>";
+        }
+        html += "</div>";
+        return html;
+    }
+
     function renderDomainClustered(root, findingsList, fw) {
         var panel = groupSection(root, ".domain-cluster-chart");
         if (!panel) return;
@@ -420,16 +439,18 @@
         CATEGORY_ORDER.forEach(function (cat) {
             SEV_LEVELS.forEach(function (s) { max = Math.max(max, byCat[cat][s.key]); });
         });
+        var top = niceAxisMax(max);
 
-        var html = domainSevLegend() + '<div class="domain-cluster-axis">';
+        var html = domainSevLegend() + '<div class="domain-sev-plot">';
+        html += domainSevYAxis(top);
+        html += '<div class="domain-cluster-axis">';
         CATEGORY_ORDER.forEach(function (cat) {
             html += '<div class="domain-cluster-group">';
             html += '<div class="domain-cluster-cols">';
             SEV_LEVELS.forEach(function (s) {
                 var n = byCat[cat][s.key];
-                var h = max ? Math.round(n / max * 100) : 0;
+                var h = top ? Math.round(n / top * 100) : 0;
                 html += '<a class="domain-cluster-col" href="' + findingsUrl(fw, "domain", cat) + "&severity=" + s.key + '" title="' + escapeHtml(cat) + " · " + s.label + ": " + n + '">' +
-                    '<span class="domain-cluster-count">' + (n ? n : "") + "</span>" +
                     '<span class="domain-cluster-track"><span class="domain-cluster-fill" style="height:' + h + "%;background:" + s.color + '"></span></span>' +
                     "</a>";
             });
@@ -437,7 +458,7 @@
             html += '<span class="domain-cluster-label">' + escapeHtml(shortLabel(cat)) + "</span>";
             html += "</div>";
         });
-        html += "</div>";
+        html += "</div></div>";
         panel.innerHTML = html;
         clearSection(panel.closest(".dash-panel"));
     }
@@ -451,28 +472,29 @@
             var total = byCat[cat].critical + byCat[cat].high + byCat[cat].medium + byCat[cat].low;
             max = Math.max(max, total);
         });
+        var top = niceAxisMax(max);
 
-        var html = domainSevLegend() + '<div class="domain-stack-axis">';
+        var html = domainSevLegend() + '<div class="domain-sev-plot">';
+        html += domainSevYAxis(top);
+        html += '<div class="domain-stack-axis">';
         CATEGORY_ORDER.forEach(function (cat) {
             var counts = byCat[cat];
             var total = counts.critical + counts.high + counts.medium + counts.low;
-            var h = max ? Math.round(total / max * 100) : 0;
-            html += '<a class="domain-stack-col" href="' + findingsUrl(fw, "domain", cat) + '" title="' + escapeHtml(cat) + ": " + total + '">' +
-                '<span class="domain-stack-count">' + total + "</span>" +
+            var h = top ? Math.round(total / top * 100) : 0;
+            var tip = escapeHtml(cat) + ": " + total +
+                " (C " + counts.critical + " / H " + counts.high + " / M " + counts.medium + " / L " + counts.low + ")";
+            html += '<a class="domain-stack-col" href="' + findingsUrl(fw, "domain", cat) + '" title="' + tip + '">' +
                 '<span class="domain-stack-track"><span class="domain-stack-fill" style="height:' + h + '%">';
             SEV_LEVELS.forEach(function (s) {
                 var n = counts[s.key];
                 if (!n || !total) return;
-                var pct = Math.round(n / total * 100);
-                html += '<span class="domain-stack-seg" style="flex:' + n + ";background:" + s.color + '" title="' + s.label + ": " + n + '">' +
-                    (pct >= 18 ? n : "") +
-                    "</span>";
+                html += '<span class="domain-stack-seg" style="flex:' + n + ";background:" + s.color + '" title="' + s.label + ": " + n + '"></span>';
             });
             html += "</span></span>";
             html += '<span class="domain-stack-label">' + escapeHtml(shortLabel(cat)) + "</span>";
             html += "</a>";
         });
-        html += "</div>";
+        html += "</div></div>";
         panel.innerHTML = html;
         clearSection(panel.closest(".dash-panel"));
     }

@@ -97,14 +97,14 @@ def _system_prompt(agent):
     agent_name = agent.get("name", "")
     if "netsec" in agent_type or "execution" in agent_type or "netsec" in agent_name.lower():
         return (
-            "You are the NetSec Execution Agent, an AI security agent that makes "
-            "bulk configuration changes to the Palo Alto firewall from Excel "
-            "playbook workbooks (address/service objects, groups, zones, VRs, "
+            "You are the Firewall Execution Agent, an AI security agent that makes "
+            "manual and bulk configuration changes to the Palo Alto firewall from "
+            "Excel playbook workbooks (address/service objects, groups, zones, VRs, "
             "routes, security and NAT policies, interfaces). "
             "The playbook panel drives changes through dry-run previews first; "
-            "changes only reach the firewall when the platform is deployed with "
+            "changes only reach the firewall when the Function App is deployed with "
             "NETSEC_FW_DRY_RUN=0. Keep answers short and point users to the "
-            "NetSec panel for executing playbooks."
+            "Workspace Action chip for manual and bulk playbooks."
         )
     if "firewall" in agent_type or "firewall" in agent_name.lower():
         return (

@@ -15,8 +15,11 @@ Expected environment variables:
 * ``EXECUTIVE_SUMMARY_KEY`` - access key for ``executive_summary``
 * ``APP_INSIGHTS_CONNECTION_STRING`` - Application Insights ingestion string
 * ``APP_INSIGHTS_ENABLED`` - toggle Application Insights telemetry
+* ``NETSEC_FUNCTION_URL`` / ``NETSEC_FUNCTION_KEY`` - Firewall Execution
+  Function App that backs Foundry ``Firewall-Excecution-Agent`` (preferred
+  path for Workspace manual and bulk playbooks)
 * ``NETSEC_FW_HOST`` / ``NETSEC_FW_USERNAME`` / ``NETSEC_FW_PASSWORD`` - the
-  firewall the NetSec Execution Agent targets (see
+  firewall used when the Function App is not configured (see
   ``netsec_execution.connector.panos`` for the full NETSEC_FW_* set)
 * ``NETSEC_FW_DRY_RUN`` - ``1`` previews playbook changes, ``0`` applies them
 * ``NETSEC_WORKBOOK_DIR`` - where uploaded playbook workbooks are stored

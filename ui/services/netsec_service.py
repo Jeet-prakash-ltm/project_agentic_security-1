@@ -1,9 +1,10 @@
-"""NetSec Execution Agent service: workspace bridge to the playbook engine.
+"""Firewall Execution Agent service: workspace bridge to the playbook engine.
 
-The playbook engine (``netsec_execution``) talks directly to the Palo Alto
-firewall XML API. Credentials are read from the standard ``NETSEC_FW_*``
-environment variables at call time (see ``netsec_execution.connector.panos``)
-and are never stored in the application database.
+Manual and bulk Excel playbooks reuse the existing workbook catalogue. Each
+row is executed through the Function App that backs the Foundry
+``Firewall-Excecution-Agent`` OpenAPI tool (``NETSEC_FUNCTION_*``). When that
+Function App is not configured the engine falls back to the direct PAN-OS
+XML client (``NETSEC_FW_*``).
 
 The per-user workbook is stored on the app server under ``NETSEC_WORKBOOK_DIR``
 (default ``/tmp/netsec_uploads``) so a user's playbook can be re-run.
@@ -14,7 +15,7 @@ import logging
 import os
 import re
 
-from netsec_execution.connector.panos import PanosClient
+from netsec_execution.connector.function_app import make_client
 from netsec_execution.services import catalog
 from netsec_execution.services import engine
 from netsec_execution.services import workbook
@@ -41,9 +42,14 @@ def _ensure_dir():
         logger.warning("NetSec upload dir unavailable: %s", exc)
 
 
+def _client():
+    """Function App adapter when configured, otherwise direct PAN-OS."""
+    return make_client()
+
+
 def info():
     """Public connection + catalogue payload for the workspace panel."""
-    client = PanosClient()
+    client = _client()
     return {
         "configured": bool(client.configured),
         "missing": client.missing_config(),
@@ -51,6 +57,7 @@ def info():
         "dry_run": bool(client.dry_run),
         "max_rows": MAX_ROWS,
         "playbooks": catalog.list_playbooks(),
+        "via": "function_app" if client.__class__.__name__ == "FunctionAppPanosClient" else "panos",
     }
 
 
@@ -90,7 +97,7 @@ def run_playbook(user_id, playbook_id, commit=None):
     Raises ``ValueError`` with a user-friendly message when the firewall is
     not configured or no workbook has been uploaded.
     """
-    client = PanosClient()
+    client = _client()
     if not client.configured:
         raise ValueError(
             "The Firewall Execution Agent is not connected to a firewall. "
@@ -142,7 +149,7 @@ def run_row(playbook_id, row, commit=None):
         raise ValueError(
             "Pick an Action of create, update or delete for the operation."
         )
-    client = PanosClient()
+    client = _client()
     if not client.configured:
         raise ValueError(
             "The Firewall Execution Agent is not connected to a firewall. "

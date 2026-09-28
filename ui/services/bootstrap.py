@@ -167,6 +167,9 @@ def seed_agents_from_config():
             updates["model"] = entry.get("model") or "gpt-5.1"
         if (existing.agent_endpoint or "") != endpoint:
             updates["agent_endpoint"] = endpoint
+        wanted_agent_id = entry.get("agent_id") or existing.agent_id or entry.get("name") or agent_id
+        if (existing.agent_id or "") != wanted_agent_id:
+            updates["agent_id"] = wanted_agent_id
         current_key = existing.api_key or ""
         if not current_key or current_key.startswith("PLACEHOLDER"):
             if api_key and (existing.api_key or "") != api_key:

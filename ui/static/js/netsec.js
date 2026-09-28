@@ -5,7 +5,7 @@
  * ("Action" chip -> manual / bulk operation chooser).
  *
  * All in-chat UI is appended through the window.WsChat bridge that workspace.js
- * registers, so flows live on the NetSec-Execution-Agent conversation itself.
+ * registers, so flows live on the Firewall Execution Agent conversation itself.
  *
  * Backend contract (app.py / services/netsec_service.py):
  *   GET  /api/netsec/info                -> config + playbook catalogue
@@ -99,7 +99,7 @@
     function isNetsecAgent(agent) {
         if (!agent) return false;
         var text = String(agent.id || "") + " " + String(agent.name || "") + " " + String(agent.type || "");
-        return isNetsecId(agent.id) || /netsec/i.test(text);
+        return isNetsecId(agent.id) || /netsec|execution/i.test(text);
     }
 
     function nsSession() {
@@ -153,7 +153,7 @@
             "<span>The Firewall Execution agent could not reach a Palo Alto firewall.</span></div>" +
             '<div class="ns-block">' + noteHtml(
                 "The platform is missing " + missingHtml +
-                ". Set these environment variables on the App Service, then reload this page."
+                 ". Set these on the App Service (NETSEC_FUNCTION_KEY, or NETSEC_FW_*), then reload this page."
             ) + "</div></div>";
     }
 
@@ -262,7 +262,7 @@
             cardHead("Firewall Execution Agent", "How do you want to make firewall changes?") +
             '<div class="ns-block"><div class="ns-mode-row">' + (configured
                 ? modeNote(info)
-                : '<span class="ns-pill ns-pill-off">OFFLINE</span><span class="ns-note-text">Firewall not configured - manual and bulk operations are unavailable until the NETSEC_FW_* environment variables are set.</span>') + "</div></div>";
+                : '<span class="ns-pill ns-pill-off">OFFLINE</span><span class="ns-note-text">Firewall Execution Agent is not connected - manual and bulk operations are unavailable until NETSEC_FUNCTION_KEY is set.</span>') + "</div></div>";
         if (!configured) {
             html += backControlHtml() + "</div>";
             return html;
@@ -495,7 +495,7 @@
             return '<div class="ws-mcq-card ns-card">' +
                 cardHead("Bulk operation", "Download the template and upload a filled workbook to run a sheet against the firewall.") +
                 '<div class="ns-block"><div class="ns-mode-row">' +
-                '<span class="ns-pill ns-pill-off">OFFLINE</span><span class="ns-note-text">Firewall not configured - the workbook template can still be downloaded, but playbooks can only be run once the NETSEC_FW_* environment variables are set.</span>' +
+                '<span class="ns-pill ns-pill-off">OFFLINE</span><span class="ns-note-text">Firewall Execution Agent is not connected - the workbook template can still be downloaded, but playbooks can only be run once NETSEC_FUNCTION_KEY or NETSEC_FW_* is set.</span>' +
                 "</div></div>" +
                 '<div class="ns-file-grid">' +
                 '<button type="button" class="ns-file-card" data-ns-action="bulk-download">' +

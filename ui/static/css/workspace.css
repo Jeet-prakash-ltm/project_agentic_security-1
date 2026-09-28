@@ -107,30 +107,6 @@
     flex-shrink: 0;
 }
 
-.ws-new-chat {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 12px;
-    border-radius: 9px;
-    font-size: 12px;
-    font-weight: 700;
-    color: #fff;
-    background: var(--gradient-red);
-    box-shadow: 0 6px 16px rgba(255, 94, 79, 0.3);
-    transition: transform 0.15s ease, box-shadow 0.2s ease;
-}
-
-.ws-new-chat svg {
-    width: 14px;
-    height: 14px;
-}
-
-.ws-new-chat:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-glow);
-}
-
 .ws-search {
     display: flex;
     align-items: center;
@@ -172,23 +148,16 @@
 
 .ws-agent-picker {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 12px;
-    flex-shrink: 0;
-}
-
-.ws-agent-picker label {
-    font-size: 10.5px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-muted);
+    align-items: center;
+    min-width: 0;
+    flex: 0 1 220px;
+    margin: 0;
 }
 
 .ws-agent-picker select {
     width: 100%;
-    padding: 9px 12px;
+    max-width: 240px;
+    padding: 8px 32px 8px 12px;
     border: 1px solid var(--border);
     border-radius: 10px;
     background: #fff;
@@ -200,8 +169,7 @@
     appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23556170' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
-    background-position: right 12px center;
-    padding-right: 34px;
+    background-position: right 10px center;
 }
 
 .ws-conv-list {
@@ -355,26 +323,19 @@
     width: 36px;
     height: 36px;
     font-size: 12px;
+    cursor: default;
 }
 
-.ws-chat-title-meta {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-}
-
-.ws-chat-title-meta strong {
-    font-size: 14px;
-    font-weight: 700;
-    font-family: var(--font-display);
-    white-space: nowrap;
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
     overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.ws-chat-title-meta span {
-    font-size: 11px;
-    color: var(--text-muted);
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .ws-chat-header-actions {

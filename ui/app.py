@@ -527,7 +527,7 @@ def automation_cloud_security():
         "under_construction.html",
         browser_title="Cloud Security",
         page_heading="Cloud Security",
-        hero_text="Automation · Cloud Security",
+        hero_text="Automation / Cloud Security",
     )
 
 

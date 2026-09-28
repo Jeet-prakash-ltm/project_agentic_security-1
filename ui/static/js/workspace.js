@@ -1674,7 +1674,10 @@
 
         if (chatAgentTitle) chatAgentTitle.textContent = agent.name || "Firewall Audit Agent";
         if (chatAgentSub) chatAgentSub.textContent = ((agent.model ? agent.model + " \u00b7 " : "") + (agent.type || "Copilot")).trim();
-        if (chatAgentAvatar) chatAgentAvatar.textContent = avatarFor(agent.name);
+        if (chatAgentAvatar) {
+            chatAgentAvatar.textContent = avatarFor(agent.name);
+            chatAgentAvatar.title = agent.name || "Firewall Audit Agent";
+        }
 
         if (composerAgentBadge) {
             composerAgentBadge.innerHTML = '<span class="pulse-dot"></span>' + escapeHtml(agent.name || "Agent");

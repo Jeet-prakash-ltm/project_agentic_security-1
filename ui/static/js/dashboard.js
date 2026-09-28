@@ -141,6 +141,12 @@
 
         var domains = sectionPanel("Top Risk Domains", "", '<div class="vertical-bars"></div>');
 
+        var domainSev =
+            '<section class="dash-grid-2">' +
+            sectionPanel("Clustered Columns", "", '<div class="domain-cluster-chart"></div>') +
+            sectionPanel("Stacked Columns", "", '<div class="domain-stack-chart"></div>') +
+            "</section>";
+
         var trend =
             '<section class="compliance-trend-section card is-loading">' +
             '<div class="section-head">' +
@@ -153,7 +159,7 @@
             "</section>";
 
         return '<section class="dash-group" data-fw="' + escapeHtml(fw) + '">' +
-            pie + recent + domains + trend + "</section>";
+            pie + recent + domains + domainSev + trend + "</section>";
     }
 
     function clearSection(el) {
@@ -374,6 +380,103 @@
         return cat.replace(" & Remote Access", "").replace(" & Platform", "").replace(" & Performance", "").replace(" & Monitoring", "").replace(" &", "");
     }
 
+    var SEV_LEVELS = [
+        { key: "critical", label: "Critical", color: "#DC2626" },
+        { key: "high", label: "High", color: "#F97316" },
+        { key: "medium", label: "Medium", color: "#F59E0B" },
+        { key: "low", label: "Low", color: "#22C55E" }
+    ];
+
+    function emptySevCounts() {
+        return { critical: 0, high: 0, medium: 0, low: 0 };
+    }
+
+    function domainSeverityCounts(findingsList) {
+        var byCat = {};
+        CATEGORY_ORDER.forEach(function (cat) { byCat[cat] = emptySevCounts(); });
+        (findingsList || []).forEach(function (f) {
+            var cat = categoryForControl(f.control);
+            if (!cat || !byCat[cat]) return;
+            var risk = String(f.risk || "").toLowerCase();
+            if (byCat[cat][risk] !== undefined) byCat[cat][risk] += 1;
+        });
+        return byCat;
+    }
+
+    function domainSevLegend() {
+        var html = '<div class="domain-sev-legend">';
+        SEV_LEVELS.forEach(function (s) {
+            html += '<span class="domain-sev-legend-item"><i style="background:' + s.color + '"></i>' + s.label + "</span>";
+        });
+        html += "</div>";
+        return html;
+    }
+
+    function renderDomainClustered(root, findingsList, fw) {
+        var panel = groupSection(root, ".domain-cluster-chart");
+        if (!panel) return;
+        var byCat = domainSeverityCounts(findingsList);
+        var max = 1;
+        CATEGORY_ORDER.forEach(function (cat) {
+            SEV_LEVELS.forEach(function (s) { max = Math.max(max, byCat[cat][s.key]); });
+        });
+
+        var html = domainSevLegend() + '<div class="domain-cluster-axis">';
+        CATEGORY_ORDER.forEach(function (cat) {
+            html += '<div class="domain-cluster-group">';
+            html += '<div class="domain-cluster-cols">';
+            SEV_LEVELS.forEach(function (s) {
+                var n = byCat[cat][s.key];
+                var h = max ? Math.round(n / max * 100) : 0;
+                html += '<a class="domain-cluster-col" href="' + findingsUrl(fw, "domain", cat) + "&severity=" + s.key + '" title="' + escapeHtml(cat) + " · " + s.label + ": " + n + '">' +
+                    '<span class="domain-cluster-count">' + (n ? n : "") + "</span>" +
+                    '<span class="domain-cluster-track"><span class="domain-cluster-fill" style="height:' + h + "%;background:" + s.color + '"></span></span>' +
+                    "</a>";
+            });
+            html += "</div>";
+            html += '<span class="domain-cluster-label">' + escapeHtml(shortLabel(cat)) + "</span>";
+            html += "</div>";
+        });
+        html += "</div>";
+        panel.innerHTML = html;
+        clearSection(panel.closest(".dash-panel"));
+    }
+
+    function renderDomainStacked(root, findingsList, fw) {
+        var panel = groupSection(root, ".domain-stack-chart");
+        if (!panel) return;
+        var byCat = domainSeverityCounts(findingsList);
+        var max = 1;
+        CATEGORY_ORDER.forEach(function (cat) {
+            var total = byCat[cat].critical + byCat[cat].high + byCat[cat].medium + byCat[cat].low;
+            max = Math.max(max, total);
+        });
+
+        var html = domainSevLegend() + '<div class="domain-stack-axis">';
+        CATEGORY_ORDER.forEach(function (cat) {
+            var counts = byCat[cat];
+            var total = counts.critical + counts.high + counts.medium + counts.low;
+            var h = max ? Math.round(total / max * 100) : 0;
+            html += '<a class="domain-stack-col" href="' + findingsUrl(fw, "domain", cat) + '" title="' + escapeHtml(cat) + ": " + total + '">' +
+                '<span class="domain-stack-count">' + total + "</span>" +
+                '<span class="domain-stack-track"><span class="domain-stack-fill" style="height:' + h + '%">';
+            SEV_LEVELS.forEach(function (s) {
+                var n = counts[s.key];
+                if (!n || !total) return;
+                var pct = Math.round(n / total * 100);
+                html += '<span class="domain-stack-seg" style="flex:' + n + ";background:" + s.color + '" title="' + s.label + ": " + n + '">' +
+                    (pct >= 18 ? n : "") +
+                    "</span>";
+            });
+            html += "</span></span>";
+            html += '<span class="domain-stack-label">' + escapeHtml(shortLabel(cat)) + "</span>";
+            html += "</a>";
+        });
+        html += "</div>";
+        panel.innerHTML = html;
+        clearSection(panel.closest(".dash-panel"));
+    }
+
     // ============================================================
     // COMPLIANCE TREND
     // ============================================================
@@ -553,6 +656,8 @@
         renderSeverityGrid(root, data.findings || {}, cid);
         renderRecentFindings(root, data.recent_findings || []);
         renderVerticalBars(root, data.findings_list || [], cid);
+        renderDomainClustered(root, data.findings_list || [], cid);
+        renderDomainStacked(root, data.findings_list || [], cid);
         renderTrendStats(root, data.history || [], cid, c.compliance_score);
         renderComplianceTrend(root, data.history || [], cid);
     }

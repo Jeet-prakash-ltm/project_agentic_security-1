@@ -9,14 +9,6 @@
 {% block content %}
 
 <div class="auto-ns-layout">
-    <section class="card auto-ns-terminal-card" aria-label="Bulk operation log">
-        <div class="auto-ns-terminal-head">
-            <span class="auto-ns-terminal-title">Bulk operation</span>
-            <span class="auto-ns-terminal-status" id="autoNsStatus">Idle</span>
-        </div>
-        <pre class="auto-ns-terminal" id="autoNsTerminal" aria-live="polite"></pre>
-    </section>
-
     <section class="card auto-ns-panel">
         <div class="auto-ns-panel-head">
             <h3>Firewall Execution Agent</h3>
@@ -44,10 +36,18 @@
             </button>
         </div>
     </section>
+
+    <section class="card auto-ns-terminal-card" aria-label="Bulk operation log">
+        <div class="auto-ns-terminal-head">
+            <span class="auto-ns-terminal-title">Bulk operation</span>
+            <span class="auto-ns-terminal-status" id="autoNsStatus">Idle</span>
+        </div>
+        <pre class="auto-ns-terminal" id="autoNsTerminal" aria-live="polite"></pre>
+    </section>
 </div>
 
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/automation_network.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/automation_network.js') }}?v=2"></script>
 {% endblock %}

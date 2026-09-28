@@ -33,6 +33,7 @@ REQUIRED_TABLES = [
     "telemetry_metrics",
     "agent_activity_logs",
     "managed_firewalls",
+    "automation_jobs",
 ]
 
 

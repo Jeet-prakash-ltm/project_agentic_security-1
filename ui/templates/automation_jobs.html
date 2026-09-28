@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Jobs — LTM Security Platform{% endblock %}
+
+{% block page_title %}Jobs{% endblock %}
+
+{% block hero_eyebrow %}Automation · Jobs{% endblock %}
+
+{% block content %}
+
+<section class="card auto-jobs-panel">
+    <div class="auto-jobs-head">
+        <div>
+            <h3>Firewall Execution jobs</h3>
+            <p>Each Commit from Network Security is stored as one job. Nested rows list every playbook operation in that commit.</p>
+        </div>
+        <span class="auto-jobs-count" id="autoJobsCount">—</span>
+    </div>
+    <div class="table-wrap auto-jobs-wrap">
+        <table class="data-table auto-jobs-table">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Job number</th>
+                    <th>Firewall</th>
+                    <th>Actions</th>
+                    <th>Playbooks</th>
+                    <th>Affected sheet</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="autoJobsBody">
+                <tr>
+                    <td colspan="8" class="empty-state"><span class="table-loading"><span class="spinner"></span>Loading jobs…</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/automation_jobs.js') }}?v=1"></script>
+{% endblock %}

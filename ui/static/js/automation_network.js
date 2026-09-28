@@ -5,7 +5,8 @@
         info: "/api/netsec/info",
         template: "/api/netsec/workbook/template",
         upload: "/api/netsec/workbook",
-        run: "/api/netsec/playbooks/run"
+        run: "/api/netsec/playbooks/run",
+        jobs: "/api/automation/jobs"
     };
 
     var terminal = document.getElementById("autoNsTerminal");
@@ -21,6 +22,7 @@
         info: null,
         summary: null,
         matches: [],
+        workbookName: "",
         busy: false
     };
 
@@ -130,6 +132,34 @@
         }
     }
 
+    function unique(values) {
+        var seen = [];
+        (values || []).forEach(function (value) {
+            var text = String(value == null ? "" : value).trim();
+            if (text && seen.indexOf(text) === -1) seen.push(text);
+        });
+        return seen;
+    }
+
+    function opActions(data) {
+        var actions = [];
+        ((data && data.rows) || []).forEach(function (row) {
+            var op = String((row && row.op) || "").toLowerCase();
+            if (op && op !== "error" && op !== "skipped") actions.push(op);
+        });
+        var counts = (data && data.counts) || {};
+        if (!actions.length) {
+            if (counts.created) actions.push("create");
+            if (counts.updated) actions.push("update");
+            if (counts.deleted) actions.push("delete");
+        }
+        return unique(actions);
+    }
+
+    function opFailed(data) {
+        return !!(data && (data.commit_error || ((data.counts || {}).errors)));
+    }
+
     function logResult(item, data) {
         var counts = (data && data.counts) || {};
         line(item.playbook.title + " (" + item.playbook.sheet + ", " + item.sheet.rows + " row" + (item.sheet.rows === 1 ? "" : "s") + ")", "head");
@@ -148,13 +178,13 @@
         } else if (data && data.dry_run) {
             line("Commit skipped: dry-run preview only.", "warn");
         }
-        (data.rows || []).forEach(function (row) {
+        ((data && data.rows) || []).forEach(function (row) {
             if (row.error) {
                 line("Row " + row.row + " error: " + row.error, "err");
             }
         });
         blank();
-        return !(data && (data.commit_error || (data.counts && data.counts.errors)));
+        return !opFailed(data);
     }
 
     function loadInfo() {
@@ -240,6 +270,7 @@
             .then(function (res) {
                 if (!res.ok) throw new Error(res.data && res.data.error ? res.data.error : "Upload failed");
                 state.summary = res.data.summary;
+                state.workbookName = file.name;
                 state.matches = matchPlaybooks(state.summary, state.info);
                 renderSummary(state.summary);
                 logUpload(state.summary, file.name);
@@ -267,11 +298,32 @@
             return r.json().then(function (d) { return { ok: r.ok, data: d }; });
         }).then(function (res) {
             if (!res.ok) throw new Error(res.data && res.data.error ? res.data.error : "Run failed");
-            return logResult(item, res.data);
+            var pass = logResult(item, res.data);
+            return {
+                playbook_id: item.playbook.id,
+                playbook_title: item.playbook.title,
+                sheet: item.playbook.sheet,
+                actions: opActions(res.data),
+                counts: res.data.counts || {},
+                committed: !!res.data.committed,
+                commit_error: res.data.commit_error || "",
+                summary: res.data.summary || "",
+                status: pass ? "successful" : "failed"
+            };
         }).catch(function (err) {
             line(item.playbook.title + " failed: " + (err.message || "Run failed"), "err");
             blank();
-            return false;
+            return {
+                playbook_id: item.playbook.id,
+                playbook_title: item.playbook.title,
+                sheet: item.playbook.sheet,
+                actions: [],
+                counts: { errors: 1 },
+                committed: false,
+                commit_error: err.message || "Run failed",
+                summary: err.message || "Run failed",
+                status: "failed"
+            };
         });
     }
 
@@ -289,17 +341,45 @@
         line("Running uploaded sheets against the firewall.", "muted");
         blank();
 
-        var chain = Promise.resolve(true);
-        var ok = true;
+        var operations = [];
+        var chain = Promise.resolve();
         state.matches.forEach(function (item) {
             chain = chain.then(function () {
-                return runPlaybook(item).then(function (pass) {
-                    if (!pass) ok = false;
+                return runPlaybook(item).then(function (op) {
+                    operations.push(op);
                 });
             });
         });
         chain.then(function () {
-            if (ok) {
+            var failed = operations.some(function (op) { return op.status === "failed"; });
+            var payload = {
+                firewall_name: (state.info && state.info.host) || "",
+                workbook_name: state.workbookName || "",
+                actions: unique(operations.reduce(function (all, op) {
+                    return all.concat(op.actions || []);
+                }, [])),
+                playbooks: unique(operations.map(function (op) { return op.playbook_title; })),
+                sheets: unique(operations.map(function (op) { return op.sheet; })),
+                status: failed ? "failed" : "successful",
+                operations: operations
+            };
+            return fetch(URLS.jobs, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            }).then(function (r) {
+                return r.json().then(function (d) { return { ok: r.ok, data: d }; });
+            }).then(function (res) {
+                if (res.ok && res.data && res.data.job) {
+                    line("Stored as " + res.data.job.job_number + " on Automation · Jobs.", "muted");
+                }
+                return failed;
+            }).catch(function () {
+                line("Job could not be stored in Automation · Jobs.", "warn");
+                return failed;
+            });
+        }).then(function (failed) {
+            if (!failed) {
                 line("Bulk operation completed.", "ok");
                 setStatus("Completed", "ok");
                 if (window.showToast) window.showToast("Bulk operation completed.", "success");

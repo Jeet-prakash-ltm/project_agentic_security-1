@@ -535,10 +535,7 @@ def automation_cloud_security():
 @login_required
 def automation_jobs():
     return render_with_css(
-        "under_construction.html",
-        browser_title="Jobs",
-        page_heading="Jobs",
-        hero_text="Automation · Jobs",
+        "automation_jobs.html"
     )
 
 
@@ -1347,6 +1344,29 @@ def api_netsec_playbooks_run():
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 502
+
+
+@app.route("/api/automation/jobs", methods=["GET"])
+@login_required
+def api_automation_jobs_list():
+    from services import automation_jobs_service
+
+    return jsonify({"jobs": automation_jobs_service.list_jobs(user_id=current_user_id())})
+
+
+@app.route("/api/automation/jobs", methods=["POST"])
+@login_required
+def api_automation_jobs_create():
+    from services import automation_jobs_service
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        job = automation_jobs_service.create_job(current_user_id(), payload)
+        return jsonify({"job": job}), 201
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/netsec/manual", methods=["POST"])

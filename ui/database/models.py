@@ -21,6 +21,7 @@ Additional tables:
 * ``agent_activity_logs``  - audit trail for agent/function actions
 * ``managed_firewalls``    - admin firewall registry (Settings > Firewall Inventory)
 * ``firewall_inventory``   - live collector snapshots (managed by the collector)
+* ``automation_jobs``      - Firewall Execution bulk commit jobs and nested ops
 """
 
 from sqlalchemy import (
@@ -254,3 +255,20 @@ class ManagedFirewall(Base):
     status = Column(String(16), default="down")
     last_checked = Column(Float)
     created = Column(Float, index=True)
+
+
+class AutomationJob(Base):
+    """One Firewall Execution bulk commit, with nested playbook operations."""
+
+    __tablename__ = "automation_jobs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(64), default="anonymous", index=True)
+    firewall_name = Column(String(255), default="")
+    workbook_name = Column(String(255), default="")
+    actions = Column(JSON)
+    playbooks = Column(JSON)
+    sheets = Column(JSON)
+    status = Column(String(32), default="failed", index=True)
+    created = Column(Float, index=True)
+    operations = Column(JSON)

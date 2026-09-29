@@ -1,0 +1,255 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Firewall Execution Agent",
+    "version": "1.0.0",
+    "description": "Palo Alto PAN-OS firewall operations exposed through Azure Functions."
+  },
+  "servers": [
+    {
+      "url": "https://firewall-execution-agent-gahmfgfghubpa6gk.southindia-01.azurewebsites.net"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "function_key": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "code",
+        "description": "Azure Functions host key."
+      }
+    }
+  },
+  "security": [
+    {
+      "function_key": []
+    }
+  ],
+  "paths": {
+    "/api/panos/test_connection": {
+      "get": {
+        "operationId": "testConnection",
+        "summary": "Test firewall connectivity",
+        "responses": {
+          "200": {
+            "description": "Connection successful"
+          }
+        }
+      }
+    },
+    "/api/panos/info": {
+      "get": {
+        "operationId": "getFirewallInfo",
+        "summary": "Get firewall information",
+        "responses": {
+          "200": {
+            "description": "Firewall information"
+          }
+        }
+      }
+    },
+    "/api/panos/op": {
+      "post": {
+        "operationId": "executeOperationalCommand",
+        "summary": "Execute PAN-OS operational command",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cmd": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "cmd"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Command execution result"
+          }
+        }
+      }
+    },
+    "/api/panos/config/get": {
+      "post": {
+        "operationId": "getConfig",
+        "summary": "Get configuration data",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "xpath": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "xpath"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Configuration retrieved"
+          }
+        }
+      }
+    },
+    "/api/panos/config/set": {
+      "post": {
+        "operationId": "setConfig",
+        "summary": "Create configuration",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "xpath": {
+                    "type": "string"
+                  },
+                  "element": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "xpath",
+                  "element"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Configuration created"
+          }
+        }
+      }
+    },
+    "/api/panos/config/edit": {
+      "post": {
+        "operationId": "editConfig",
+        "summary": "Edit configuration",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "xpath": {
+                    "type": "string"
+                  },
+                  "element": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "xpath",
+                  "element"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Configuration edited"
+          }
+        }
+      }
+    },
+    "/api/panos/config/delete": {
+      "post": {
+        "operationId": "deleteConfig",
+        "summary": "Delete configuration",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "xpath": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "xpath"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Configuration deleted"
+          }
+        }
+      }
+    },
+    "/api/panos/commit": {
+      "post": {
+        "operationId": "commitConfig",
+        "summary": "Commit firewall configuration",
+        "responses": {
+          "200": {
+            "description": "Commit successful"
+          }
+        }
+      }
+    },
+    "/api/panos/workbook/run": {
+      "post": {
+        "operationId": "runWorkbook",
+        "summary": "Parse an Excel workbook and apply each row via setConfig, editConfig, or deleteConfig",
+        "description": "Parses a filled-in .xlsx workbook in code (not via RAG or playbooks). For each data row, Action create calls setConfig, update calls editConfig, and delete calls deleteConfig. Does not commit. After this tool returns, call commitConfig. Do not invent xpaths.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "workbook_base64": {
+                    "type": "string",
+                    "description": "Base64-encoded .xlsx workbook"
+                  },
+                  "workbook_name": {
+                    "type": "string",
+                    "description": "Original workbook file name"
+                  },
+                  "row_limit": {
+                    "type": "integer",
+                    "description": "Optional per-sheet row cap"
+                  }
+                },
+                "required": [
+                  "workbook_base64"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Workbook parsed and row actions applied; call commitConfig next"
+          }
+        }
+      }
+    }
+  }
+}

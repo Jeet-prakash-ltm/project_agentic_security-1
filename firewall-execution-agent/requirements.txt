@@ -1,0 +1,5 @@
+azure-functions
+requests
+lxml
+python-dotenv
+openpyxl

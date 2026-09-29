@@ -1,8 +1,7 @@
 .auto-ns-layout {
-    display: grid;
-    grid-template-columns: minmax(320px, 0.95fr) minmax(280px, 1.05fr);
+    display: flex;
+    flex-direction: column;
     gap: 18px;
-    align-items: stretch;
 }
 
 .auto-ns-terminal-card,
@@ -69,8 +68,8 @@
 
 .auto-ns-terminal {
     margin: 0;
-    min-height: 420px;
-    max-height: calc(100vh - 220px);
+    min-height: 200px;
+    max-height: 280px;
     overflow: auto;
     padding: 16px 18px;
     border-radius: 12px;
@@ -103,6 +102,23 @@
     line-height: 1.5;
 }
 
+.auto-ns-template-link {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.auto-ns-template-link:hover {
+    color: var(--red);
+}
+
+.auto-ns-template-link.is-disabled {
+    pointer-events: none;
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
 .auto-ns-mode {
     display: flex;
     align-items: center;
@@ -131,7 +147,7 @@
 
 .auto-ns-file-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(240px, 420px);
     gap: 10px;
 }
 
@@ -250,19 +266,13 @@ button.auto-ns-file-card { width: 100%; }
     cursor: not-allowed;
 }
 
-@media (max-width: 980px) {
-    .auto-ns-layout {
+@media (max-width: 640px) {
+    .auto-ns-file-grid {
         grid-template-columns: 1fr;
     }
 
     .auto-ns-terminal {
-        min-height: 280px;
-        max-height: 360px;
-    }
-}
-
-@media (max-width: 640px) {
-    .auto-ns-file-grid {
-        grid-template-columns: 1fr;
+        min-height: 180px;
+        max-height: 240px;
     }
 }

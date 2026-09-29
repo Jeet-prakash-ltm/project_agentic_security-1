@@ -232,8 +232,8 @@
                 if (data && data.error) throw new Error(data.error);
                 state.info = data;
                 renderMode(data);
-                line("Bulk operation", "head");
-                line("Download the Excel workbook template, fill in one row per firewall change, then upload it to run a sheet against the firewall.", "muted");
+                line("Operations terminal", "head");
+                line("Download the Excel template to define your firewall modification requests. Once changes are finalized, upload the excel template to execute changes.", "muted");
                 blank();
                 if (!data.configured) {
                     line("Firewall Execution Agent is not connected.", "err");
@@ -257,12 +257,20 @@
             });
     }
 
-    function downloadTemplate() {
+    function setDownloadBusy(busy) {
+        if (!downloadBtn) return;
+        downloadBtn.classList.toggle("is-disabled", !!busy);
+        if (busy) downloadBtn.setAttribute("aria-disabled", "true");
+        else downloadBtn.removeAttribute("aria-disabled");
+    }
+
+    function downloadTemplate(event) {
+        if (event) event.preventDefault();
         if (state.busy) return;
         state.busy = true;
-        downloadBtn.disabled = true;
+        setDownloadBusy(true);
         setStatus("Preparing", "run");
-        line("Preparing bulk ops template…", "muted");
+        line("Preparing Excel template…", "muted");
         fetch(URLS.template)
             .then(function (r) {
                 if (!r.ok) throw new Error("HTTP " + r.status);
@@ -288,7 +296,7 @@
             })
             .finally(function () {
                 state.busy = false;
-                downloadBtn.disabled = false;
+                setDownloadBusy(false);
             });
     }
 
@@ -379,9 +387,9 @@
         }
         state.busy = true;
         commitBtn.disabled = true;
-        downloadBtn.disabled = true;
-        setStatus("Committing", "run");
-        line("Commit", "head");
+        setDownloadBusy(true);
+        setStatus("Executing", "run");
+        line("Execute", "head");
         line("Running uploaded sheets against the firewall.", "muted");
         blank();
 
@@ -424,17 +432,17 @@
             });
         }).then(function (failed) {
             if (!failed) {
-                line("Bulk operation completed.", "ok");
+                line("Operations completed.", "ok");
                 setStatus("Completed", "ok");
-                if (window.showToast) window.showToast("Bulk operation completed.", "success");
+                if (window.showToast) window.showToast("Operations completed.", "success");
             } else {
-                line("Bulk operation finished with errors.", "err");
+                line("Operations finished with errors.", "err");
                 setStatus("Failed", "err");
-                if (window.showToast) window.showToast("Bulk operation finished with errors.");
+                if (window.showToast) window.showToast("Operations finished with errors.");
             }
         }).finally(function () {
             state.busy = false;
-            downloadBtn.disabled = false;
+            setDownloadBusy(false);
             commitBtn.disabled = !(state.info && state.info.configured && state.matches.length);
         });
     }

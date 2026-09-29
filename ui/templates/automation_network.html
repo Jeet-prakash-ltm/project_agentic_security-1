@@ -12,19 +12,17 @@
     <section class="card auto-ns-panel">
         <div class="auto-ns-panel-head">
             <h3>Firewall Execution Agent</h3>
-            <p>Download the Excel workbook template, fill in one row per firewall change, then upload it and commit to the firewall.</p>
+            <p>
+                <a href="#" class="auto-ns-template-link" id="autoNsDownload">Download the Excel template to define your firewall modification requests.</a>
+                Once changes are finalized, upload the excel template to execute changes.
+            </p>
         </div>
         <div class="auto-ns-mode" id="autoNsMode"></div>
         <div class="auto-ns-file-grid">
-            <button type="button" class="auto-ns-file-card" id="autoNsDownload">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
-                <strong>Template for bulk data ops workbook</strong>
-                <span>.xlsx template with every sheet</span>
-            </button>
             <label class="auto-ns-file-card" for="autoNsFile">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
-                <strong>Upload bulk data workbook</strong>
-                <span id="autoNsFileLabel">filled workbook from the template</span>
+                <strong>Upload excel workbook</strong>
+                <span id="autoNsFileLabel"></span>
                 <input type="file" id="autoNsFile" class="auto-ns-file-input" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
             </label>
         </div>
@@ -32,14 +30,14 @@
         <div class="auto-ns-commit-wrap">
             <button type="button" class="auto-ns-commit" id="autoNsCommit" disabled>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-                Commit
+                Execute
             </button>
         </div>
     </section>
 
-    <section class="card auto-ns-terminal-card" aria-label="Bulk operation log">
+    <section class="card auto-ns-terminal-card" aria-label="Operations terminal">
         <div class="auto-ns-terminal-head">
-            <span class="auto-ns-terminal-title">Bulk operation</span>
+            <span class="auto-ns-terminal-title">Operations terminal</span>
             <span class="auto-ns-terminal-status" id="autoNsStatus">Idle</span>
         </div>
         <pre class="auto-ns-terminal" id="autoNsTerminal" aria-live="polite"></pre>
@@ -49,5 +47,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/automation_network.js') }}?v=5"></script>
+<script src="{{ url_for('static', filename='js/automation_network.js') }}?v=6"></script>
 {% endblock %}

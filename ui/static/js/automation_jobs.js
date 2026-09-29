@@ -29,10 +29,16 @@
         return fromRows;
     }
 
-    function statusChip(status) {
+    function failedOpCount(job) {
+        return (job.operations || []).filter(isFailedOp).length;
+    }
+
+    function statusChip(status, failCount) {
         var ok = String(status || "").toLowerCase() === "successful";
+        var label = ok ? "Successful" : "Failed";
+        if (!ok && failCount) label += " (" + failCount + ")";
         return '<span class="auto-job-status ' + (ok ? "is-ok" : "is-err") + '">' +
-            esc(ok ? "Successful" : "Failed") + "</span>";
+            esc(label) + "</span>";
     }
 
     function countsText(counts) {
@@ -126,7 +132,7 @@
                 "<td>" + esc(op.playbook_title || op.playbook_id || "—") + "</td>" +
                 "<td>" + esc(joinList(opActions(op))) + "</td>" +
                 "<td>" + esc(countsText(op.counts)) + "</td>" +
-                "<td>" + statusChip(op.status) + "</td>" +
+                "<td>" + statusChip(op.status, (op.counts || {}).errors) + "</td>" +
                 "</tr>";
         }).join("");
         return '<table class="auto-job-ops-table"><thead><tr>' +
@@ -154,7 +160,7 @@
                 "<td>" + esc(joinList(job.actions)) + "</td>" +
                 "<td>" + esc(joinList(job.playbooks)) + "</td>" +
                 "<td>" + esc(job.created_display || "—") + "</td>" +
-                "<td>" + statusChip(job.status) + "</td>" +
+                "<td>" + statusChip(job.status, failedOpCount(job)) + "</td>" +
                 "<td>" + logsCell(job) + "</td>" +
                 "</tr>" +
                 '<tr class="auto-job-ops" data-job-ops="' + esc(job.id) + '" hidden><td colspan="8">' +

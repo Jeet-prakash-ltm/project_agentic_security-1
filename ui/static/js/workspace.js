@@ -84,12 +84,6 @@
         { label: "Bulk operation", action: "ns-bulk" }
     ];
 
-    var ORCHESTRATOR_SUGGESTIONS = [
-        { label: "Assess network posture", prompt: "Coordinate a network security posture assessment across the firewall estate." },
-        { label: "Investigate cloud incidents", prompt: "Coordinate investigation of current cloud security incidents." },
-        { label: "Plan a firewall change", prompt: "Help me plan a firewall configuration change using the specialist agents." }
-    ];
-
     var CLOUD_KPI_PERIODS = [
         { id: "daily", label: "Daily", sub: "Today" },
         { id: "weekly", label: "Weekly", sub: "Last 7 days" },
@@ -648,14 +642,6 @@
                 b.className = "ws-suggestion";
                 b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>' + escapeHtml(s.label);
                 b.addEventListener("click", function () { runAction(s.action); });
-                sug.appendChild(b);
-            });
-        } else if (isOrchestratorAgent(state.activeAgent)) {
-            ORCHESTRATOR_SUGGESTIONS.forEach(function (s) {
-                var b = document.createElement("button");
-                b.className = "ws-suggestion";
-                b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>' + escapeHtml(s.label);
-                b.addEventListener("click", function () { sendPrompt(s.prompt); });
                 sug.appendChild(b);
             });
         }

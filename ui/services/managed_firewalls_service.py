@@ -177,6 +177,25 @@ def get_by_device_name(device_name):
     return _public(_repo().by_device_name(device_name))
 
 
+def display_label(value):
+    """Return ``DeviceName (IP)`` for an inventory host, device name, or IP."""
+    text = (value or "").strip()
+    if not text:
+        return ""
+    if " (" in text and text.endswith(")"):
+        return text
+    for entry in _repo().list_all():
+        name = (entry.device_name or "").strip()
+        ip = (entry.host_ip or "").strip()
+        host = (entry.host_name or "").strip()
+        if text not in (name, ip, host):
+            continue
+        if name and ip and name != ip:
+            return "{0} ({1})".format(name, ip)
+        return name or ip or text
+    return text
+
+
 
 def _persist_probe(entry):
     live = _probe_host(entry.host_ip)

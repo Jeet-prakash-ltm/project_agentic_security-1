@@ -4,6 +4,7 @@ import time
 
 from database.db import get_session
 from database.repositories.automation_jobs_repository import AutomationJobsRepository
+from services import managed_firewalls_service
 from services import timeutil
 
 
@@ -28,7 +29,7 @@ def _as_dict(job):
         "id": job.id,
         "job_number": "JOB-{0:04d}".format(job.id),
         "user_id": job.user_id,
-        "firewall_name": job.firewall_name or "",
+        "firewall_name": managed_firewalls_service.display_label(job.firewall_name),
         "workbook_name": job.workbook_name or "",
         "actions": list(job.actions or []),
         "playbooks": list(job.playbooks or []),
@@ -67,7 +68,9 @@ def create_job(user_id, payload):
     job = _repo().create(
         {
             "user_id": user_id or "anonymous",
-            "firewall_name": (payload.get("firewall_name") or "").strip(),
+            "firewall_name": managed_firewalls_service.display_label(
+                payload.get("firewall_name")
+            ),
             "workbook_name": (payload.get("workbook_name") or "").strip(),
             "actions": actions,
             "playbooks": playbooks,

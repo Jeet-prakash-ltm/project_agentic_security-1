@@ -50,15 +50,12 @@
         return !!((op.counts || {}).errors);
     }
 
-    function failedOps(job) {
-        return (job.operations || []).filter(isFailedOp);
-    }
-
     function looksLikeSummary(text) {
         return /^applied playbook |^dry-run playbook /i.test(String(text || "").trim());
     }
 
     function opReason(op) {
+        if (!isFailedOp(op)) return "Successful";
         var parts = [];
         if (op.commit_error) parts.push("Commit failed: " + op.commit_error);
         (op.row_errors || []).forEach(function (item) {
@@ -79,60 +76,61 @@
         return op.executed_at || job.created_display || "";
     }
 
-    function failurePayload(job) {
-        return failedOps(job).map(function (op) {
-            var index = (job.operations || []).indexOf(op);
-            return {
-                order_of_execution: index + 1,
-                playbook: op.playbook_title || op.playbook_id || "",
-                action: opActions(op).filter(Boolean).join(", "),
-                sheet: op.sheet || "",
-                result: countsText(op.counts),
-                reason: opReason(op),
-                time_of_execution: opExecutedAt(op, job)
-            };
-        });
+    function opStatusLabel(op) {
+        return isFailedOp(op) ? "Failed" : "Successful";
     }
 
-    function downloadFailures(job) {
-        var payload = failurePayload(job);
-        if (!payload.length) return;
-        var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    function logsText(job) {
+        var ops = job.operations || [];
+        if (!ops.length) return "No operations recorded for this job.\n";
+        return ops.map(function (op, index) {
+            return [
+                "order_of_execution: " + (index + 1),
+                "change: " + (op.playbook_title || op.playbook_id || ""),
+                "action: " + opActions(op).filter(Boolean).join(", "),
+                "result: " + countsText(op.counts),
+                "status: " + opStatusLabel(op),
+                "reason: " + opReason(op),
+                "time_of_execution: " + opExecutedAt(op, job)
+            ].join("\n");
+        }).join("\n\n");
+    }
+
+    function downloadLogs(job) {
+        var blob = new Blob([logsText(job)], { type: "text/plain" });
         var url = URL.createObjectURL(blob);
         var a = document.createElement("a");
         a.href = url;
-        a.download = (job.job_number || ("job-" + job.id)) + "-failures.json";
+        a.download = (job.job_number || ("job-" + job.id)) + "-logs.txt";
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
     }
 
-    function failuresCell(job) {
-        var n = failedOps(job).length;
-        if (!n) return "—";
-        return '<button type="button" class="auto-job-fail-dl" data-fail-dl="' + esc(job.id) + '" title="Download failed executions JSON">' +
+    function logsCell(job) {
+        if (!(job.operations || []).length) return "—";
+        return '<button type="button" class="auto-job-fail-dl" data-fail-dl="' + esc(job.id) + '" title="Download logs">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>' +
-            "<span>" + n + "</span></button>";
+            "</button>";
     }
 
     function opsHtml(job) {
         var ops = job.operations || [];
         if (!ops.length) {
-            return '<div class="auto-jobs-empty">No playbook operations recorded for this job.</div>';
+            return '<div class="auto-jobs-empty">No operations recorded for this job.</div>';
         }
         var rows = ops.map(function (op, index) {
             return "<tr>" +
                 "<td>" + (index + 1) + "</td>" +
                 "<td>" + esc(op.playbook_title || op.playbook_id || "—") + "</td>" +
                 "<td>" + esc(joinList(opActions(op))) + "</td>" +
-                "<td>" + esc(op.sheet || "—") + "</td>" +
                 "<td>" + esc(countsText(op.counts)) + "</td>" +
                 "<td>" + statusChip(op.status) + "</td>" +
                 "</tr>";
         }).join("");
         return '<table class="auto-job-ops-table"><thead><tr>' +
-            "<th>#</th><th>Playbook</th><th>Actions</th><th>Sheet</th><th>Result</th><th>Status</th>" +
+            "<th>#</th><th>Change</th><th>Actions</th><th>Result</th><th>Status</th>" +
             "</tr></thead><tbody>" + rows + "</tbody></table>";
     }
 
@@ -141,7 +139,7 @@
         (jobs || []).forEach(function (job) { jobsById[String(job.id)] = job; });
         countEl.textContent = (jobs.length || 0) + " job" + (jobs.length === 1 ? "" : "s");
         if (!jobs.length) {
-            body.innerHTML = '<tr><td colspan="9" class="auto-jobs-empty">No Firewall Execution jobs yet. Commit a bulk workbook on Automation / Network Security.</td></tr>';
+            body.innerHTML = '<tr><td colspan="8" class="auto-jobs-empty">No Firewall Execution jobs yet. Execute a bulk workbook on Automation / Network Security.</td></tr>';
             return;
         }
         body.innerHTML = jobs.map(function (job) {
@@ -155,12 +153,11 @@
                 "<td>" + esc(job.firewall_name || "—") + "</td>" +
                 "<td>" + esc(joinList(job.actions)) + "</td>" +
                 "<td>" + esc(joinList(job.playbooks)) + "</td>" +
-                "<td>" + esc(joinList(job.sheets)) + "</td>" +
                 "<td>" + esc(job.created_display || "—") + "</td>" +
                 "<td>" + statusChip(job.status) + "</td>" +
-                "<td>" + failuresCell(job) + "</td>" +
+                "<td>" + logsCell(job) + "</td>" +
                 "</tr>" +
-                '<tr class="auto-job-ops" data-job-ops="' + esc(job.id) + '" hidden><td colspan="9">' +
+                '<tr class="auto-job-ops" data-job-ops="' + esc(job.id) + '" hidden><td colspan="8">' +
                 opsHtml(job) +
                 "</td></tr>";
         }).join("");
@@ -170,7 +167,7 @@
         var dl = e.target.closest("[data-fail-dl]");
         if (dl) {
             var job = jobsById[dl.getAttribute("data-fail-dl")];
-            if (job) downloadFailures(job);
+            if (job) downloadLogs(job);
             return;
         }
         var btn = e.target.closest("[data-job-toggle]");
@@ -193,7 +190,7 @@
         })
         .catch(function (err) {
             countEl.textContent = "0 jobs";
-            body.innerHTML = '<tr><td colspan="9" class="auto-jobs-empty">Could not load jobs. ' +
+            body.innerHTML = '<tr><td colspan="8" class="auto-jobs-empty">Could not load jobs. ' +
                 esc(err.message || "Request failed") + "</td></tr>";
         });
 })();

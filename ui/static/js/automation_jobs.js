@@ -42,12 +42,24 @@
         return (job.operations || []).filter(isFailedOp);
     }
 
+    function looksLikeSummary(text) {
+        return /^applied playbook |^dry-run playbook /i.test(String(text || "").trim());
+    }
+
     function opReason(op) {
-        if (op.error_reason) return String(op.error_reason);
-        if (op.commit_error) return String(op.commit_error);
-        if (op.summary && String(op.status || "").toLowerCase() === "failed") return String(op.summary);
+        var parts = [];
+        if (op.commit_error) parts.push("Commit failed: " + op.commit_error);
+        (op.row_errors || []).forEach(function (item) {
+            if (!item) return;
+            var msg = item.error || item;
+            parts.push((item.row != null ? "Row " + item.row + ": " : "") + msg);
+        });
+        if (parts.length) return parts.join("; ");
+        if (op.error_reason && !looksLikeSummary(op.error_reason)) return String(op.error_reason);
         var counts = op.counts || {};
-        if (counts.errors) return countsText(counts);
+        if (counts.errors) {
+            return counts.errors + " row error(s) were reported, but the firewall error text was not stored for this job.";
+        }
         return "Failed";
     }
 

@@ -160,17 +160,29 @@
         return !!(data && (data.commit_error || ((data.counts || {}).errors)));
     }
 
-    function failureReason(data, fallback) {
-        if (data && data.commit_error) return String(data.commit_error);
+    function rowErrors(data) {
         var errs = [];
         ((data && data.rows) || []).forEach(function (row) {
             if (row && row.error) {
-                errs.push("Row " + (row.row != null ? row.row : "?") + ": " + row.error);
+                errs.push({
+                    row: row.row != null ? row.row : null,
+                    error: String(row.error)
+                });
             }
         });
-        if (errs.length) return errs.join("; ");
-        if (data && data.summary) return String(data.summary);
-        return fallback || "";
+        return errs;
+    }
+
+    function failureReason(data, fallback) {
+        var parts = [];
+        if (data && data.commit_error) {
+            parts.push("Commit failed: " + data.commit_error);
+        }
+        rowErrors(data).forEach(function (item) {
+            parts.push((item.row != null ? "Row " + item.row + ": " : "") + item.error);
+        });
+        if (parts.length) return parts.join("; ");
+        return fallback || "Playbook failed";
     }
 
     function nowIso() {
@@ -325,6 +337,7 @@
                 committed: !!res.data.committed,
                 commit_error: res.data.commit_error || "",
                 summary: res.data.summary || "",
+                row_errors: rowErrors(res.data),
                 error_reason: pass ? "" : failureReason(res.data, "Playbook failed"),
                 executed_at: nowIso(),
                 status: pass ? "successful" : "failed"
@@ -341,6 +354,7 @@
                 committed: false,
                 commit_error: err.message || "Run failed",
                 summary: err.message || "Run failed",
+                row_errors: [],
                 error_reason: err.message || "Run failed",
                 executed_at: nowIso(),
                 status: "failed"

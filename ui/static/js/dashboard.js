@@ -1003,7 +1003,12 @@
     }
 
     if (window.showToast) {
-        window.showToast("Welcome back, Jeet \u2014 reviewing your security posture.", "success", 5000);
+        var userName = String(document.body.getAttribute("data-user-name") || "").trim();
+        var firstName = userName.split(/\s+/)[0] || "";
+        var greeting = firstName
+            ? "Welcome back, " + firstName + " \u2014 reviewing your security posture."
+            : "Welcome back \u2014 reviewing your security posture.";
+        window.showToast(greeting, "success", 5000);
     }
 
     if (refreshBtn) {

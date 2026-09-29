@@ -147,7 +147,7 @@
 
 .auto-ns-file-grid {
     display: grid;
-    grid-template-columns: minmax(240px, 420px);
+    grid-template-columns: 1fr;
     gap: 10px;
 }
 

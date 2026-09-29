@@ -10,12 +10,12 @@
     };
 
     var terminal = document.getElementById("autoNsTerminal");
+    var terminalCard = document.getElementById("autoNsTerminalCard");
     var statusEl = document.getElementById("autoNsStatus");
     var modeEl = document.getElementById("autoNsMode");
     var downloadBtn = document.getElementById("autoNsDownload");
     var fileInput = document.getElementById("autoNsFile");
     var fileLabel = document.getElementById("autoNsFileLabel");
-    var summaryEl = document.getElementById("autoNsSummary");
     var commitBtn = document.getElementById("autoNsCommit");
 
     var state = {
@@ -71,34 +71,24 @@
         return matches;
     }
 
+    function showTerminal() {
+        if (terminalCard) terminalCard.hidden = false;
+    }
+
     function renderMode(info) {
+        if (!modeEl) return;
         if (!info || !info.configured) {
             modeEl.innerHTML = '<span class="auto-ns-pill auto-ns-pill-off">OFFLINE</span><span>Firewall Execution Agent is not connected.</span>';
+            modeEl.hidden = false;
             return;
         }
         if (info.dry_run) {
             modeEl.innerHTML = '<span class="auto-ns-pill auto-ns-pill-warn">DRY RUN</span><span>Every change is previewed; nothing is sent to the firewall.</span>';
+            modeEl.hidden = false;
             return;
         }
-        modeEl.innerHTML = '<span class="auto-ns-pill auto-ns-pill-apply">APPLY</span><span>Commit writes changes to the firewall candidate configuration.</span>';
-    }
-
-    function renderSummary(summary) {
-        if (!summary) {
-            summaryEl.hidden = true;
-            summaryEl.innerHTML = "";
-            return;
-        }
-        var chips = (summary.sheets || []).map(function (s) {
-            return '<span class="auto-ns-chip">' + esc(s.sheet) + " · " + esc(s.rows) + " row" + (s.rows === 1 ? "" : "s") + "</span>";
-        }).join("");
-        summaryEl.innerHTML =
-            '<div class="auto-ns-summary-title">Workbook uploaded · ' +
-            esc(summary.total_rows) + " data row" + (summary.total_rows === 1 ? "" : "s") +
-            " across " + esc((summary.sheets || []).length) + " sheet" +
-            ((summary.sheets || []).length === 1 ? "" : "s") + "</div>" +
-            '<div class="auto-ns-chips">' + chips + "</div>";
-        summaryEl.hidden = false;
+        modeEl.innerHTML = "";
+        modeEl.hidden = true;
     }
 
     function logUpload(summary, fileName) {
@@ -113,16 +103,6 @@
         (summary.sheets || []).forEach(function (s) {
             line(s.sheet + " · " + s.rows + " row" + (s.rows === 1 ? "" : "s"), "muted");
         });
-        blank();
-        if (state.info && state.info.configured) {
-            if (state.info.dry_run) {
-                line("DRY RUN", "warn");
-                line("Every change is previewed; nothing is sent to the firewall.", "muted");
-            } else {
-                line("APPLY", "ok");
-                line("Running writes changes and commits them to the firewall candidate configuration.", "muted");
-            }
-        }
         blank();
         state.matches.forEach(function (item) {
             line(item.playbook.title + " (" + item.playbook.sheet + ", " + item.sheet.rows + " row" + (item.sheet.rows === 1 ? "" : "s") + ")");
@@ -232,27 +212,11 @@
                 if (data && data.error) throw new Error(data.error);
                 state.info = data;
                 renderMode(data);
-                line("Operations terminal", "head");
-                line("Download the Excel template to define your firewall modification requests. Once changes are finalized, upload the excel template to execute changes.", "muted");
-                blank();
-                if (!data.configured) {
-                    line("Firewall Execution Agent is not connected.", "err");
-                    setStatus("Offline", "err");
-                } else if (data.dry_run) {
-                    line("DRY RUN", "warn");
-                    line("Every change is previewed; nothing is sent to the firewall.", "muted");
-                    setStatus("Idle");
-                } else {
-                    line("APPLY", "ok");
-                    line("Running writes changes and commits them to the firewall candidate configuration.", "muted");
-                    setStatus("Idle");
-                }
-                blank();
+                if (!data.configured) setStatus("Offline", "err");
+                else setStatus("Idle");
             })
-            .catch(function (err) {
+            .catch(function () {
                 renderMode(null);
-                line("Could not reach the Firewall Execution Agent.", "err");
-                line(err.message || "Service unavailable", "muted");
                 setStatus("Offline", "err");
             });
     }
@@ -318,12 +282,13 @@
                 state.summary = res.data.summary;
                 state.workbookName = file.name;
                 state.matches = matchPlaybooks(state.summary, state.info);
-                renderSummary(state.summary);
+                showTerminal();
                 logUpload(state.summary, file.name);
                 commitBtn.disabled = !(state.info && state.info.configured && state.matches.length);
                 setStatus("Ready", state.matches.length ? "ok" : "err");
             })
             .catch(function (err) {
+                showTerminal();
                 line("The workbook could not be uploaded. " + (err.message || "Upload failed."), "err");
                 commitBtn.disabled = true;
                 setStatus("Failed", "err");

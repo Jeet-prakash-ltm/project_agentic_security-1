@@ -17,7 +17,7 @@
                 Once changes are finalized, upload the excel template to execute changes.
             </p>
         </div>
-        <div class="auto-ns-mode" id="autoNsMode"></div>
+        <div class="auto-ns-mode" id="autoNsMode" hidden></div>
         <div class="auto-ns-file-grid">
             <label class="auto-ns-file-card" for="autoNsFile">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
@@ -26,7 +26,6 @@
                 <input type="file" id="autoNsFile" class="auto-ns-file-input" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
             </label>
         </div>
-        <div class="auto-ns-summary" id="autoNsSummary" hidden></div>
         <div class="auto-ns-commit-wrap">
             <button type="button" class="auto-ns-commit" id="autoNsCommit" disabled>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
@@ -35,7 +34,7 @@
         </div>
     </section>
 
-    <section class="card auto-ns-terminal-card" aria-label="Operations terminal">
+    <section class="card auto-ns-terminal-card" id="autoNsTerminalCard" hidden aria-label="Operations terminal">
         <div class="auto-ns-terminal-head">
             <span class="auto-ns-terminal-title">Operations terminal</span>
             <span class="auto-ns-terminal-status" id="autoNsStatus">Idle</span>
@@ -47,5 +46,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/automation_network.js') }}?v=6"></script>
+<script src="{{ url_for('static', filename='js/automation_network.js') }}?v=7"></script>
 {% endblock %}

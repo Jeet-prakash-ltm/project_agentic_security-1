@@ -95,6 +95,18 @@ def _resolve_api_key(agent):
 def _system_prompt(agent):
     agent_type = (agent.get("type") or "").lower()
     agent_name = agent.get("name", "")
+    agent_key = " ".join([
+        agent_type,
+        agent_name.lower(),
+        str(agent.get("id") or "").lower(),
+        str(agent.get("agent_id") or "").lower(),
+    ])
+    if "orchestrat" in agent_key:
+        return (
+            "You are the Master Orchestrator Agent on the LTM Security Platform. "
+            "Coordinate network, cloud, and firewall specialist agents. "
+            "Route requests, summarize results, and keep answers concise with clear next steps."
+        )
     if "netsec" in agent_type or "execution" in agent_type or "netsec" in agent_name.lower():
         return (
             "You are the Firewall Execution Agent, an AI security agent that makes "

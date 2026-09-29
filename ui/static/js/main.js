@@ -374,11 +374,15 @@
                     return;
                 }
                 var savedId = window.getGlobalAgentId();
-                if (savedId && agents.some(function (a) { return a.id === savedId; })) {
+                var master = agents.filter(function (a) { return a.id === "master-orchestrator-agent"; })[0];
+                var onWorkspace = document.body && document.body.classList.contains("workspace-page");
+                if (onWorkspace && master) {
+                    sel.value = master.id;
+                } else if (savedId && agents.some(function (a) { return a.id === savedId; })) {
                     sel.value = savedId;
                 } else {
                     var connected = agents.filter(function (a) { return a.connected; });
-                    sel.value = connected[0] ? connected[0].id : agents[0].id;
+                    sel.value = (master || connected[0] || agents[0]).id;
                 }
                 window.onGlobalAgentChange();
             })

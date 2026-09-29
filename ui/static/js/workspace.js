@@ -84,6 +84,12 @@
         { label: "Bulk operation", action: "ns-bulk" }
     ];
 
+    var ORCHESTRATOR_SUGGESTIONS = [
+        { label: "Assess network posture", prompt: "Coordinate a network security posture assessment across the firewall estate." },
+        { label: "Investigate cloud incidents", prompt: "Coordinate investigation of current cloud security incidents." },
+        { label: "Plan a firewall change", prompt: "Help me plan a firewall configuration change using the specialist agents." }
+    ];
+
     var CLOUD_KPI_PERIODS = [
         { id: "daily", label: "Daily", sub: "Today" },
         { id: "weekly", label: "Weekly", sub: "Last 7 days" },
@@ -615,7 +621,7 @@
         wrap.innerHTML =
             '<div class="ws-empty-mark">' + LOGO_ICON + "</div>" +
             "<h2>How can I help secure your environment today?</h2>" +
-            "<p>Talk to your security copilot \u2014 run compliance assessments, review findings, and generate executive reports.</p>" +
+            "<p>" + emptyStateCopy() + "</p>" +
             '<div class="ws-suggestions"></div>';
         chatWindow.appendChild(wrap);
 
@@ -642,6 +648,14 @@
                 b.className = "ws-suggestion";
                 b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>' + escapeHtml(s.label);
                 b.addEventListener("click", function () { runAction(s.action); });
+                sug.appendChild(b);
+            });
+        } else if (isOrchestratorAgent(state.activeAgent)) {
+            ORCHESTRATOR_SUGGESTIONS.forEach(function (s) {
+                var b = document.createElement("button");
+                b.className = "ws-suggestion";
+                b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>' + escapeHtml(s.label);
+                b.addEventListener("click", function () { sendPrompt(s.prompt); });
                 sug.appendChild(b);
             });
         }
@@ -1598,9 +1612,32 @@
         return parts.map(function (p) { return p.charAt(0); }).join("").toUpperCase().slice(0, 2) || "AG";
     }
 
+    var DEFAULT_WORKSPACE_AGENT_ID = "master-orchestrator-agent";
+
+    function isOrchestratorAgent(agent) {
+        if (!agent) return false;
+        var text = String(agent.id || "") + " " + String(agent.name || "") + " " + String(agent.type || "") + " " + String(agent.agent_id || "");
+        return /orchestrat/i.test(text);
+    }
+
+    function emptyStateCopy() {
+        if (isOrchestratorAgent(state.activeAgent)) {
+            return "Talk to the Master Orchestrator Agent \u2014 it coordinates network, cloud, and firewall specialist agents.";
+        }
+        return "Talk to your security copilot \u2014 run compliance assessments, review findings, and generate executive reports.";
+    }
+
+    function findAgentById(id) {
+        if (!id) return null;
+        for (var i = 0; i < state.agents.length; i++) {
+            if (state.agents[i].id === id) return state.agents[i];
+        }
+        return null;
+    }
+
     function isFirewallAgent(agent) {
         if (!agent) return false;
-        if (isNetsecAgent(agent) || isCloudAgent(agent)) return false;
+        if (isOrchestratorAgent(agent) || isNetsecAgent(agent) || isCloudAgent(agent)) return false;
         var type = String(agent.type || "").toLowerCase();
         var name = String(agent.name || "").toLowerCase();
         var id = String(agent.id || "").toLowerCase();
@@ -1610,6 +1647,7 @@
 
     function isCloudAgent(agent) {
         if (!agent) return false;
+        if (isOrchestratorAgent(agent)) return false;
         var type = String(agent.type || "").toLowerCase();
         var name = String(agent.name || "").toLowerCase();
         var id = String(agent.id || "").toLowerCase();
@@ -1672,11 +1710,11 @@
         state.activeAgent = agent;
         state.activeAgentId = agent.id || null;
 
-        if (chatAgentTitle) chatAgentTitle.textContent = agent.name || "Firewall Audit Agent";
+        if (chatAgentTitle) chatAgentTitle.textContent = agent.name || "Master Orchestrator Agent";
         if (chatAgentSub) chatAgentSub.textContent = ((agent.model ? agent.model + " \u00b7 " : "") + (agent.type || "Copilot")).trim();
         if (chatAgentAvatar) {
             chatAgentAvatar.textContent = avatarFor(agent.name);
-            chatAgentAvatar.title = agent.name || "Firewall Audit Agent";
+            chatAgentAvatar.title = agent.name || "Master Orchestrator Agent";
         }
 
         if (composerAgentBadge) {
@@ -1694,6 +1732,7 @@
 
     function isNetsecAgent(agent) {
         if (!agent) return false;
+        if (isOrchestratorAgent(agent)) return false;
         if (window.NetsecPanel && window.NetsecPanel.isNetsecAgent(agent)) return true;
         var text = String(agent.id || "") + " " + String(agent.name || "") + " " + String(agent.type || "");
         return /netsec|execution/i.test(text);
@@ -1725,11 +1764,10 @@
     }
 
     function resolveInitialAgent() {
-        var global = window.getGlobalAgent ? window.getGlobalAgent() : null;
-        if (global) {
-            for (var i = 0; i < state.agents.length; i++) {
-                if (state.agents[i].id === global.id) return state.agents[i];
-            }
+        var orchestrator = findAgentById(DEFAULT_WORKSPACE_AGENT_ID);
+        if (orchestrator) return orchestrator;
+        for (var i = 0; i < state.agents.length; i++) {
+            if (isOrchestratorAgent(state.agents[i])) return state.agents[i];
         }
         var connected = state.agents.filter(function (a) { return a.connected; });
         if (connected[0]) return connected[0];
@@ -1746,7 +1784,10 @@
                 state.agents = (data && data.agents) || [];
                 populateAgentSelect();
                 var agent = resolveInitialAgent();
-                if (agent) setActiveAgent(agent);
+                if (agent) {
+                    setActiveAgent(agent);
+                    if (window.setGlobalAgent) window.setGlobalAgent(agent);
+                }
             })
             .catch(function () {});
     }
@@ -1922,8 +1963,12 @@
 
     function buildAssistantReply(prompt) {
         var lower = prompt.toLowerCase();
-        if (lower.indexOf("hello") !== -1 || lower.indexOf("hi ") !== -1 || lower.indexOf("hey") !== -1)
+        if (lower.indexOf("hello") !== -1 || lower.indexOf("hi ") !== -1 || lower.indexOf("hey") !== -1) {
+            if (isOrchestratorAgent(state.activeAgent)) {
+                return "Hello. I'm the Master Orchestrator Agent. I coordinate network, cloud, and firewall specialist agents. Tell me what you need assessed, investigated, or changed.";
+            }
             return "Hello. I'm the Firewall Audit Agent, connected to your Palo Alto firewall (vmpafw01, PAN-OS 10.2.10-h9). Ask me about your security posture, inventory, compliance status, or any firewall configuration.";
+        }
         if (lower.indexOf("thanks") !== -1 || lower.indexOf("thank you") !== -1)
             return "You're welcome. I'm here whenever you need to review your security posture.";
         return null;

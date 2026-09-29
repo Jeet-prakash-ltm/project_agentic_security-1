@@ -127,7 +127,7 @@ class AgentGateway:
     def _resolve_agent(self, agent_id):
         if agent_id:
             return agents_service.get_agent(agent_id)
-        return agents_service.get_connected_agent()
+        return agents_service.get_agent("master-orchestrator-agent") or agents_service.get_connected_agent()
 
     def _record(self, agent, messages, usage, latency_ms, reply, conversation_id, user_id=None):
         try:

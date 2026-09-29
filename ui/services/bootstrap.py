@@ -39,7 +39,11 @@ LEGACY_OWNERS = ("anonymous", "demo")
 AGENT_NAME_ALIASES = {
     "Firewall-Audit-Agent": "Firewall Audit Agent",
     "Firewall Auditor": "Firewall Audit Agent",
+    "Master-Orchrestrator-Agent": "Master Orchestrator Agent",
+    "Master-Orchestrator-Agent": "Master Orchestrator Agent",
 }
+
+MASTER_ORCHESTRATOR_ID = "master-orchestrator-agent"
 
 
 def ensure_admin_user():
@@ -177,6 +181,9 @@ def seed_agents_from_config():
         if updates:
             repo.update(agent_id, **updates)
             seeded += 1
+
+    if repo.get(MASTER_ORCHESTRATOR_ID) is not None:
+        repo.set_connected(MASTER_ORCHESTRATOR_ID, True)
     return seeded
 
 

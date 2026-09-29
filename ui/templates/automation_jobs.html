@@ -28,11 +28,12 @@
                     <th>Affected sheet</th>
                     <th>Date</th>
                     <th>Status</th>
+                    <th>Failures</th>
                 </tr>
             </thead>
             <tbody id="autoJobsBody">
                 <tr>
-                    <td colspan="8" class="empty-state"><span class="table-loading"><span class="spinner"></span>Loading jobs…</span></td>
+                    <td colspan="9" class="empty-state"><span class="table-loading"><span class="spinner"></span>Loading jobs…</span></td>
                 </tr>
             </tbody>
         </table>
@@ -42,5 +43,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/automation_jobs.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/automation_jobs.js') }}?v=2"></script>
 {% endblock %}

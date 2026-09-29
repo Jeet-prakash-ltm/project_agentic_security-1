@@ -54,7 +54,7 @@
 .auto-jobs-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 920px;
+    min-width: 1040px;
 }
 
 .auto-jobs-table th {
@@ -170,4 +170,30 @@
     text-align: center;
     color: var(--muted);
     padding: 28px 16px;
+}
+
+.auto-job-fail-dl {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--glass-soft);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.auto-job-fail-dl svg {
+    width: 14px;
+    height: 14px;
+}
+
+.auto-job-fail-dl:hover {
+    color: var(--red);
+    border-color: rgba(255, 94, 79, 0.35);
+    background: var(--rose);
 }

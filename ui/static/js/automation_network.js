@@ -160,6 +160,23 @@
         return !!(data && (data.commit_error || ((data.counts || {}).errors)));
     }
 
+    function failureReason(data, fallback) {
+        if (data && data.commit_error) return String(data.commit_error);
+        var errs = [];
+        ((data && data.rows) || []).forEach(function (row) {
+            if (row && row.error) {
+                errs.push("Row " + (row.row != null ? row.row : "?") + ": " + row.error);
+            }
+        });
+        if (errs.length) return errs.join("; ");
+        if (data && data.summary) return String(data.summary);
+        return fallback || "";
+    }
+
+    function nowIso() {
+        return new Date().toISOString();
+    }
+
     function logResult(item, data) {
         var counts = (data && data.counts) || {};
         line(item.playbook.title + " (" + item.playbook.sheet + ", " + item.sheet.rows + " row" + (item.sheet.rows === 1 ? "" : "s") + ")", "head");
@@ -308,6 +325,8 @@
                 committed: !!res.data.committed,
                 commit_error: res.data.commit_error || "",
                 summary: res.data.summary || "",
+                error_reason: pass ? "" : failureReason(res.data, "Playbook failed"),
+                executed_at: nowIso(),
                 status: pass ? "successful" : "failed"
             };
         }).catch(function (err) {
@@ -322,6 +341,8 @@
                 committed: false,
                 commit_error: err.message || "Run failed",
                 summary: err.message || "Run failed",
+                error_reason: err.message || "Run failed",
+                executed_at: nowIso(),
                 status: "failed"
             };
         });

@@ -17,6 +17,18 @@
         return (values || []).filter(Boolean).join(", ") || "—";
     }
 
+    function opActions(op) {
+        var actions = (op && op.actions) || [];
+        if (actions.length) return actions.filter(Boolean);
+        if (op && op.action) return [op.action];
+        var fromRows = [];
+        (op && op.row_errors || []).forEach(function (item) {
+            var action = item && item.action;
+            if (action && fromRows.indexOf(action) === -1) fromRows.push(action);
+        });
+        return fromRows;
+    }
+
     function statusChip(status) {
         var ok = String(status || "").toLowerCase() === "successful";
         return '<span class="auto-job-status ' + (ok ? "is-ok" : "is-err") + '">' +
@@ -73,7 +85,7 @@
             return {
                 order_of_execution: index + 1,
                 playbook: op.playbook_title || op.playbook_id || "",
-                action: joinList(op.actions || [op.action]),
+                action: opActions(op).filter(Boolean).join(", "),
                 sheet: op.sheet || "",
                 result: countsText(op.counts),
                 reason: opReason(op),
@@ -113,7 +125,7 @@
             return "<tr>" +
                 "<td>" + (index + 1) + "</td>" +
                 "<td>" + esc(op.playbook_title || op.playbook_id || "—") + "</td>" +
-                "<td>" + esc(joinList(op.actions || [op.action])) + "</td>" +
+                "<td>" + esc(joinList(opActions(op))) + "</td>" +
                 "<td>" + esc(op.sheet || "—") + "</td>" +
                 "<td>" + esc(countsText(op.counts)) + "</td>" +
                 "<td>" + statusChip(op.status) + "</td>" +

@@ -141,11 +141,19 @@
         return seen;
     }
 
+    function rowAction(row) {
+        var action = String((row && row.action) || "").trim();
+        if (action) return action;
+        var op = String((row && row.op) || "").trim();
+        if (op && op.toLowerCase() !== "error" && op.toLowerCase() !== "skipped") return op;
+        return "";
+    }
+
     function opActions(data) {
         var actions = [];
         ((data && data.rows) || []).forEach(function (row) {
-            var op = String((row && row.op) || "").toLowerCase();
-            if (op && op !== "error" && op !== "skipped") actions.push(op);
+            var action = rowAction(row);
+            if (action) actions.push(action);
         });
         var counts = (data && data.counts) || {};
         if (!actions.length) {
@@ -166,6 +174,7 @@
             if (row && row.error) {
                 errs.push({
                     row: row.row != null ? row.row : null,
+                    action: rowAction(row),
                     error: String(row.error)
                 });
             }

@@ -9,6 +9,7 @@ suitable for rendering in the AI Workspace chat.
 import logging
 
 from netsec_execution.services import catalog
+from netsec_execution.services import common
 from netsec_execution.services import workbook
 
 logger = logging.getLogger("netsec.engine")
@@ -36,6 +37,16 @@ def _op_label(op):
 
 def _count_key(op):
     return {"create": "created", "update": "updated", "delete": "deleted"}.get(op, op)
+
+
+def _sheet_action(row):
+    """Return the original Action cell from a workbook row."""
+    if not isinstance(row, dict):
+        return ""
+    for key, value in row.items():
+        if str(key or "").strip().lower() == "action":
+            return common.to_text(value)
+    return ""
 
 
 def run_playbook(
@@ -85,7 +96,10 @@ def run_playbook(
         if row_limit is not None and index >= row_limit:
             break
         counts["rows"] += 1
+        sheet_action = _sheet_action(row)
         record = {"row": index + 2}
+        if sheet_action:
+            record["action"] = sheet_action
         try:
             result = apply(client, row)
             op = result.get("op", "create")

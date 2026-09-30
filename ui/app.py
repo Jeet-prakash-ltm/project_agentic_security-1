@@ -496,7 +496,7 @@ def cloud_security():
 @app.route("/dashboard/system-info")
 @login_required
 def system_info():
-    """System Information view under Dashboard."""
+    """Agents view under AI Workspace."""
 
     return render_with_css(
         "system_info.html"
@@ -527,7 +527,7 @@ def automation_cloud_security():
         "under_construction.html",
         browser_title="Cloud Security",
         page_heading="Cloud Security",
-        hero_text="Automation / Cloud Security",
+        hero_text="Automation Hub / Cloud Security",
     )
 
 

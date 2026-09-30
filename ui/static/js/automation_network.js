@@ -388,7 +388,7 @@
                 return r.json().then(function (d) { return { ok: r.ok, data: d }; });
             }).then(function (res) {
                 if (res.ok && res.data && res.data.job) {
-                    line("Stored as " + res.data.job.job_number + " on Automation · Jobs.", "muted");
+                    line("Stored as " + res.data.job.job_number + " on Automation Hub · Jobs.", "muted");
                 }
                 return failed;
             }).catch(function () {

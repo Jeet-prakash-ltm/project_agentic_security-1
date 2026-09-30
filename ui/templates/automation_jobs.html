@@ -4,7 +4,7 @@
 
 {% block page_title %}Jobs{% endblock %}
 
-{% block hero_eyebrow %}Automation / Jobs{% endblock %}
+{% block hero_eyebrow %}Automation Hub / Jobs{% endblock %}
 
 {% block content %}
 
@@ -27,7 +27,7 @@
                     <th>Change</th>
                     <th>Date</th>
                     <th>Status</th>
-                    <th>Download logs</th>
+                    <th>Logs</th>
                 </tr>
             </thead>
             <tbody id="autoJobsBody">
@@ -39,8 +39,25 @@
     </div>
 </section>
 
+<div class="modal-backdrop" id="autoJobLogModal" hidden>
+    <div class="modal auto-job-log-modal" role="dialog" aria-modal="true" aria-labelledby="autoJobLogTitle">
+        <div class="modal-head">
+            <div>
+                <h3 id="autoJobLogTitle">Job log</h3>
+                <p id="autoJobLogSub"></p>
+            </div>
+            <button type="button" class="auto-job-log-close" id="autoJobLogClose" aria-label="Close log">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <pre class="auto-job-log-body" id="autoJobLogBody"></pre>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/automation_jobs.js') }}?v=6"></script>
+<script src="{{ url_for('static', filename='js/automation_jobs.js') }}?v=7"></script>
 {% endblock %}

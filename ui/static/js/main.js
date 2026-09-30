@@ -85,6 +85,7 @@
     // ------------------------------------------------------------
     var navGroups = [
         { group: document.getElementById("navDashboardGroup"), toggle: document.getElementById("navDashboardToggle") },
+        { group: document.getElementById("navWorkspaceGroup"), toggle: document.getElementById("navWorkspaceToggle") },
         { group: document.getElementById("navAutomationGroup"), toggle: document.getElementById("navAutomationToggle") },
         { group: document.getElementById("navSettingsGroup"), toggle: document.getElementById("navSettingsToggle") }
     ];

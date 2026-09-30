@@ -3,6 +3,11 @@
 
     var body = document.getElementById("autoJobsBody");
     var countEl = document.getElementById("autoJobsCount");
+    var logModal = document.getElementById("autoJobLogModal");
+    var logTitle = document.getElementById("autoJobLogTitle");
+    var logSub = document.getElementById("autoJobLogSub");
+    var logBody = document.getElementById("autoJobLogBody");
+    var logClose = document.getElementById("autoJobLogClose");
     var jobsById = {};
 
     function esc(value) {
@@ -116,9 +121,28 @@
 
     function logsCell(job) {
         if (!(job.operations || []).length) return "—";
-        return '<button type="button" class="auto-job-fail-dl" data-fail-dl="' + esc(job.id) + '" title="Download logs">' +
+        return '<div class="auto-job-log-actions">' +
+            '<button type="button" class="auto-job-fail-dl" data-fail-dl="' + esc(job.id) + '" title="Download log">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>' +
-            "</button>";
+            "</button>" +
+            '<button type="button" class="auto-job-fail-dl" data-fail-view="' + esc(job.id) + '" title="View log">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>' +
+            "</button>" +
+            "</div>";
+    }
+
+    function openLogModal(job) {
+        if (!logModal || !job) return;
+        if (logTitle) logTitle.textContent = (job.job_number || "Job") + " log";
+        if (logSub) {
+            logSub.textContent = [job.firewall_name, job.created_display].filter(Boolean).join(" · ");
+        }
+        if (logBody) logBody.textContent = logsText(job);
+        logModal.hidden = false;
+    }
+
+    function closeLogModal() {
+        if (logModal) logModal.hidden = true;
     }
 
     function opsHtml(job) {
@@ -145,7 +169,7 @@
         (jobs || []).forEach(function (job) { jobsById[String(job.id)] = job; });
         countEl.textContent = (jobs.length || 0) + " job" + (jobs.length === 1 ? "" : "s");
         if (!jobs.length) {
-            body.innerHTML = '<tr><td colspan="8" class="auto-jobs-empty">No Firewall Execution jobs yet. Execute a bulk workbook on Automation / Network Security.</td></tr>';
+            body.innerHTML = '<tr><td colspan="8" class="auto-jobs-empty">No Firewall Execution jobs yet. Execute a bulk workbook on Automation Hub / Network Security.</td></tr>';
             return;
         }
         body.innerHTML = jobs.map(function (job) {
@@ -170,6 +194,12 @@
     }
 
     body.addEventListener("click", function (e) {
+        var view = e.target.closest("[data-fail-view]");
+        if (view) {
+            var viewJob = jobsById[view.getAttribute("data-fail-view")];
+            if (viewJob) openLogModal(viewJob);
+            return;
+        }
         var dl = e.target.closest("[data-fail-dl]");
         if (dl) {
             var job = jobsById[dl.getAttribute("data-fail-dl")];
@@ -186,6 +216,16 @@
         ops.hidden = !open;
         if (row) row.classList.toggle("is-open", open);
         btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+
+    if (logClose) logClose.addEventListener("click", closeLogModal);
+    if (logModal) {
+        logModal.addEventListener("click", function (e) {
+            if (e.target === logModal) closeLogModal();
+        });
+    }
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") closeLogModal();
     });
 
     fetch("/api/automation/jobs")

@@ -348,7 +348,7 @@ def login():
             session["last_activity"] = time.time()
             if next_url:
                 return redirect(next_url)
-            return redirect(url_for("system_info"))
+            return redirect(url_for("dashboard"))
 
         state = users_service.status_for_email(email)
         if state == "pending":
@@ -378,7 +378,7 @@ def login():
     # auth page and surface the active session instead of silently skipping it.
     authenticated = current_user()
     if authenticated and not explicit_mode:
-        return redirect(url_for("system_info"))
+        return redirect(url_for("dashboard"))
 
     return render_template(
         "login.html",
@@ -1665,6 +1665,8 @@ def api_admin_firewalls():
                 {
                     "id": entry["id"],
                     "device_name": entry["device_name"],
+                    "device_type": entry.get("device_type") or "Firewall",
+                    "host_name": entry.get("host_name"),
                     "host_ip": entry["host_ip"],
                     "vendor": entry.get("vendor"),
                     "port": entry.get("port"),

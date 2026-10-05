@@ -21,6 +21,13 @@ def _unique(values):
     return seen
 
 
+def _security_domain(value):
+    text = str(value or "").strip().lower()
+    if "cloud" in text:
+        return "Cloud security"
+    return "Network security"
+
+
 def _as_dict(job):
     if not job:
         return None
@@ -30,6 +37,7 @@ def _as_dict(job):
         "job_number": "JOB-{0:04d}".format(job.id),
         "user_id": job.user_id,
         "firewall_name": managed_firewalls_service.display_label(job.firewall_name),
+        "security_domain": getattr(job, "security_domain", None) or "Network security",
         "workbook_name": job.workbook_name or "",
         "actions": list(job.actions or []),
         "playbooks": list(job.playbooks or []),
@@ -71,6 +79,7 @@ def create_job(user_id, payload):
             "firewall_name": managed_firewalls_service.display_label(
                 payload.get("firewall_name")
             ),
+            "security_domain": _security_domain(payload.get("security_domain")),
             "workbook_name": (payload.get("workbook_name") or "").strip(),
             "actions": actions,
             "playbooks": playbooks,

@@ -8,7 +8,13 @@
     var logSub = document.getElementById("autoJobLogSub");
     var logBody = document.getElementById("autoJobLogBody");
     var logClose = document.getElementById("autoJobLogClose");
+    var deviceModal = document.getElementById("autoJobDeviceModal");
+    var deviceTitle = document.getElementById("autoJobDeviceTitle");
+    var deviceSub = document.getElementById("autoJobDeviceSub");
+    var deviceBody = document.getElementById("autoJobDeviceBody");
+    var deviceClose = document.getElementById("autoJobDeviceClose");
     var jobsById = {};
+    var inventory = [];
 
     function esc(value) {
         return String(value == null ? "" : value)
@@ -145,6 +151,109 @@
         if (logModal) logModal.hidden = true;
     }
 
+    function securityDomain(job) {
+        var value = String((job && job.security_domain) || "").trim();
+        if (/cloud/i.test(value)) return "Cloud security";
+        return "Network security";
+    }
+
+    function normalizeToken(value) {
+        return String(value == null ? "" : value).trim().toLowerCase();
+    }
+
+    function deviceTokens(value) {
+        var text = String(value == null ? "" : value).trim();
+        if (!text) return [];
+        var tokens = [text];
+        var match = text.match(/^(.*)\s+\(([^)]+)\)\s*$/);
+        if (match) {
+            tokens.push(match[1], match[2]);
+        }
+        return tokens.map(normalizeToken).filter(Boolean);
+    }
+
+    function findInventoryDevice(job) {
+        var tokens = deviceTokens(job && job.firewall_name);
+        if (!tokens.length) return null;
+        var exact = null;
+        var partial = null;
+        (inventory || []).forEach(function (fw) {
+            var fields = [
+                fw.device_name,
+                fw.host_ip,
+                fw.host_name
+            ].map(normalizeToken).filter(Boolean);
+            if (fields.some(function (field) { return tokens.indexOf(field) !== -1; })) {
+                exact = exact || fw;
+                return;
+            }
+            if (!partial && fields.some(function (field) {
+                return tokens.some(function (token) {
+                    return field.indexOf(token) !== -1 || token.indexOf(field) !== -1;
+                });
+            })) {
+                partial = fw;
+            }
+        });
+        return exact || partial;
+    }
+
+    function deviceDisplayName(job) {
+        var device = findInventoryDevice(job);
+        if (device && device.device_name) return device.device_name;
+        var label = String((job && job.firewall_name) || "").trim();
+        if (!label) return "—";
+        var match = label.match(/^(.*)\s+\(([^)]+)\)\s*$/);
+        return match ? match[1] : label;
+    }
+
+    function deviceInfoRows(job) {
+        var device = findInventoryDevice(job);
+        if (!device) {
+            return [
+                ["Device name", deviceDisplayName(job)],
+                ["IP", "—"],
+                ["Status", "Not found in Asset Inventory"]
+            ];
+        }
+        return [
+            ["Device name", device.device_name || "—"],
+            ["Device type", device.device_type || "Firewall"],
+            ["Vendor", device.vendor || "Palo Alto Networks"],
+            ["Host name", device.host_name || "—"],
+            ["IP", device.host_ip || "—"],
+            ["Port", device.port == null || device.port === "" ? "—" : String(device.port)],
+            ["Status", device.status === "live" ? "Live" : "Down"]
+        ];
+    }
+
+    function deviceCell(job) {
+        return '<span class="auto-job-device">' +
+            '<span>' + esc(deviceDisplayName(job)) + "</span>" +
+            '<button type="button" class="auto-job-device-info" data-device-info="' + esc(job.id) + '" title="Device info" aria-label="Show device info">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>' +
+            "</button></span>";
+    }
+
+    function openDeviceModal(job) {
+        if (!deviceModal || !job) return;
+        var name = deviceDisplayName(job);
+        if (deviceTitle) deviceTitle.textContent = name === "—" ? "Device info" : name;
+        if (deviceSub) {
+            deviceSub.textContent = [securityDomain(job), job.created_display].filter(Boolean).join(" · ");
+        }
+        if (deviceBody) {
+            deviceBody.innerHTML = deviceInfoRows(job).map(function (row) {
+                return "<div><dt>" + esc(row[0]) + "</dt><dd>" + esc(row[1]) + "</dd></div>";
+            }).join("");
+        }
+        deviceModal.hidden = false;
+    }
+
+    function closeDeviceModal() {
+        if (deviceModal) deviceModal.hidden = true;
+    }
+
     function opsHtml(job) {
         var ops = job.operations || [];
         if (!ops.length) {
@@ -169,7 +278,7 @@
         (jobs || []).forEach(function (job) { jobsById[String(job.id)] = job; });
         countEl.textContent = (jobs.length || 0) + " job" + (jobs.length === 1 ? "" : "s");
         if (!jobs.length) {
-            body.innerHTML = '<tr><td colspan="8" class="auto-jobs-empty">No Firewall Execution jobs yet. Execute a bulk workbook on Automation Hub / Network Security.</td></tr>';
+            body.innerHTML = '<tr><td colspan="9" class="auto-jobs-empty">No Change Excution jobs yet. Execute a bulk workbook on Automation Hub / Network Security.</td></tr>';
             return;
         }
         body.innerHTML = jobs.map(function (job) {
@@ -180,20 +289,27 @@
                 '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>' +
                 "</button></td>" +
                 '<td class="auto-job-number">' + esc(job.job_number) + "</td>" +
-                "<td>" + esc(job.firewall_name || "—") + "</td>" +
+                "<td>" + esc(securityDomain(job)) + "</td>" +
+                "<td>" + deviceCell(job) + "</td>" +
                 "<td>" + esc(joinList(job.actions)) + "</td>" +
                 "<td>" + esc(joinList(job.playbooks)) + "</td>" +
                 "<td>" + esc(job.created_display || "—") + "</td>" +
                 "<td>" + statusChip(job.status, failedOpCount(job)) + "</td>" +
                 "<td>" + logsCell(job) + "</td>" +
                 "</tr>" +
-                '<tr class="auto-job-ops" data-job-ops="' + esc(job.id) + '" hidden><td colspan="8">' +
+                '<tr class="auto-job-ops" data-job-ops="' + esc(job.id) + '" hidden><td colspan="9">' +
                 opsHtml(job) +
                 "</td></tr>";
         }).join("");
     }
 
     body.addEventListener("click", function (e) {
+        var info = e.target.closest("[data-device-info]");
+        if (info) {
+            var infoJob = jobsById[info.getAttribute("data-device-info")];
+            if (infoJob) openDeviceModal(infoJob);
+            return;
+        }
         var view = e.target.closest("[data-fail-view]");
         if (view) {
             var viewJob = jobsById[view.getAttribute("data-fail-view")];
@@ -224,19 +340,32 @@
             if (e.target === logModal) closeLogModal();
         });
     }
+    if (deviceClose) deviceClose.addEventListener("click", closeDeviceModal);
+    if (deviceModal) {
+        deviceModal.addEventListener("click", function (e) {
+            if (e.target === deviceModal) closeDeviceModal();
+        });
+    }
     document.addEventListener("keydown", function (e) {
-        if (e.key === "Escape") closeLogModal();
+        if (e.key === "Escape") {
+            closeLogModal();
+            closeDeviceModal();
+        }
     });
 
-    fetch("/api/automation/jobs")
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-            if (data && data.error) throw new Error(data.error);
-            render(data.jobs || []);
-        })
-        .catch(function (err) {
-            countEl.textContent = "0 jobs";
-            body.innerHTML = '<tr><td colspan="8" class="auto-jobs-empty">Could not load jobs. ' +
-                esc(err.message || "Request failed") + "</td></tr>";
-        });
+    Promise.all([
+        fetch("/api/automation/jobs").then(function (r) { return r.json(); }),
+        fetch("/api/admin/firewalls", { headers: { "Accept": "application/json" } })
+            .then(function (r) { return r.ok ? r.json() : { firewalls: [] }; })
+            .catch(function () { return { firewalls: [] }; })
+    ]).then(function (results) {
+        var data = results[0] || {};
+        inventory = (results[1] && results[1].firewalls) || [];
+        if (data && data.error) throw new Error(data.error);
+        render(data.jobs || []);
+    }).catch(function (err) {
+        countEl.textContent = "0 jobs";
+        body.innerHTML = '<tr><td colspan="9" class="auto-jobs-empty">Could not load jobs. ' +
+            esc(err.message || "Request failed") + "</td></tr>";
+    });
 })();

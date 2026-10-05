@@ -54,7 +54,7 @@
 .auto-jobs-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 1040px;
+    min-width: 1180px;
 }
 
 .auto-jobs-table th {
@@ -246,4 +246,67 @@
     border: 1px solid var(--border-soft);
     border-radius: 12px;
     padding: 14px 16px;
+}
+
+.auto-job-device {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.auto-job-device-info {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--glass-soft);
+    color: var(--text);
+    cursor: pointer;
+}
+
+.auto-job-device-info svg {
+    width: 13px;
+    height: 13px;
+}
+
+.auto-job-device-info:hover {
+    color: var(--red);
+    border-color: rgba(255, 94, 79, 0.35);
+    background: var(--rose);
+}
+
+.auto-job-device-modal {
+    max-width: 480px;
+}
+
+.auto-job-device-dl {
+    margin: 0;
+    display: grid;
+    gap: 10px;
+}
+
+.auto-job-device-dl > div {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 12px;
+    align-items: start;
+}
+
+.auto-job-device-dl dt {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.auto-job-device-dl dd {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text);
+    word-break: break-word;
 }

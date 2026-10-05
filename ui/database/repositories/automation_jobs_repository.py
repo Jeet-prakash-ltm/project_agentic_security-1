@@ -11,6 +11,7 @@ class AutomationJobsRepository(BaseRepository):
         job = AutomationJob(
             user_id=(data.get("user_id") or "anonymous"),
             firewall_name=(data.get("firewall_name") or ""),
+            security_domain=(data.get("security_domain") or "Network security"),
             workbook_name=(data.get("workbook_name") or ""),
             actions=data.get("actions") or [],
             playbooks=data.get("playbooks") or [],

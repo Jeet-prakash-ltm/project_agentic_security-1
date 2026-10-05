@@ -265,6 +265,7 @@ class AutomationJob(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(String(64), default="anonymous", index=True)
     firewall_name = Column(String(255), default="")
+    security_domain = Column(String(64), default="Network security")
     workbook_name = Column(String(255), default="")
     actions = Column(JSON)
     playbooks = Column(JSON)

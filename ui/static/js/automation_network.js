@@ -371,6 +371,7 @@
             var failed = operations.some(function (op) { return op.status === "failed"; });
             var payload = {
                 firewall_name: (state.info && state.info.host) || "",
+                security_domain: "Network security",
                 workbook_name: state.workbookName || "",
                 actions: unique(operations.reduce(function (all, op) {
                     return all.concat(op.actions || []);

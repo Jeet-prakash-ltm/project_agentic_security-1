@@ -21,7 +21,8 @@
                 <tr>
                     <th></th>
                     <th>Job number</th>
-                    <th>Firewall</th>
+                    <th>Security domain</th>
+                    <th>Device</th>
                     <th>Actions</th>
                     <th>Change</th>
                     <th>Date</th>
@@ -31,7 +32,7 @@
             </thead>
             <tbody id="autoJobsBody">
                 <tr>
-                    <td colspan="8" class="empty-state"><span class="table-loading"><span class="spinner"></span>Loading jobs…</span></td>
+                    <td colspan="9" class="empty-state"><span class="table-loading"><span class="spinner"></span>Loading jobs…</span></td>
                 </tr>
             </tbody>
         </table>
@@ -55,8 +56,25 @@
     </div>
 </div>
 
+<div class="modal-backdrop" id="autoJobDeviceModal" hidden>
+    <div class="modal auto-job-device-modal" role="dialog" aria-modal="true" aria-labelledby="autoJobDeviceTitle">
+        <div class="modal-head">
+            <div>
+                <h3 id="autoJobDeviceTitle">Device info</h3>
+                <p id="autoJobDeviceSub"></p>
+            </div>
+            <button type="button" class="auto-job-log-close" id="autoJobDeviceClose" aria-label="Close device info">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <dl class="auto-job-device-dl" id="autoJobDeviceBody"></dl>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/automation_jobs.js') }}?v=7"></script>
+<script src="{{ url_for('static', filename='js/automation_jobs.js') }}?v=8"></script>
 {% endblock %}

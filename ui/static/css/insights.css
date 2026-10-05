@@ -19,6 +19,129 @@
     font-size: 14px;
 }
 
+.insights-header-actions {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.insights-user-search {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 260px;
+}
+
+.insights-user-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.insights-user-combo {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.insights-user-search-icon {
+    position: absolute;
+    left: 12px;
+    width: 14px;
+    height: 14px;
+    color: var(--muted);
+    pointer-events: none;
+}
+
+.insights-user-input {
+    width: 280px;
+    max-width: 100%;
+    height: 38px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--glass-soft);
+    color: var(--text);
+    padding: 0 36px 0 34px;
+    font-size: 13px;
+}
+
+.insights-user-input:focus {
+    outline: none;
+    border-color: rgba(255, 94, 79, 0.45);
+}
+
+.insights-user-clear {
+    position: absolute;
+    right: 8px;
+    width: 22px;
+    height: 22px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.insights-user-clear svg {
+    width: 12px;
+    height: 12px;
+}
+
+.insights-user-list {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    margin: 0;
+    padding: 6px;
+    list-style: none;
+    max-height: 240px;
+    overflow: auto;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-soft);
+}
+
+.insights-user-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.insights-user-row:hover,
+.insights-user-row.is-active {
+    background: rgba(255, 94, 79, 0.08);
+}
+
+.insights-user-name {
+    font-size: 13px;
+    font-weight: 650;
+    color: var(--text);
+}
+
+.insights-user-meta {
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.insights-user-empty {
+    padding: 10px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
 .insights-overview {
     display: grid;
     grid-template-columns: repeat(4, 1fr);

@@ -13,10 +13,23 @@
         <h1>Agent Insights</h1>
         <p>Cost observability plus live agent connectivity and token/latency history tracked per agent.</p>
     </div>
-    <button class="btn btn-ghost" id="refreshInsightsBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0114.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0020.5 15"/></svg>
-        Refresh
-    </button>
+    <div class="insights-header-actions">
+        <div class="insights-user-search" id="insightsUserSearch">
+            <label class="insights-user-label" for="insightsUserInput">User</label>
+            <div class="insights-user-combo">
+                <svg class="insights-user-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                <input type="text" id="insightsUserInput" class="insights-user-input" placeholder="Search users" autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="insightsUserList" aria-label="Search users">
+                <button type="button" class="insights-user-clear" id="insightsUserClear" hidden aria-label="Clear selected user">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+                <ul class="insights-user-list" id="insightsUserList" role="listbox" hidden></ul>
+            </div>
+        </div>
+        <button class="btn btn-ghost" id="refreshInsightsBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0114.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0020.5 15"/></svg>
+            Refresh
+        </button>
+    </div>
 </div>
 
 <section class="agent-health card">
@@ -78,5 +91,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/insights.js') }}?v=21"></script>
+<script src="{{ url_for('static', filename='js/insights.js') }}?v=22"></script>
 {% endblock %}

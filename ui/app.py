@@ -778,6 +778,8 @@ def generate_excel():
 @app.route("/insights")
 @login_required
 def insights():
+    if not _is_admin(current_user()):
+        return redirect(url_for("dashboard"))
 
     return render_with_css(
         "insights.html"
@@ -1478,8 +1480,14 @@ def api_me():
 
 @app.route("/api/insights")
 def api_insights():
+    user = current_user()
+    if not user:
+        return jsonify({"error": "unauthorized"}), 401
+    if not _is_admin(user):
+        return jsonify({"error": "Administrator access required."}), 403
 
-    return jsonify(insights_service.summarize(user_id=current_user_id()))
+    target_user_id = (request.args.get("user_id") or "").strip() or current_user_id()
+    return jsonify(insights_service.summarize(user_id=target_user_id))
 
 
 @app.route("/api/insights/conversation/<conversation_id>")

@@ -3,6 +3,9 @@
 
     var historyList = document.getElementById("agentHistoryPanels");
     var refreshBtn = document.getElementById("refreshInsightsBtn");
+    var userInput = document.getElementById("insightsUserInput");
+    var userList = document.getElementById("insightsUserList");
+    var userClear = document.getElementById("insightsUserClear");
 
     var costTotal = document.getElementById("costTotal");
     var costTokens = document.getElementById("costTokens");
@@ -14,7 +17,11 @@
     var agentHealthUpdated = document.getElementById("agentHealthUpdated");
 
     var insightsAgents = [];
+    var insightsTotals = {};
     var selectedAgent = "";
+    var selectedUserId = "";
+    var selectedUserLabel = "";
+    var usersCatalog = [];
     var agentRanges = {};
     var insightsRendered = false;
     var healthRendered = false;
@@ -215,23 +222,47 @@
             "</div></div></div>";
     }
 
-    function renderCost(totals, agents) {
-        if (!totals) return;
+    function scopedAgents(agents) {
+        var list = agents || [];
+        if (!selectedAgent) return list;
+        return list.filter(function (a) {
+            return (a.agent_name || "") === selectedAgent;
+        });
+    }
 
-        if (costTotal) costTotal.textContent = fmtCost(totals.cost);
-        if (costTokens) costTokens.textContent = fmtTokens(totals.total_tokens);
-        if (costConvs) costConvs.textContent = fmtNumber(totals.conversations);
-        if (costLatency) costLatency.textContent = fmtLatency(totals.avg_latency_ms);
+    function scopedTotals(totals, agents) {
+        var scoped = scopedAgents(agents);
+        if (!selectedAgent || scoped.length !== 1) return totals || {};
+        var agent = scoped[0];
+        return {
+            cost: agent.cost || 0,
+            total_tokens: agent.total_tokens || 0,
+            conversations: agent.conversations || 0,
+            avg_latency_ms: agent.avg_latency_ms || 0
+        };
+    }
+
+    function renderCost(totals, agents) {
+        var scoped = scopedAgents(agents);
+        var view = scopedTotals(totals, agents);
+        if (!view) return;
+
+        if (costTotal) costTotal.textContent = fmtCost(view.cost);
+        if (costTokens) costTokens.textContent = fmtTokens(view.total_tokens);
+        if (costConvs) costConvs.textContent = fmtNumber(view.conversations);
+        if (costLatency) costLatency.textContent = fmtLatency(view.avg_latency_ms);
 
         if (!costDrivers) return;
 
-        var list = (agents || [])
+        var list = scoped
             .filter(function (a) { return a.cost > 0; })
             .sort(function (a, b) { return b.cost - a.cost; })
             .slice(0, 5);
 
         if (!list.length) {
-            costDrivers.innerHTML = '<p class="cost-driver-empty">No token usage recorded yet. Chat with an agent in the AI Workspace to start tracking.</p>';
+            costDrivers.innerHTML = selectedUserId
+                ? '<p class="cost-driver-empty">No token usage recorded yet for this user and agent.</p>'
+                : '<p class="cost-driver-empty">No token usage recorded yet. Chat with an agent in the AI Workspace to start tracking.</p>';
             return;
         }
 
@@ -496,8 +527,10 @@
         if (!agent) {
             historyList.appendChild(historyEmpty(
                 "No history for " + selectedAgent,
-                "This agent has not recorded any usage yet. Chat with it in the AI Workspace to start tracking.",
-                true
+                selectedUserId
+                    ? "This agent has no recorded usage for the selected user."
+                    : "This agent has not recorded any usage yet. Chat with it in the AI Workspace to start tracking.",
+                !selectedUserId
             ));
             return;
         }
@@ -562,6 +595,77 @@
         selectedAgent = name || "";
         markActiveCards();
         renderSelectedHistory();
+        renderCost(insightsTotals, insightsAgents);
+    }
+
+    function userLabel(user) {
+        if (!user) return "";
+        return user.name || user.email || user.id || "";
+    }
+
+    function userSub(user) {
+        if (!user) return "";
+        var bits = [user.email, user.role].filter(Boolean);
+        return bits.join(" \u00b7 ");
+    }
+
+    function closeUserList() {
+        if (!userList) return;
+        userList.hidden = true;
+        if (userInput) userInput.setAttribute("aria-expanded", "false");
+    }
+
+    function openUserList() {
+        if (!userList) return;
+        userList.hidden = false;
+        if (userInput) userInput.setAttribute("aria-expanded", "true");
+    }
+
+    function renderUserOptions(query) {
+        if (!userList) return;
+        var q = String(query || "").trim().toLowerCase();
+        var rows = (usersCatalog || []).filter(function (user) {
+            var hay = [user.name, user.email, user.role, user.id].join(" ").toLowerCase();
+            return !q || hay.indexOf(q) !== -1;
+        });
+        if (!rows.length) {
+            userList.innerHTML = '<li class="insights-user-empty">No users match</li>';
+            openUserList();
+            return;
+        }
+        userList.innerHTML = rows.map(function (user) {
+            var active = user.id === selectedUserId;
+            return '<li class="insights-user-row' + (active ? " is-active" : "") + '" role="option" data-user-id="' +
+                escapeHtml(user.id) + '">' +
+                '<span class="insights-user-name">' + escapeHtml(userLabel(user)) + "</span>" +
+                '<span class="insights-user-meta">' + escapeHtml(userSub(user)) + "</span>" +
+                "</li>";
+        }).join("");
+        openUserList();
+    }
+
+    function setSelectedUser(user, reload) {
+        selectedUserId = user && user.id ? user.id : "";
+        selectedUserLabel = userLabel(user);
+        if (userInput) {
+            userInput.value = selectedUserLabel;
+            userInput.placeholder = selectedUserLabel ? selectedUserLabel : "Search users";
+        }
+        if (userClear) userClear.hidden = !selectedUserId;
+        closeUserList();
+        if (reload) load(true);
+    }
+
+    function loadUsers() {
+        if (!userInput) return Promise.resolve();
+        return fetch("/api/admin/users", { headers: { "Accept": "application/json" } })
+            .then(function (res) { return res.ok ? res.json() : { users: [] }; })
+            .then(function (data) {
+                usersCatalog = (data && data.users) || [];
+            })
+            .catch(function () {
+                usersCatalog = [];
+            });
     }
 
     if (historyList) {
@@ -639,7 +743,8 @@
     function render(data) {
         if (!data) return;
         insightsRendered = true;
-        renderCost(data.totals, data.agents);
+        insightsTotals = data.totals || {};
+        renderCost(insightsTotals, data.agents);
         renderHistory(data.agents);
     }
 
@@ -664,7 +769,9 @@
         loading = true;
         if (force) { insightsRendered = false; healthRendered = false; }
         showInsightsLoading(force);
-        fetch("/api/insights")
+        var url = "/api/insights";
+        if (selectedUserId) url += "?user_id=" + encodeURIComponent(selectedUserId);
+        fetch(url)
             .then(function (res) { return res.json(); })
             .then(function (data) {
                 render(data);
@@ -675,6 +782,52 @@
                 if (historyList) historyList.innerHTML = '<div class="empty-state card"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></div><h3>Unable to load insights</h3><p>Backend unavailable.</p></div>';
             });
     }
+
+    if (userInput) {
+        userInput.addEventListener("focus", function () {
+            renderUserOptions(userInput.value);
+        });
+        userInput.addEventListener("input", function () {
+            if (selectedUserId && userInput.value !== selectedUserLabel) {
+                selectedUserId = "";
+                selectedUserLabel = "";
+                if (userClear) userClear.hidden = true;
+            }
+            renderUserOptions(userInput.value);
+        });
+        userInput.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") closeUserList();
+        });
+    }
+    if (userList) {
+        userList.addEventListener("mousedown", function (event) {
+            var row = event.target.closest("[data-user-id]");
+            if (!row) return;
+            event.preventDefault();
+            var id = row.getAttribute("data-user-id");
+            var user = null;
+            for (var i = 0; i < usersCatalog.length; i += 1) {
+                if (usersCatalog[i].id === id) {
+                    user = usersCatalog[i];
+                    break;
+                }
+            }
+            if (user) setSelectedUser(user, true);
+        });
+    }
+    if (userClear) {
+        userClear.addEventListener("click", function () {
+            setSelectedUser(null, true);
+            if (userInput) {
+                userInput.value = "";
+                userInput.focus();
+            }
+        });
+    }
+    document.addEventListener("click", function (event) {
+        var wrap = document.getElementById("insightsUserSearch");
+        if (wrap && !wrap.contains(event.target)) closeUserList();
+    });
 
     if (refreshBtn) {
         refreshBtn.addEventListener("click", function () {
@@ -692,6 +845,6 @@
         if (!document.hidden) loadAgentHealth();
     }, 30000);
 
-    load();
+    loadUsers().then(function () { load(); });
     loadAgentHealth();
 })();

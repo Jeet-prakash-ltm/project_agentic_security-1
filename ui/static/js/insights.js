@@ -492,7 +492,7 @@
         empty.innerHTML =
             (hideIcon ? "" : '<div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 00-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0012 2z"/></svg></div>') +
             "<h3>" + escapeHtml(title) + "</h3>" +
-            "<p>" + escapeHtml(message) + "</p>" +
+            (message ? "<p>" + escapeHtml(message) + "</p>" : "") +
             (withAction ? '<a href="/workspace" class="btn btn-primary">Open AI Workspace</a>' : "");
         return empty;
     }
@@ -509,6 +509,18 @@
         if (!selectedAgent) {
             historyList.setAttribute("hidden", "");
             historyList.innerHTML = "";
+            return;
+        }
+
+        if (!selectedUserId) {
+            historyList.removeAttribute("hidden");
+            historyList.innerHTML = "";
+            historyList.appendChild(historyEmpty(
+                "Agent history cannot be shown without User.",
+                "",
+                false,
+                true
+            ));
             return;
         }
 

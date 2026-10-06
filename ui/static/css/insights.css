@@ -1637,6 +1637,22 @@
     }
 }
 
+.agent-history-list .empty-state.is-text-only {
+    padding: 28px 16px;
+    text-align: center;
+}
+
+.agent-history-list .empty-state.is-text-only h3 {
+    margin: 0 0 6px;
+    font-size: 16px;
+}
+
+.agent-history-list .empty-state.is-text-only p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+}
+
 @media (max-width: 720px) {
     .agent-health-card {
         min-height: 112px;

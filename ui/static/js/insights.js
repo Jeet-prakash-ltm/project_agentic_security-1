@@ -486,13 +486,13 @@
         return panel;
     }
 
-    function historyEmpty(title, message, withAction) {
+    function historyEmpty(title, message, withAction, hideIcon) {
         var empty = document.createElement("div");
-        empty.className = "empty-state card";
+        empty.className = "empty-state card" + (hideIcon ? " is-text-only" : "");
         empty.innerHTML =
-            '<div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 00-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0012 2z"/></svg></div>' +
+            (hideIcon ? "" : '<div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 00-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0012 2z"/></svg></div>') +
             "<h3>" + escapeHtml(title) + "</h3>" +
-            "<p>" + message + "</p>" +
+            "<p>" + escapeHtml(message) + "</p>" +
             (withAction ? '<a href="/workspace" class="btn btn-primary">Open AI Workspace</a>' : "");
         return empty;
     }
@@ -530,7 +530,8 @@
                 selectedUserId
                     ? "This agent has no recorded usage for the selected user."
                     : "This agent has not recorded any usage yet. Chat with it in the AI Workspace to start tracking.",
-                !selectedUserId
+                !selectedUserId,
+                !!selectedUserId
             ));
             return;
         }

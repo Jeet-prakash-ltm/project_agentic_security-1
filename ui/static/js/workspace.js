@@ -1641,6 +1641,18 @@
             name.indexOf("incident") !== -1 || id.indexOf("cloud") !== -1;
     }
 
+    function isCloudSecurityOpsAgent(agent) {
+        if (!agent) return false;
+        var name = String(agent.name || "").toLowerCase();
+        var id = String(agent.id || "").toLowerCase();
+        var type = String(agent.type || "").toLowerCase();
+        var agentId = String(agent.agent_id || "").toLowerCase();
+        return name.indexOf("cloud security ops") !== -1 ||
+            id === "incident-response-agent-cloud-security" ||
+            type.indexOf("cloud incident") !== -1 ||
+            agentId.indexOf("incident-response-agent-cloud-security") !== -1;
+    }
+
     function normalizeAgentKey(value) {
         return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
     }
@@ -1736,6 +1748,7 @@
         if (!wsAgentSelect) return;
         wsAgentSelect.innerHTML = "";
         state.agents.forEach(function (a) {
+            if (isCloudSecurityOpsAgent(a)) return;
             var opt = document.createElement("option");
             opt.value = a.id;
             opt.textContent = a.name;
@@ -1755,9 +1768,10 @@
         for (var i = 0; i < state.agents.length; i++) {
             if (isOrchestratorAgent(state.agents[i])) return state.agents[i];
         }
-        var connected = state.agents.filter(function (a) { return a.connected; });
+        var visible = state.agents.filter(function (a) { return !isCloudSecurityOpsAgent(a); });
+        var connected = visible.filter(function (a) { return a.connected; });
         if (connected[0]) return connected[0];
-        return state.agents[0] || null;
+        return visible[0] || null;
     }
 
     function loadAgents() {

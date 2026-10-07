@@ -21,24 +21,45 @@
             <input type="text" id="autoJobsNumber" class="auto-jobs-filter-input" placeholder="Search job number" autocomplete="off">
         </div>
         <div class="auto-jobs-filter">
-            <span class="auto-jobs-filter-label">Security domain</span>
-            <div class="auto-jobs-filter-tabs" id="autoJobsDomainTabs" role="tablist" aria-label="Security domain">
-                <button type="button" class="auto-jobs-tab is-active" data-filter="domain" data-value="all" role="tab" aria-selected="true">All</button>
-                <button type="button" class="auto-jobs-tab" data-filter="domain" data-value="network" role="tab" aria-selected="false">Network security</button>
-                <button type="button" class="auto-jobs-tab" data-filter="domain" data-value="cloud" role="tab" aria-selected="false">Cloud security</button>
-            </div>
+            <label class="auto-jobs-filter-label" for="autoJobsDomain">Security domain</label>
+            <select id="autoJobsDomain" class="auto-jobs-filter-input auto-jobs-filter-select">
+                <option value="all">All</option>
+                <option value="network">Network security</option>
+                <option value="cloud">Cloud security</option>
+            </select>
         </div>
         <div class="auto-jobs-filter">
             <label class="auto-jobs-filter-label" for="autoJobsDevice">Device</label>
             <input type="text" id="autoJobsDevice" class="auto-jobs-filter-input" placeholder="Search device" autocomplete="off">
         </div>
         <div class="auto-jobs-filter">
-            <span class="auto-jobs-filter-label">Status</span>
-            <div class="auto-jobs-filter-tabs" id="autoJobsStatusTabs" role="tablist" aria-label="Status">
-                <button type="button" class="auto-jobs-tab is-active" data-filter="status" data-value="all" role="tab" aria-selected="true">All</button>
-                <button type="button" class="auto-jobs-tab" data-filter="status" data-value="successful" role="tab" aria-selected="false">Successful</button>
-                <button type="button" class="auto-jobs-tab" data-filter="status" data-value="failed" role="tab" aria-selected="false">Failed</button>
-            </div>
+            <label class="auto-jobs-filter-label" for="autoJobsStatus">Status</label>
+            <select id="autoJobsStatus" class="auto-jobs-filter-input auto-jobs-filter-select">
+                <option value="all">All</option>
+                <option value="successful">Successful</option>
+                <option value="failed">Failed</option>
+            </select>
+        </div>
+        <div class="auto-jobs-filter auto-jobs-filter-date">
+            <label class="auto-jobs-filter-label" for="autoJobsDate">Date</label>
+            <select id="autoJobsDate" class="auto-jobs-filter-input auto-jobs-filter-select">
+                <option value="all">All</option>
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="week">Last 1 week</option>
+                <option value="month">Last 1 month</option>
+                <option value="sixmonths">Last 6 months</option>
+                <option value="year">Last year</option>
+                <option value="custom">Custom</option>
+            </select>
+        </div>
+        <div class="auto-jobs-filter auto-jobs-custom-range" id="autoJobsCustomRange" hidden>
+            <label class="auto-jobs-filter-label" for="autoJobsStart">Start date</label>
+            <input type="date" id="autoJobsStart" class="auto-jobs-filter-input" aria-label="Custom start date">
+        </div>
+        <div class="auto-jobs-filter auto-jobs-custom-range" id="autoJobsCustomRangeEnd" hidden>
+            <label class="auto-jobs-filter-label" for="autoJobsEnd">End date</label>
+            <input type="date" id="autoJobsEnd" class="auto-jobs-filter-input" aria-label="Custom end date">
         </div>
     </div>
     <div class="table-wrap auto-jobs-wrap">
@@ -102,5 +123,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/automation_jobs.js') }}?v=9"></script>
+<script src="{{ url_for('static', filename='js/automation_jobs.js') }}?v=10"></script>
 {% endblock %}

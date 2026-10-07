@@ -821,6 +821,18 @@ def settings_accounts():
     )
 
 
+@app.route("/settings/roles")
+@login_required
+def settings_roles():
+
+    return render_with_css(
+        "roles.html",
+
+        is_admin=_is_admin(current_user()),
+        roles=list(users_service.ALLOWED_ROLES),
+    )
+
+
 @app.route("/settings/inventory")
 @login_required
 def settings_inventory():

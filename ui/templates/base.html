@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='LTM_LOGO.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=27">
     {% if page_css %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=56">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=57">
     {% endif %}
     {% block head_extra %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v=8">
@@ -16,7 +16,7 @@
     {% set dash_endpoints = ['dashboard', 'cloud_security'] %}
     {% set workspace_endpoints = ['workspace', 'system_info'] %}
     {% set automation_endpoints = ['automation', 'automation_network_security', 'automation_cloud_security', 'automation_jobs'] %}
-    {% set settings_endpoints = ['settings', 'settings_accounts', 'settings_inventory', 'settings_agents'] %}
+    {% set settings_endpoints = ['settings', 'settings_accounts', 'settings_roles', 'settings_inventory', 'settings_agents'] %}
 
     <div class="bg-scene">
         <div class="bg-layer bg-photo"></div>
@@ -115,6 +115,9 @@
                 <div class="nav-submenu" id="navSettingsSub">
                     <a href="{{ url_for('settings_accounts') }}" class="nav-sublink {{ 'active' if request.endpoint == 'settings_accounts' else '' }}">
                         <span class="nav-subdot"></span><span>User Management</span>
+                    </a>
+                    <a href="{{ url_for('settings_roles') }}" class="nav-sublink {{ 'active' if request.endpoint == 'settings_roles' else '' }}">
+                        <span class="nav-subdot"></span><span>Roles</span>
                     </a>
                     <a href="{{ url_for('settings_inventory') }}" class="nav-sublink {{ 'active' if request.endpoint == 'settings_inventory' else '' }}">
                         <span class="nav-subdot"></span><span>Asset Inventory</span>

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Roles — Settings{% endblock %}
+
+{% block page_title %}Roles{% endblock %}
+
+{% block hero_eyebrow %}Settings / Roles{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=43">
+{% endblock %}
+
+{% block content %}
+
+<div class="settings-header">
+    <div>
+        <h1>Roles</h1>
+        <p>Platform roles used when creating and assigning user accounts.</p>
+    </div>
+</div>
+
+<section class="settings-grid">
+
+    <div class="settings-card card settings-card-wide">
+        <div class="settings-card-head">
+            <span class="settings-icon settings-icon-blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"/></svg>
+            </span>
+            <div>
+                <h3>Assigned Roles</h3>
+            </div>
+            <span class="status-chip status-on">Total {{ roles|length }}</span>
+        </div>
+        <div class="settings-body">
+            <div class="users-table-wrap">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Role</th>
+                            <th>Type</th>
+                            <th>Access</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for role in roles %}
+                        <tr>
+                            <td>{{ role }}</td>
+                            <td>{% if role in ['Admin', 'Administrator', 'Security Administrator'] %}Administrator{% else %}Member{% endif %}</td>
+                            <td>{% if role in ['Admin', 'Administrator', 'Security Administrator'] %}Full platform administration, user management, inventory, agents, and Agent Insights.{% elif role == 'Security Analyst' %}Investigate findings, run assessments, and operate Automation Hub jobs.{% elif role == 'SOC Analyst' %}Monitor posture, investigate findings, and use AI Workspace.{% elif role == 'Auditor' %}Review assessments, reports, and investigation history.{% else %}Read-only visibility across dashboards and reports.{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</section>
+
+{% endblock %}

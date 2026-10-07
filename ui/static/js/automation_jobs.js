@@ -15,8 +15,13 @@
     var deviceClose = document.getElementById("autoJobDeviceClose");
     var numberInput = document.getElementById("autoJobsNumber");
     var deviceInput = document.getElementById("autoJobsDevice");
-    var domainTabs = document.getElementById("autoJobsDomainTabs");
-    var statusTabs = document.getElementById("autoJobsStatusTabs");
+    var domainSelect = document.getElementById("autoJobsDomain");
+    var statusSelect = document.getElementById("autoJobsStatus");
+    var dateSelect = document.getElementById("autoJobsDate");
+    var startInput = document.getElementById("autoJobsStart");
+    var endInput = document.getElementById("autoJobsEnd");
+    var customStartWrap = document.getElementById("autoJobsCustomRange");
+    var customEndWrap = document.getElementById("autoJobsCustomRangeEnd");
     var jobsById = {};
     var allJobs = [];
     var inventory = [];
@@ -24,7 +29,10 @@
         number: "",
         domain: "all",
         device: "",
-        status: "all"
+        status: "all",
+        date: "all",
+        start: "",
+        end: ""
     };
 
     function esc(value) {
@@ -273,6 +281,62 @@
         return /cloud/i.test(securityDomain(job)) ? "cloud" : "network";
     }
 
+    function startOfDay(date) {
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+    }
+
+    function addDays(date, days) {
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+    }
+
+    function addMonths(date, months) {
+        return new Date(date.getFullYear(), date.getMonth() + months, date.getDate());
+    }
+
+    function parseDateInput(value) {
+        if (!value) return null;
+        var parts = String(value).split("-");
+        if (parts.length !== 3) return null;
+        var year = Number(parts[0]);
+        var month = Number(parts[1]) - 1;
+        var day = Number(parts[2]);
+        if (!year || month < 0 || !day) return null;
+        return new Date(year, month, day);
+    }
+
+    function dateRange() {
+        var now = new Date();
+        var todayStart = startOfDay(now);
+        var tomorrowStart = addDays(now, 1).getTime();
+        if (filters.date === "today") return { start: todayStart, end: tomorrowStart };
+        if (filters.date === "yesterday") return { start: startOfDay(addDays(now, -1)), end: todayStart };
+        if (filters.date === "week") return { start: startOfDay(addDays(now, -7)), end: tomorrowStart };
+        if (filters.date === "month") return { start: startOfDay(addMonths(now, -1)), end: tomorrowStart };
+        if (filters.date === "sixmonths") return { start: startOfDay(addMonths(now, -6)), end: tomorrowStart };
+        if (filters.date === "year") return { start: startOfDay(addMonths(now, -12)), end: tomorrowStart };
+        if (filters.date === "custom") {
+            var startDate = parseDateInput(filters.start);
+            var endDate = parseDateInput(filters.end);
+            if (!startDate && !endDate) return null;
+            return {
+                start: startDate ? startOfDay(startDate) : 0,
+                end: endDate ? addDays(endDate, 1).getTime() : Number.MAX_SAFE_INTEGER
+            };
+        }
+        return null;
+    }
+
+    function jobCreatedMs(job) {
+        var created = Number(job && job.created);
+        if (created && isFinite(created)) {
+            return created < 1e12 ? created * 1000 : created;
+        }
+        var display = String((job && job.created_display) || "").trim();
+        if (!display) return 0;
+        var parsed = Date.parse(display.replace(" ", "T"));
+        return isFinite(parsed) ? parsed : 0;
+    }
+
     function matchesFilters(job) {
         var number = normalizeToken(filters.number);
         if (number && normalizeToken(job.job_number).indexOf(number) === -1) return false;
@@ -286,6 +350,11 @@
             if (haystack.indexOf(device) === -1) return false;
         }
         if (filters.status !== "all" && jobStatusKey(job) !== filters.status) return false;
+        var range = dateRange();
+        if (range) {
+            var created = jobCreatedMs(job);
+            if (created < range.start || created >= range.end) return false;
+        }
         return true;
     }
 
@@ -293,14 +362,10 @@
         return (allJobs || []).filter(matchesFilters);
     }
 
-    function setTab(group, value) {
-        if (!group) return;
-        var buttons = group.querySelectorAll(".auto-jobs-tab");
-        for (var i = 0; i < buttons.length; i++) {
-            var active = buttons[i].getAttribute("data-value") === value;
-            buttons[i].classList.toggle("is-active", active);
-            buttons[i].setAttribute("aria-selected", active ? "true" : "false");
-        }
+    function syncCustomRange() {
+        var show = filters.date === "custom";
+        if (customStartWrap) customStartWrap.hidden = !show;
+        if (customEndWrap) customEndWrap.hidden = !show;
     }
 
     function opsHtml(job) {
@@ -416,24 +481,38 @@
             applyFilters();
         });
     }
-    if (domainTabs) {
-        domainTabs.addEventListener("click", function (e) {
-            var tab = e.target.closest("[data-filter='domain']");
-            if (!tab) return;
-            filters.domain = tab.getAttribute("data-value") || "all";
-            setTab(domainTabs, filters.domain);
+    if (domainSelect) {
+        domainSelect.addEventListener("change", function () {
+            filters.domain = domainSelect.value || "all";
             applyFilters();
         });
     }
-    if (statusTabs) {
-        statusTabs.addEventListener("click", function (e) {
-            var tab = e.target.closest("[data-filter='status']");
-            if (!tab) return;
-            filters.status = tab.getAttribute("data-value") || "all";
-            setTab(statusTabs, filters.status);
+    if (statusSelect) {
+        statusSelect.addEventListener("change", function () {
+            filters.status = statusSelect.value || "all";
             applyFilters();
         });
     }
+    if (dateSelect) {
+        dateSelect.addEventListener("change", function () {
+            filters.date = dateSelect.value || "all";
+            syncCustomRange();
+            applyFilters();
+        });
+    }
+    if (startInput) {
+        startInput.addEventListener("change", function () {
+            filters.start = startInput.value || "";
+            applyFilters();
+        });
+    }
+    if (endInput) {
+        endInput.addEventListener("change", function () {
+            filters.end = endInput.value || "";
+            applyFilters();
+        });
+    }
+    syncCustomRange();
     document.addEventListener("keydown", function (e) {
         if (e.key === "Escape") {
             closeLogModal();

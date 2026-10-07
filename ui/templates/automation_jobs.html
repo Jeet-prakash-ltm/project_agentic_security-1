@@ -15,6 +15,32 @@
         </div>
         <span class="auto-jobs-count" id="autoJobsCount">—</span>
     </div>
+    <div class="auto-jobs-filters" id="autoJobsFilters">
+        <div class="auto-jobs-filter">
+            <label class="auto-jobs-filter-label" for="autoJobsNumber">Job number</label>
+            <input type="text" id="autoJobsNumber" class="auto-jobs-filter-input" placeholder="Search job number" autocomplete="off">
+        </div>
+        <div class="auto-jobs-filter">
+            <span class="auto-jobs-filter-label">Security domain</span>
+            <div class="auto-jobs-filter-tabs" id="autoJobsDomainTabs" role="tablist" aria-label="Security domain">
+                <button type="button" class="auto-jobs-tab is-active" data-filter="domain" data-value="all" role="tab" aria-selected="true">All</button>
+                <button type="button" class="auto-jobs-tab" data-filter="domain" data-value="network" role="tab" aria-selected="false">Network security</button>
+                <button type="button" class="auto-jobs-tab" data-filter="domain" data-value="cloud" role="tab" aria-selected="false">Cloud security</button>
+            </div>
+        </div>
+        <div class="auto-jobs-filter">
+            <label class="auto-jobs-filter-label" for="autoJobsDevice">Device</label>
+            <input type="text" id="autoJobsDevice" class="auto-jobs-filter-input" placeholder="Search device" autocomplete="off">
+        </div>
+        <div class="auto-jobs-filter">
+            <span class="auto-jobs-filter-label">Status</span>
+            <div class="auto-jobs-filter-tabs" id="autoJobsStatusTabs" role="tablist" aria-label="Status">
+                <button type="button" class="auto-jobs-tab is-active" data-filter="status" data-value="all" role="tab" aria-selected="true">All</button>
+                <button type="button" class="auto-jobs-tab" data-filter="status" data-value="successful" role="tab" aria-selected="false">Successful</button>
+                <button type="button" class="auto-jobs-tab" data-filter="status" data-value="failed" role="tab" aria-selected="false">Failed</button>
+            </div>
+        </div>
+    </div>
     <div class="table-wrap auto-jobs-wrap">
         <table class="data-table auto-jobs-table">
             <thead>
@@ -76,5 +102,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/automation_jobs.js') }}?v=8"></script>
+<script src="{{ url_for('static', filename='js/automation_jobs.js') }}?v=9"></script>
 {% endblock %}

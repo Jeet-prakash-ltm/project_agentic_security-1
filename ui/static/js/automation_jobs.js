@@ -13,8 +13,19 @@
     var deviceSub = document.getElementById("autoJobDeviceSub");
     var deviceBody = document.getElementById("autoJobDeviceBody");
     var deviceClose = document.getElementById("autoJobDeviceClose");
+    var numberInput = document.getElementById("autoJobsNumber");
+    var deviceInput = document.getElementById("autoJobsDevice");
+    var domainTabs = document.getElementById("autoJobsDomainTabs");
+    var statusTabs = document.getElementById("autoJobsStatusTabs");
     var jobsById = {};
+    var allJobs = [];
     var inventory = [];
+    var filters = {
+        number: "",
+        domain: "all",
+        device: "",
+        status: "all"
+    };
 
     function esc(value) {
         return String(value == null ? "" : value)
@@ -254,6 +265,44 @@
         if (deviceModal) deviceModal.hidden = true;
     }
 
+    function jobStatusKey(job) {
+        return String((job && job.status) || "").toLowerCase() === "successful" ? "successful" : "failed";
+    }
+
+    function jobDomainKey(job) {
+        return /cloud/i.test(securityDomain(job)) ? "cloud" : "network";
+    }
+
+    function matchesFilters(job) {
+        var number = normalizeToken(filters.number);
+        if (number && normalizeToken(job.job_number).indexOf(number) === -1) return false;
+        if (filters.domain !== "all" && jobDomainKey(job) !== filters.domain) return false;
+        var device = normalizeToken(filters.device);
+        if (device) {
+            var haystack = [
+                deviceDisplayName(job),
+                job.firewall_name
+            ].map(normalizeToken).join(" ");
+            if (haystack.indexOf(device) === -1) return false;
+        }
+        if (filters.status !== "all" && jobStatusKey(job) !== filters.status) return false;
+        return true;
+    }
+
+    function filteredJobs() {
+        return (allJobs || []).filter(matchesFilters);
+    }
+
+    function setTab(group, value) {
+        if (!group) return;
+        var buttons = group.querySelectorAll(".auto-jobs-tab");
+        for (var i = 0; i < buttons.length; i++) {
+            var active = buttons[i].getAttribute("data-value") === value;
+            buttons[i].classList.toggle("is-active", active);
+            buttons[i].setAttribute("aria-selected", active ? "true" : "false");
+        }
+    }
+
     function opsHtml(job) {
         var ops = job.operations || [];
         if (!ops.length) {
@@ -275,10 +324,14 @@
 
     function render(jobs) {
         jobsById = {};
-        (jobs || []).forEach(function (job) { jobsById[String(job.id)] = job; });
+        (allJobs || []).forEach(function (job) { jobsById[String(job.id)] = job; });
         countEl.textContent = (jobs.length || 0) + " job" + (jobs.length === 1 ? "" : "s");
-        if (!jobs.length) {
+        if (!allJobs.length) {
             body.innerHTML = '<tr><td colspan="9" class="auto-jobs-empty">No Change Excution jobs yet. Execute a bulk workbook on Automation Hub / Network Security.</td></tr>';
+            return;
+        }
+        if (!jobs.length) {
+            body.innerHTML = '<tr><td colspan="9" class="auto-jobs-empty">No jobs match the selected filters.</td></tr>';
             return;
         }
         body.innerHTML = jobs.map(function (job) {
@@ -346,6 +399,41 @@
             if (e.target === deviceModal) closeDeviceModal();
         });
     }
+
+    function applyFilters() {
+        render(filteredJobs());
+    }
+
+    if (numberInput) {
+        numberInput.addEventListener("input", function () {
+            filters.number = numberInput.value || "";
+            applyFilters();
+        });
+    }
+    if (deviceInput) {
+        deviceInput.addEventListener("input", function () {
+            filters.device = deviceInput.value || "";
+            applyFilters();
+        });
+    }
+    if (domainTabs) {
+        domainTabs.addEventListener("click", function (e) {
+            var tab = e.target.closest("[data-filter='domain']");
+            if (!tab) return;
+            filters.domain = tab.getAttribute("data-value") || "all";
+            setTab(domainTabs, filters.domain);
+            applyFilters();
+        });
+    }
+    if (statusTabs) {
+        statusTabs.addEventListener("click", function (e) {
+            var tab = e.target.closest("[data-filter='status']");
+            if (!tab) return;
+            filters.status = tab.getAttribute("data-value") || "all";
+            setTab(statusTabs, filters.status);
+            applyFilters();
+        });
+    }
     document.addEventListener("keydown", function (e) {
         if (e.key === "Escape") {
             closeLogModal();
@@ -362,7 +450,8 @@
         var data = results[0] || {};
         inventory = (results[1] && results[1].firewalls) || [];
         if (data && data.error) throw new Error(data.error);
-        render(data.jobs || []);
+        allJobs = data.jobs || [];
+        render(filteredJobs());
     }).catch(function (err) {
         countEl.textContent = "0 jobs";
         body.innerHTML = '<tr><td colspan="9" class="auto-jobs-empty">Could not load jobs. ' +

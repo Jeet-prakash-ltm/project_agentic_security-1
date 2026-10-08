@@ -141,11 +141,7 @@
 
         var domains = sectionPanel("Top Risk Domains", "", '<div class="vertical-bars"></div>');
 
-        var domainSev =
-            '<section class="dash-grid-2">' +
-            sectionPanel("Clustered Columns", "", '<div class="domain-cluster-chart"></div>') +
-            sectionPanel("Stacked Columns", "", '<div class="domain-stack-chart"></div>') +
-            "</section>";
+        var domainSev = sectionPanel("Top Risk Domain(Detailed view)", "", '<div class="domain-cluster-chart"></div>');
 
         var trend =
             '<section class="compliance-trend-section card is-loading">' +
@@ -463,42 +459,6 @@
         clearSection(panel.closest(".dash-panel"));
     }
 
-    function renderDomainStacked(root, findingsList, fw) {
-        var panel = groupSection(root, ".domain-stack-chart");
-        if (!panel) return;
-        var byCat = domainSeverityCounts(findingsList);
-        var max = 1;
-        CATEGORY_ORDER.forEach(function (cat) {
-            var total = byCat[cat].critical + byCat[cat].high + byCat[cat].medium + byCat[cat].low;
-            max = Math.max(max, total);
-        });
-        var top = niceAxisMax(max);
-
-        var html = domainSevLegend() + '<div class="domain-sev-plot">';
-        html += domainSevYAxis(top);
-        html += '<div class="domain-stack-axis">';
-        CATEGORY_ORDER.forEach(function (cat) {
-            var counts = byCat[cat];
-            var total = counts.critical + counts.high + counts.medium + counts.low;
-            var h = top ? Math.round(total / top * 100) : 0;
-            var tip = escapeHtml(cat) + ": " + total +
-                " (C " + counts.critical + " / H " + counts.high + " / M " + counts.medium + " / L " + counts.low + ")";
-            html += '<a class="domain-stack-col" href="' + findingsUrl(fw, "domain", cat) + '" title="' + tip + '">' +
-                '<span class="domain-stack-track"><span class="domain-stack-fill" style="height:' + h + '%">';
-            SEV_LEVELS.forEach(function (s) {
-                var n = counts[s.key];
-                if (!n || !total) return;
-                html += '<span class="domain-stack-seg" style="flex:' + n + ";background:" + s.color + '" title="' + s.label + ": " + n + '"></span>';
-            });
-            html += "</span></span>";
-            html += '<span class="domain-stack-label">' + escapeHtml(shortLabel(cat)) + "</span>";
-            html += "</a>";
-        });
-        html += "</div></div>";
-        panel.innerHTML = html;
-        clearSection(panel.closest(".dash-panel"));
-    }
-
     // ============================================================
     // COMPLIANCE TREND
     // ============================================================
@@ -679,7 +639,6 @@
         renderRecentFindings(root, data.recent_findings || []);
         renderVerticalBars(root, data.findings_list || [], cid);
         renderDomainClustered(root, data.findings_list || [], cid);
-        renderDomainStacked(root, data.findings_list || [], cid);
         renderTrendStats(root, data.history || [], cid, c.compliance_score);
         renderComplianceTrend(root, data.history || [], cid);
     }

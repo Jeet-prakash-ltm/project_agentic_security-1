@@ -141,7 +141,12 @@
 
         var domains = sectionPanel("Top Risk Domains", "", '<div class="vertical-bars"></div>');
 
-        var domainSev = sectionPanel("Top Risk Domain(Detailed view)", "", '<div class="domain-cluster-chart"></div>');
+        var domainSev =
+            '<section class="card dash-panel domain-risk-panel is-loading">' +
+            '<div class="section-head"><h3>Top Risk Domain (Detailed View)</h3></div>' +
+            '<div class="domain-cluster-chart"></div>' +
+            '<div class="section-loading section-loading-overlay"><span class="spinner"></span><span class="section-loading-text">Loading</span></div>' +
+            "</section>";
 
         var trend =
             '<section class="compliance-trend-section card is-loading">' +
@@ -377,9 +382,9 @@
     }
 
     var SEV_LEVELS = [
-        { key: "critical", label: "Critical", color: "#DC2626" },
+        { key: "critical", label: "Critical", color: "#EF4444" },
         { key: "high", label: "High", color: "#F97316" },
-        { key: "medium", label: "Medium", color: "#F59E0B" },
+        { key: "medium", label: "Medium", color: "#FBBF24" },
         { key: "low", label: "Low", color: "#22C55E" }
     ];
 
@@ -427,35 +432,176 @@
         return html;
     }
 
+    function fmtCompact(value) {
+        var n = Number(value) || 0;
+        if (n >= 1000000) {
+            var millions = n / 1000000;
+            return (millions >= 10 || millions % 1 === 0 ? millions.toFixed(0) : millions.toFixed(1)) + "M";
+        }
+        if (n >= 1000) {
+            var thousands = n / 1000;
+            return (thousands >= 10 || thousands % 1 === 0 ? thousands.toFixed(0) : thousands.toFixed(1)) + "K";
+        }
+        return String(n);
+    }
+
+    function domainTotals(counts) {
+        return (counts.critical || 0) + (counts.high || 0) + (counts.medium || 0) + (counts.low || 0);
+    }
+
+    function domainRiskKpis(totals) {
+        var cards = [
+            { key: "total", label: "Total Risks", value: totals.total, tone: "total" }
+        ].concat(SEV_LEVELS.map(function (s) {
+            return { key: s.key, label: s.label, value: totals[s.key], tone: s.key };
+        }));
+        var html = '<div class="domain-risk-kpis">';
+        cards.forEach(function (card) {
+            html += '<div class="domain-risk-kpi is-' + card.tone + '">' +
+                '<span>' + escapeHtml(card.label.toUpperCase()) + "</span>" +
+                "<strong>" + fmtCompact(card.value) + "</strong>" +
+                "</div>";
+        });
+        html += "</div>";
+        return html;
+    }
+
+    function bindDomainRiskTip(panel) {
+        if (panel.getAttribute("data-tip-bound") === "1") return;
+        panel.setAttribute("data-tip-bound", "1");
+
+        function tipEl() {
+            return panel.querySelector(".domain-risk-tip");
+        }
+
+        function hideTip() {
+            var tip = tipEl();
+            if (tip) tip.hidden = true;
+        }
+
+        function showTip(group, event) {
+            var tip = tipEl();
+            if (!tip) return;
+            var cat = group.getAttribute("data-domain") || "";
+            var critical = Number(group.getAttribute("data-critical") || 0);
+            var high = Number(group.getAttribute("data-high") || 0);
+            var medium = Number(group.getAttribute("data-medium") || 0);
+            var low = Number(group.getAttribute("data-low") || 0);
+            var total = Number(group.getAttribute("data-total") || 0);
+            var overall = Number(group.getAttribute("data-overall") || 0);
+            var pct = overall ? Math.round(total / overall * 100) : 0;
+            tip.innerHTML =
+                "<strong>" + escapeHtml(cat) + "</strong>" +
+                '<span class="domain-risk-tip-total">Total Findings ' + fmtCompact(total) + "</span>" +
+                "<ul>" +
+                '<li><i style="background:#EF4444"></i>Critical: ' + fmtCompact(critical) + "</li>" +
+                '<li><i style="background:#F97316"></i>High: ' + fmtCompact(high) + "</li>" +
+                '<li><i style="background:#FBBF24"></i>Medium: ' + fmtCompact(medium) + "</li>" +
+                '<li><i style="background:#22C55E"></i>Low: ' + fmtCompact(low) + "</li>" +
+                "</ul>" +
+                "<em>" + pct + "% of Overall Risks</em>";
+            tip.hidden = false;
+            moveTip(event);
+        }
+
+        function moveTip(event) {
+            var tip = tipEl();
+            if (!tip) return;
+            var x = event.clientX + 14;
+            var y = event.clientY + 16;
+            var width = tip.offsetWidth || 220;
+            var height = tip.offsetHeight || 160;
+            if (x + width > window.innerWidth - 12) x = event.clientX - width - 12;
+            if (y + height > window.innerHeight - 12) y = event.clientY - height - 12;
+            tip.style.left = x + "px";
+            tip.style.top = y + "px";
+        }
+
+        panel.addEventListener("mouseover", function (event) {
+            var group = event.target.closest(".domain-cluster-group");
+            if (!group || !panel.contains(group)) return;
+            showTip(group, event);
+        });
+        panel.addEventListener("mousemove", function (event) {
+            var tip = tipEl();
+            if (!tip || tip.hidden) return;
+            if (!event.target.closest(".domain-cluster-group")) return;
+            moveTip(event);
+        });
+        panel.addEventListener("mouseout", function (event) {
+            var next = event.relatedTarget;
+            if (next && panel.contains(next) && next.closest(".domain-cluster-group")) return;
+            hideTip();
+        });
+    }
+
     function renderDomainClustered(root, findingsList, fw) {
         var panel = groupSection(root, ".domain-cluster-chart");
         if (!panel) return;
         var byCat = domainSeverityCounts(findingsList);
-        var max = 1;
-        CATEGORY_ORDER.forEach(function (cat) {
-            SEV_LEVELS.forEach(function (s) { max = Math.max(max, byCat[cat][s.key]); });
+        var ranked = CATEGORY_ORDER.map(function (cat) {
+            var counts = byCat[cat] || emptySevCounts();
+            return { cat: cat, counts: counts, total: domainTotals(counts) };
+        }).sort(function (a, b) {
+            return b.total - a.total;
         });
+        var max = 1;
+        var overall = 0;
+        var totals = emptySevCounts();
+        ranked.forEach(function (row) {
+            overall += row.total;
+            SEV_LEVELS.forEach(function (s) {
+                totals[s.key] += row.counts[s.key] || 0;
+                max = Math.max(max, row.counts[s.key] || 0);
+            });
+        });
+        totals.total = overall;
         var top = niceAxisMax(max);
+        var highest = ranked.length && ranked[0].total > 0 ? ranked[0].cat : "";
 
-        var html = domainSevLegend() + '<div class="domain-sev-plot">';
+        var html = domainRiskKpis(totals);
+        html += domainSevLegend();
+        html += '<div class="domain-sev-plot">';
         html += domainSevYAxis(top);
+        html += '<div class="domain-cluster-stage">';
+        html += '<div class="domain-sev-grid" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>';
         html += '<div class="domain-cluster-axis">';
-        CATEGORY_ORDER.forEach(function (cat) {
-            html += '<div class="domain-cluster-group">';
+        ranked.forEach(function (row) {
+            var cat = row.cat;
+            var counts = row.counts;
+            var isHighest = cat === highest;
+            html += '<div class="domain-cluster-group' + (isHighest ? " is-highest" : "") +
+                '" data-domain="' + escapeHtml(cat) +
+                '" data-critical="' + counts.critical +
+                '" data-high="' + counts.high +
+                '" data-medium="' + counts.medium +
+                '" data-low="' + counts.low +
+                '" data-total="' + row.total +
+                '" data-overall="' + overall + '">';
+            html += '<div class="domain-cluster-summary">';
+            html += "<strong>" + escapeHtml(cat) + "</strong>";
+            html += "<span>Total Risk: " + fmtCompact(row.total) + "</span>";
+            if (isHighest) html += '<em class="domain-risk-badge">Highest Risk Domain</em>';
+            html += "</div>";
             html += '<div class="domain-cluster-cols">';
             SEV_LEVELS.forEach(function (s) {
-                var n = byCat[cat][s.key];
+                var n = counts[s.key] || 0;
                 var h = top ? Math.round(n / top * 100) : 0;
-                html += '<a class="domain-cluster-col" href="' + findingsUrl(fw, "domain", cat) + "&severity=" + s.key + '" title="' + escapeHtml(cat) + " · " + s.label + ": " + n + '">' +
-                    '<span class="domain-cluster-track"><span class="domain-cluster-fill" style="height:' + h + "%;background:" + s.color + '"></span></span>' +
-                    "</a>";
+                html += '<a class="domain-cluster-col" href="' + findingsUrl(fw, "domain", cat) + "&severity=" + s.key + '">';
+                if (n > 0) {
+                    html += '<span class="domain-cluster-value">' + fmtCompact(n) + "</span>";
+                    html += '<span class="domain-cluster-fill is-' + s.key + '" style="height:' + h + "%;background:" + s.color + '"></span>';
+                }
+                html += "</a>";
             });
             html += "</div>";
             html += '<span class="domain-cluster-label">' + escapeHtml(shortLabel(cat)) + "</span>";
             html += "</div>";
         });
-        html += "</div></div>";
+        html += "</div></div></div>";
+        html += '<div class="domain-risk-tip" hidden></div>';
         panel.innerHTML = html;
+        bindDomainRiskTip(panel);
         clearSection(panel.closest(".dash-panel"));
     }
 

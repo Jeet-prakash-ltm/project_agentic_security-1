@@ -33,7 +33,7 @@ class UsersRepository(BaseRepository):
     def list_admins(self):
         return (
             self.session.query(User)
-            .filter(User.role.in_(["Admin", "Administrator", "Security Administrator"]))
+            .filter(User.role == "Admin")
             .all()
         )
 
@@ -43,7 +43,7 @@ class UsersRepository(BaseRepository):
             name=data.get("name"),
             email=(data.get("email") or "").strip().lower(),
             password_hash=data.get("password_hash"),
-            role=data.get("role") or "Security Analyst",
+            role=data.get("role") or "",
             status=data.get("status") or "approved",
             created=data.get("created"),
         )

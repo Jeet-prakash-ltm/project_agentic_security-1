@@ -260,6 +260,20 @@
     grid-template-columns: 1fr;
 }
 
+.roles-assign-select {
+    width: 100%;
+    min-width: 180px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: var(--text-0);
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+}
+
 .invite-user-row--agent {
     grid-template-columns: 1.4fr 2fr 1.6fr auto;
 }

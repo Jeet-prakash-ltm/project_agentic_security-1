@@ -356,6 +356,11 @@ def login():
                 "Your account is pending approval. You will be able to sign "
                 "in once an administrator approves it."
             )
+        elif state == "no_role":
+            error = (
+                "Your account has no role assigned. Contact an administrator "
+                "to assign a role before signing in."
+            )
         elif state in ("rejected", "disabled"):
             error = (
                 "Your account is not active. Contact an administrator for "
@@ -829,7 +834,7 @@ def settings_roles():
         "roles.html",
 
         is_admin=_is_admin(current_user()),
-        roles=list(users_service.ALLOWED_ROLES),
+        roles=list(users_service.ASSIGNABLE_ROLES),
     )
 
 
@@ -1642,7 +1647,7 @@ def api_admin_users_add():
             (payload.get("name") or "").strip(),
             (payload.get("email") or "").strip(),
             payload.get("password") or "",
-            role=(payload.get("role") or "").strip(),
+            role="",
             status="approved",
         )
     except ValueError as exc:

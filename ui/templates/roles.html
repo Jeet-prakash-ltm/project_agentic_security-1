@@ -7,7 +7,7 @@
 {% block hero_eyebrow %}Settings / Roles{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=43">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=44">
 {% endblock %}
 
 {% block content %}
@@ -15,7 +15,7 @@
 <div class="settings-header">
     <div>
         <h1>Roles</h1>
-        <p>Platform roles used when creating and assigning user accounts.</p>
+        <p>Assign Admin, Security Analyst, or Viewer. Users without a role cannot sign in.</p>
     </div>
 </div>
 
@@ -27,7 +27,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"/></svg>
             </span>
             <div>
-                <h3>Assigned Roles</h3>
+                <h3>Platform Roles</h3>
             </div>
             <span class="status-chip status-on">Total {{ roles|length }}</span>
         </div>
@@ -37,18 +37,54 @@
                     <thead>
                         <tr>
                             <th>Role</th>
-                            <th>Type</th>
                             <th>Access</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for role in roles %}
                         <tr>
-                            <td>{{ role }}</td>
-                            <td>{% if role in ['Admin', 'Administrator', 'Security Administrator'] %}Administrator{% else %}Member{% endif %}</td>
-                            <td>{% if role in ['Admin', 'Administrator', 'Security Administrator'] %}Full platform administration, user management, inventory, agents, and Agent Insights.{% elif role == 'Security Analyst' %}Investigate findings, run assessments, and operate Automation Hub jobs.{% elif role == 'SOC Analyst' %}Monitor posture, investigate findings, and use AI Workspace.{% elif role == 'Auditor' %}Review assessments, reports, and investigation history.{% else %}Read-only visibility across dashboards and reports.{% endif %}</td>
+                            <td>Admin</td>
+                            <td>Full platform administration, user management, inventory, agents, and Agent Insights.</td>
                         </tr>
-                        {% endfor %}
+                        <tr>
+                            <td>Security Analyst</td>
+                            <td>Operate dashboards, investigations, automation, and AI Workspace. Settings is read-only. No Agent Insights.</td>
+                        </tr>
+                        <tr>
+                            <td>Viewer</td>
+                            <td>Read-only visibility across dashboards, reports, and settings.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-card card settings-card-wide">
+        <div class="settings-card-head">
+            <span class="settings-icon settings-icon-blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            </span>
+            <div>
+                <h3>Assign Roles</h3>
+            </div>
+        </div>
+        <div class="settings-body">
+            <div class="users-table-wrap" id="roleAssignCard" data-is-admin="{{ 'true' if is_admin else 'false' }}">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            {% if is_admin %}
+                            <th>Email</th>
+                            {% endif %}
+                            <th>Current role</th>
+                            {% if is_admin %}
+                            <th>Assign role</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody id="rolesAssignBody">
+                        <tr><td colspan="{{ 4 if is_admin else 2 }}" class="users-empty"><span class="table-loading"><span class="spinner"></span>Loading accounts…</span></td></tr>
                     </tbody>
                 </table>
             </div>
@@ -57,4 +93,8 @@
 
 </section>
 
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=20"></script>
 {% endblock %}

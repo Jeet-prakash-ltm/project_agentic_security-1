@@ -20,15 +20,15 @@ from database.repositories import UsersRepository
 
 _lock = threading.Lock()
 
-ADMIN_ROLES = ("Admin", "Administrator", "Security Administrator")
+ADMIN_ROLES = ("Admin",)
 
-# Roles a self-registering user may pick. Elevated roles are granted by an
-# administrator only (never self-assigned).
-SIGNUP_ROLES = ("Security Analyst", "SOC Analyst", "Auditor", "Viewer")
+ASSIGNABLE_ROLES = ("Admin", "Security Analyst", "Viewer")
+
+SIGNUP_ROLES = ("Security Analyst", "Viewer")
 
 VALID_STATUS = ("pending", "approved", "rejected", "disabled")
 
-ALLOWED_ROLES = ADMIN_ROLES + SIGNUP_ROLES
+ALLOWED_ROLES = ASSIGNABLE_ROLES
 
 
 def _public(user):
@@ -38,7 +38,7 @@ def _public(user):
         "id": user.id,
         "name": user.name,
         "email": user.email,
-        "role": user.role,
+        "role": user.role or "",
         "status": user.status or "approved",
         "created": user.created,
     }
@@ -49,7 +49,16 @@ def _repo():
 
 
 def is_admin_role(role):
-    return (role or "") in ADMIN_ROLES
+    return (role or "") == "Admin"
+
+
+def has_login_role(role):
+    return (role or "").strip() in ALLOWED_ROLES
+
+
+def role_label(role):
+    text = (role or "").strip()
+    return text if text else "No role assigned"
 
 
 def find_by_email(email):
@@ -82,7 +91,7 @@ def list_members():
         {
             "id": user.id,
             "name": user.name,
-            "role": user.role or "Security Analyst",
+            "role": user.role or "",
         }
         for user in _repo().list_users()
     ]
@@ -126,7 +135,7 @@ def create_user(name, email, password, role=None, status="pending", user_id=None
                 "name": name,
                 "email": email,
                 "password_hash": generate_password_hash(password),
-                "role": role or "Security Analyst",
+                "role": role,
                 "status": status,
                 "created": time.time(),
             }
@@ -142,6 +151,8 @@ def authenticate(email, password):
         return None
     if (user.status or "approved") != "approved":
         return None
+    if not has_login_role(user.role):
+        return None
     if not check_password_hash(user.password_hash or "", password or ""):
         return None
     return _public(user)
@@ -152,6 +163,8 @@ def status_for_email(email):
     user = find_by_email(email)
     if not user:
         return None
+    if (user.status or "approved") == "approved" and not has_login_role(user.role):
+        return "no_role"
     return user.status or "approved"
 
 

@@ -101,6 +101,10 @@
     flex: 0 1 170px;
 }
 
+.auto-jobs-custom-range[hidden] {
+    display: none !important;
+}
+
 .auto-jobs-wrap {
     overflow-x: auto;
     border: 1px solid var(--border);

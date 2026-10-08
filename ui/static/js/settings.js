@@ -41,7 +41,7 @@
                     "<tr>" +
                     "<td>" + escapeHtml(user.name || "") + "</td>" +
                     "<td>" + escapeHtml(user.email || "") + "</td>" +
-                    "<td>" + escapeHtml(user.role || "") + "</td>" +
+                    "<td>" + escapeHtml(user.role || "No role assigned") + "</td>" +
                     "<td class=\"users-actions\">" + actions + "</td>" +
                     "</tr>"
                 );
@@ -49,7 +49,7 @@
             return (
                 "<tr>" +
                 "<td>" + escapeHtml(user.name || "") + "</td>" +
-                "<td>" + escapeHtml(user.role || "") + "</td>" +
+                "<td>" + escapeHtml(user.role || "No role assigned") + "</td>" +
                 "</tr>"
             );
         }).join("");
@@ -176,20 +176,17 @@
             var name = (document.getElementById("inviteName").value || "").trim();
             var email = (document.getElementById("inviteEmail").value || "").trim();
             var password = document.getElementById("invitePassword").value || "";
-            var roleSelect = document.getElementById("inviteRole");
-            var role = roleSelect ? (roleSelect.value || "").trim() : "";
 
-            if (!name || !email || !role || !password) {
-                window.showToast("Name, email, role, and password are required.", "error");
+            if (!name || !email || !password) {
+                window.showToast("Name, email, and password are required.", "error");
                 return;
             }
-            postJson("/api/admin/users", { name: name, email: email, password: password, role: role })
+            postJson("/api/admin/users", { name: name, email: email, password: password })
                 .then(function () {
-                    window.showToast("Account created and approved.", "success");
+                    window.showToast("Account created. Assign a role on the Roles page before the user can sign in.", "success");
                     document.getElementById("inviteName").value = "";
                     document.getElementById("inviteEmail").value = "";
                     document.getElementById("invitePassword").value = "";
-                    if (roleSelect) roleSelect.selectedIndex = 0;
                     closeUserDrawer();
                     loadUsers();
                 })
@@ -200,6 +197,97 @@
     }
 
     loadUsers();
+})();
+
+(function () {
+    "use strict";
+
+    var rolesBody = document.getElementById("rolesAssignBody");
+    if (!rolesBody) return;
+
+    var card = document.getElementById("roleAssignCard");
+    var isRolesAdmin = card ? card.getAttribute("data-is-admin") === "true" : false;
+    var roleOptions = ["Admin", "Security Analyst", "Viewer"];
+
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    function roleSelect(user) {
+        var current = user.role || "";
+        var options = '<option value=""' + (current ? "" : " selected") + ">No role assigned</option>";
+        roleOptions.forEach(function (role) {
+            options += '<option value="' + escapeHtml(role) + '"' +
+                (current === role ? " selected" : "") + ">" + escapeHtml(role) + "</option>";
+        });
+        return '<select class="roles-assign-select" data-user-id="' + escapeHtml(user.id) + '">' + options + "</select>";
+    }
+
+    function renderRoleUsers(users) {
+        var cols = isRolesAdmin ? 4 : 2;
+        var rows = (users || []).map(function (user) {
+            if (isRolesAdmin) {
+                return "<tr>" +
+                    "<td>" + escapeHtml(user.name || "") + "</td>" +
+                    "<td>" + escapeHtml(user.email || "") + "</td>" +
+                    "<td>" + escapeHtml(user.role || "No role assigned") + "</td>" +
+                    "<td>" + roleSelect(user) + "</td>" +
+                    "</tr>";
+            }
+            return "<tr>" +
+                "<td>" + escapeHtml(user.name || "") + "</td>" +
+                "<td>" + escapeHtml(user.role || "No role assigned") + "</td>" +
+                "</tr>";
+        }).join("");
+        rolesBody.innerHTML = rows ||
+            '<tr><td colspan="' + cols + '" class="users-empty">No accounts yet.</td></tr>';
+    }
+
+    function loadRoleUsers() {
+        if (window.loadingRow) rolesBody.innerHTML = window.loadingRow(isRolesAdmin ? 4 : 2, "Loading accounts…");
+        fetch("/api/admin/users", { headers: { "Accept": "application/json" } })
+            .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error("Failed to load accounts")); })
+            .then(function (data) { renderRoleUsers(data.users || []); })
+            .catch(function (err) {
+                rolesBody.innerHTML = '<tr><td colspan="' + (isRolesAdmin ? 4 : 2) + '" class="users-empty">' + escapeHtml(err.message) + "</td></tr>";
+            });
+    }
+
+    if (isRolesAdmin) {
+        rolesBody.addEventListener("change", function (event) {
+            var select = event.target.closest(".roles-assign-select");
+            if (!select) return;
+            var userId = select.getAttribute("data-user-id");
+            var role = (select.value || "").trim();
+            if (!role) {
+                window.showToast("Select Admin, Security Analyst, or Viewer.", "error");
+                loadRoleUsers();
+                return;
+            }
+            fetch("/api/admin/users/" + encodeURIComponent(userId) + "/role", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                body: JSON.stringify({ role: role })
+            }).then(function (res) {
+                return res.json().then(function (data) {
+                    if (!res.ok) throw new Error(data.error || "Request failed");
+                    return data;
+                });
+            }).then(function () {
+                window.showToast("Role assigned.", "success");
+                loadRoleUsers();
+            }).catch(function (err) {
+                window.showToast(err.message, "error");
+                loadRoleUsers();
+            });
+        });
+    }
+
+    loadRoleUsers();
 })();
 
 // ---- Firewall inventory (administrators manage; members view read-only) ----

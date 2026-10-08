@@ -7,7 +7,7 @@
 {% block hero_eyebrow %}Settings / User Management{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=42">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=44">
 {% endblock %}
 
 {% block content %}
@@ -79,14 +79,6 @@
             <div class="invite-user-row invite-user-row--user">
                 <input type="text" id="inviteName" placeholder="Name" autocomplete="off">
                 <input type="email" id="inviteEmail" placeholder="Email" autocomplete="off">
-                <select id="inviteRole">
-                    <option value="" disabled selected>Role</option>
-                    <option value="Security Analyst">Security Analyst</option>
-                    <option value="SOC Analyst">SOC Analyst</option>
-                    <option value="Auditor">Auditor</option>
-                    <option value="Viewer">Viewer</option>
-                    <option value="Admin">Admin</option>
-                </select>
                 <input type="password" id="invitePassword" placeholder="Password" autocomplete="new-password">
                 <button class="btn btn-primary" id="inviteBtn" type="button">Add User</button>
             </div>
@@ -98,5 +90,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=19"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=20"></script>
 {% endblock %}

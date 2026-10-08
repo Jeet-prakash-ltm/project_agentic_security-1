@@ -45,7 +45,7 @@ class User(Base):
     name = Column(String(255), nullable=False)
     email = Column(String(255), unique=True, nullable=False)
     password_hash = Column(String(512), nullable=False)
-    role = Column(String(64), default="Security Analyst")
+    role = Column(String(64), default="")
     status = Column(String(32), default="approved")
     created = Column(Float)
 

@@ -149,11 +149,10 @@
             "</section>";
 
         var trend =
-            '<section class="compliance-trend-section card is-loading">' +
+            '<section class="compliance-trend-section card is-loading" data-scale="relative">' +
             '<div class="section-head">' +
             "<div><h3>Compliance Trend</h3>" +
-            '<span class="section-sub">Historical compliance score over time</span></div>' +
-            '<div class="trend-stats"></div>' +
+            '<span class="section-sub">Security posture over time</span></div>' +
             "</div>" +
             '<div class="trend-chart"></div>' +
             '<div class="section-loading section-loading-overlay"><span class="spinner"></span><span class="section-loading-text">Loading</span></div>' +
@@ -657,82 +656,367 @@
         return [{ name: "All Firewalls", points: points }];
     }
 
-    function renderTrendStats(root, history, firewallId, complianceScore) {
-        var el = groupSection(root, ".trend-stats");
-        if (!el) return;
-        var series = buildTrendSeries(history, firewallId);
-        var points = (series[0] && series[0].points) || [];
-        var current = points.length
-            ? points[points.length - 1].value
-            : (typeof complianceScore === "number" ? complianceScore : null);
-        if (current == null) { el.innerHTML = ""; return; }
-        var prev = points.length > 1 ? points[points.length - 2].value : null;
-        var improvement = prev != null ? Math.round((current - prev) * 10) / 10 : null;
-        var impCls = improvement == null ? "" : improvement > 0 ? "good" : improvement < 0 ? "bad" : "flat";
-        var impText = improvement == null ? "\u2014" : (improvement > 0 ? "+" : "") + improvement + "%";
-
-        el.innerHTML =
-            '<span class="trend-stat"><span>Current Score</span><strong>' + current + "%</strong></span>" +
-            '<span class="trend-stat"><span>Previous Scan</span><strong>' + (prev != null ? prev + "%" : "\u2014") + "</strong></span>" +
-            '<span class="trend-stat"><span>Improvement</span><strong class="' + impCls + '">' + impText + "</strong></span>";
+    function fmtPct(value) {
+        if (value == null || isNaN(value)) return "\u2014";
+        return (Math.round(Number(value) * 10) / 10) + "%";
     }
 
-    function renderComplianceTrend(root, history, firewallId) {
-        var el = groupSection(root, ".trend-chart");
-        var section = groupSection(root, ".compliance-trend-section");
-        if (!el) return;
+    function fmtSignedPct(value) {
+        if (value == null || isNaN(value)) return "\u2014";
+        var n = Math.round(Number(value) * 10) / 10;
+        return (n > 0 ? "+" : "") + n + "%";
+    }
+
+    function complianceColor(score) {
+        if (score == null || isNaN(score)) return "#9CA3AF";
+        if (score <= 30) return "#EF4444";
+        if (score <= 60) return "#F97316";
+        if (score <= 85) return "#FBBF24";
+        return "#22C55E";
+    }
+
+    function complianceHealth(score) {
+        if (score == null || isNaN(score)) return { label: "No Data", tone: "flat" };
+        if (score < 25) return { label: "Critical", tone: "bad" };
+        if (score < 50) return { label: "Needs Attention", tone: "warn" };
+        if (score < 75) return { label: "Good", tone: "good" };
+        return { label: "Excellent", tone: "excellent" };
+    }
+
+    function trendArrow(delta) {
+        if (delta == null || isNaN(delta) || delta === 0) return { glyph: "\u2192", cls: "flat" };
+        if (delta > 0) return { glyph: "\u2191", cls: "good" };
+        return { glyph: "\u2193", cls: "bad" };
+    }
+
+    function movingAverage(points, windowSize) {
+        var size = Math.max(2, windowSize || 3);
+        return points.map(function (p, i) {
+            var from = Math.max(0, i - size + 1);
+            var slice = points.slice(from, i + 1);
+            var sum = slice.reduce(function (acc, item) { return acc + item.value; }, 0);
+            return { ts: p.ts, value: sum / slice.length };
+        });
+    }
+
+    function forecastPoint(points) {
+        if (!points || points.length < 2) return null;
+        var last = points[points.length - 1];
+        var prev = points[points.length - 2];
+        var span = Math.max(86400, last.ts - prev.ts);
+        var projected = Math.max(0, Math.min(100, last.value + (last.value - prev.value)));
+        return { ts: last.ts + span, value: Math.round(projected * 10) / 10, predicted: true };
+    }
+
+    function trendEvents(points) {
+        if (!points.length) return {};
+        var highest = points[0];
+        var lowest = points[0];
+        var bestGain = null;
+        var worstDrop = null;
+        points.forEach(function (p, i) {
+            if (p.value > highest.value) highest = p;
+            if (p.value < lowest.value) lowest = p;
+            if (!i) return;
+            var delta = Math.round((p.value - points[i - 1].value) * 10) / 10;
+            if (delta > 0 && (!bestGain || delta > bestGain.delta)) bestGain = { point: p, prev: points[i - 1], delta: delta };
+            if (delta < 0 && (!worstDrop || delta < worstDrop.delta)) worstDrop = { point: p, prev: points[i - 1], delta: delta };
+        });
+        return { highest: highest, lowest: lowest, bestGain: bestGain, worstDrop: worstDrop };
+    }
+
+    function smoothPath(pts, xFn, yFn) {
+        if (!pts.length) return "";
+        if (pts.length === 1) {
+            return "M" + xFn(pts[0].ts).toFixed(1) + " " + yFn(pts[0].value).toFixed(1);
+        }
+        var d = "M" + xFn(pts[0].ts).toFixed(1) + " " + yFn(pts[0].value).toFixed(1);
+        for (var i = 0; i < pts.length - 1; i++) {
+            var p0 = pts[Math.max(0, i - 1)];
+            var p1 = pts[i];
+            var p2 = pts[i + 1];
+            var p3 = pts[Math.min(pts.length - 1, i + 2)];
+            var c1x = xFn(p1.ts) + (xFn(p2.ts) - xFn(p0.ts)) / 6;
+            var c1y = yFn(p1.value) + (yFn(p2.value) - yFn(p0.value)) / 6;
+            var c2x = xFn(p2.ts) - (xFn(p3.ts) - xFn(p1.ts)) / 6;
+            var c2y = yFn(p2.value) - (yFn(p3.value) - yFn(p1.value)) / 6;
+            d += " C" + c1x.toFixed(1) + " " + c1y.toFixed(1) + " " +
+                c2x.toFixed(1) + " " + c2y.toFixed(1) + " " +
+                xFn(p2.ts).toFixed(1) + " " + yFn(p2.value).toFixed(1);
+        }
+        return d;
+    }
+
+    function trendInsight(points, current) {
+        var health = complianceHealth(current);
+        var events = trendEvents(points);
+        var avg = points.length
+            ? points.reduce(function (acc, p) { return acc + p.value; }, 0) / points.length
+            : current;
+        var thirtyAgo = null;
+        if (points.length) {
+            var cutoff = points[points.length - 1].ts - 30 * 86400;
+            for (var i = 0; i < points.length; i++) {
+                if (points[i].ts >= cutoff) { thirtyAgo = points[i]; break; }
+            }
+            if (!thirtyAgo) thirtyAgo = points[0];
+        }
+        var monthDelta = thirtyAgo && current != null ? Math.round((current - thirtyAgo.value) * 10) / 10 : null;
+        return {
+            health: health,
+            highest: events.highest ? events.highest.value : current,
+            lowest: events.lowest ? events.lowest.value : current,
+            average: avg,
+            monthDelta: monthDelta
+        };
+    }
+
+    function bindTrendTip(section) {
+        if (section.getAttribute("data-tip-bound") === "1") return;
+        section.setAttribute("data-tip-bound", "1");
+
+        function tipEl() {
+            return section.querySelector(".trend-tip");
+        }
+
+        function hideTip() {
+            var tip = tipEl();
+            if (tip) tip.hidden = true;
+        }
+
+        function moveTip(event) {
+            var tip = tipEl();
+            if (!tip) return;
+            var x = event.clientX + 14;
+            var y = event.clientY + 16;
+            var width = tip.offsetWidth || 220;
+            var height = tip.offsetHeight || 160;
+            if (x + width > window.innerWidth - 12) x = event.clientX - width - 12;
+            if (y + height > window.innerHeight - 12) y = event.clientY - height - 12;
+            tip.style.left = x + "px";
+            tip.style.top = y + "px";
+        }
+
+        function showTip(marker, event) {
+            var tip = tipEl();
+            if (!tip) return;
+            var date = marker.getAttribute("data-date") || "";
+            var score = marker.getAttribute("data-score") || "\u2014";
+            var prev = marker.getAttribute("data-prev") || "\u2014";
+            var change = marker.getAttribute("data-change") || "\u2014";
+            var status = marker.getAttribute("data-status") || "Unchanged";
+            var eventLabel = marker.getAttribute("data-event") || "";
+            tip.innerHTML =
+                "<strong>" + escapeHtml(date) + "</strong>" +
+                (eventLabel ? '<span class="trend-tip-event">' + escapeHtml(eventLabel) + "</span>" : "") +
+                "<ul>" +
+                "<li>Compliance Score: " + escapeHtml(score) + "</li>" +
+                "<li>Previous Scan: " + escapeHtml(prev) + "</li>" +
+                "<li>Change: " + escapeHtml(change) + "</li>" +
+                "</ul>" +
+                "<em>Status: " + escapeHtml(status) + "</em>";
+            tip.hidden = false;
+            moveTip(event);
+        }
+
+        section.addEventListener("mouseover", function (event) {
+            var marker = event.target.closest(".trend-hit");
+            if (!marker || !section.contains(marker)) return;
+            showTip(marker, event);
+        });
+        section.addEventListener("mousemove", function (event) {
+            var tip = tipEl();
+            if (!tip || tip.hidden) return;
+            if (!event.target.closest(".trend-hit")) return;
+            moveTip(event);
+        });
+        section.addEventListener("mouseout", function (event) {
+            var next = event.relatedTarget;
+            if (next && section.contains(next) && next.closest(".trend-hit")) return;
+            hideTip();
+        });
+        section.addEventListener("click", function (event) {
+            var btn = event.target.closest("[data-trend-scale]");
+            if (!btn || !section.contains(btn)) return;
+            section.setAttribute("data-scale", btn.getAttribute("data-trend-scale") || "relative");
+            var history = section._trendHistory || [];
+            var firewallId = section._trendFirewallId || "all";
+            var score = section._trendScore;
+            renderComplianceTrend(section, history, firewallId, score);
+        });
+    }
+
+    function renderComplianceTrend(root, history, firewallId, complianceScore) {
+        var section = root && root.classList && root.classList.contains("compliance-trend-section")
+            ? root
+            : groupSection(root, ".compliance-trend-section");
+        var el = section ? section.querySelector(".trend-chart") : groupSection(root, ".trend-chart");
+        if (!el || !section) return;
+        section._trendHistory = history || [];
+        section._trendFirewallId = firewallId;
+        section._trendScore = complianceScore;
+        bindTrendTip(section);
 
         var series = buildTrendSeries(history, firewallId).filter(function (s) {
             return s.points.length > 0;
         });
-        if (!series.length) {
-            el.innerHTML = '<p class="trend-summary">No history yet. Run an assessment to start tracking compliance.</p>';
+        var rawPoints = series.length ? aggregateDaily(series[0].points) : [];
+        if (rawPoints.length > 30) rawPoints = rawPoints.slice(rawPoints.length - 30);
+        if (!rawPoints.length && typeof complianceScore !== "number") {
+            el.innerHTML = '<p class="trend-empty">No historical compliance data available yet.</p>';
             clearSection(section);
             return;
         }
+        if (!rawPoints.length && typeof complianceScore === "number") {
+            rawPoints = [{ ts: Date.now() / 1000, value: complianceScore }];
+        }
 
-        var points = aggregateDaily(series[0].points);
-        var times = points.map(function (p) { return p.ts; });
-        if (times.length > 30) times = times.slice(times.length - 30);
+        var current = rawPoints[rawPoints.length - 1].value;
+        var prev = rawPoints.length > 1 ? rawPoints[rawPoints.length - 2].value : null;
+        var improvement = prev != null ? Math.round((current - prev) * 10) / 10 : null;
+        var currentArrow = trendArrow(improvement);
+        var prevDelta = rawPoints.length > 2
+            ? Math.round((rawPoints[rawPoints.length - 2].value - rawPoints[rawPoints.length - 3].value) * 10) / 10
+            : null;
+        var prevArrow = trendArrow(prevDelta);
+        var impArrow = trendArrow(improvement);
+        var insight = trendInsight(rawPoints, current);
+        var events = trendEvents(rawPoints);
+        var avgPoints = movingAverage(rawPoints, 3);
+        var forecast = forecastPoint(rawPoints);
+        var relative = section.getAttribute("data-scale") !== "absolute";
+        var values = rawPoints.map(function (p) { return p.value; });
+        if (forecast) values.push(forecast.value);
+        var dataMin = Math.min.apply(null, values);
+        var dataMax = Math.max.apply(null, values);
+        var min = relative ? Math.max(0, Math.floor((dataMin - 5) / 5) * 5) : 0;
+        var max = relative ? Math.min(100, Math.ceil((dataMax + 5) / 5) * 5) : 100;
+        if (max <= min) max = min + 10;
+
+        var times = rawPoints.map(function (p) { return p.ts; });
         var n = times.length;
-
-        var W = 900, H = 160;
-        var PAD_LEFT = 36, PAD_RIGHT = 12, PAD_TOP = 12, PAD_BOTTOM = 22;
-        var min = 0, max = 100;
+        var W = 920, H = 240;
+        var PAD_LEFT = 44, PAD_RIGHT = 18, PAD_TOP = 28, PAD_BOTTOM = 28;
+        var plotBottom = H - PAD_BOTTOM;
 
         function x(ts) {
             var idx = times.indexOf(ts);
+            if (idx < 0 && forecast && ts === forecast.ts) {
+                return W - PAD_RIGHT;
+            }
             if (n === 1) return PAD_LEFT + (W - PAD_LEFT - PAD_RIGHT) / 2;
-            return PAD_LEFT + (idx / (n - 1)) * (W - PAD_LEFT - PAD_RIGHT);
+            var span = n > 1 ? n - 1 : 1;
+            var extra = forecast ? 1 : 0;
+            return PAD_LEFT + (idx / (span + extra)) * (W - PAD_LEFT - PAD_RIGHT);
         }
         function y(v) {
             return PAD_TOP + (1 - (v - min) / (max - min)) * (H - PAD_TOP - PAD_BOTTOM);
         }
 
-        var color = firewallId === "all" ? "#ff5e4f" : colorFor(firewallId);
+        var uid = "tr" + Math.abs(Math.round((rawPoints[0].ts || 1) * 100 + current * 10));
+        var linePath = smoothPath(rawPoints, x, y);
+        var areaPath = linePath +
+            " L" + x(rawPoints[rawPoints.length - 1].ts).toFixed(1) + " " + plotBottom.toFixed(1) +
+            " L" + x(rawPoints[0].ts).toFixed(1) + " " + plotBottom.toFixed(1) + " Z";
+        var avgPath = smoothPath(avgPoints, x, y);
+        var html = "";
+        html += '<div class="trend-insight">';
+        html += '<span>Compliance Health: <strong class="' + insight.health.tone + '">' + escapeHtml(insight.health.label) + "</strong></span>";
+        html += "<span>Highest Score Achieved: <strong>" + fmtPct(insight.highest) + "</strong></span>";
+        html += "<span>Lowest Score Achieved: <strong>" + fmtPct(insight.lowest) + "</strong></span>";
+        html += "<span>Average Trend: <strong>" + fmtPct(insight.average) + "</strong></span>";
+        html += "<span>Last 30-Day Change: <strong class=\"" + trendArrow(insight.monthDelta).cls + "\">" + fmtSignedPct(insight.monthDelta) + "</strong></span>";
+        html += "</div>";
 
-        var html = '<svg class="trend-line-svg" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" role="img" aria-label="Compliance score over time">';
+        html += '<div class="trend-kpis">';
+        html += '<div class="trend-kpi is-current"><span>Current Score</span><strong class="' + currentArrow.cls + '">' + fmtPct(current) + " <em>" + currentArrow.glyph + "</em></strong></div>";
+        html += '<div class="trend-kpi"><span>Previous Scan</span><strong class="' + prevArrow.cls + '">' + fmtPct(prev) + " <em>" + prevArrow.glyph + "</em></strong></div>";
+        html += '<div class="trend-kpi"><span>Improvement</span><strong class="' + impArrow.cls + '">' + fmtSignedPct(improvement) + " <em>" + impArrow.glyph + "</em></strong></div>";
+        html += "</div>";
 
-        for (var g = 0; g <= 4; g++) {
-            var gv = g * 25;
+        html += '<div class="trend-toolbar">';
+        html += '<button type="button" class="trend-scale-btn' + (relative ? " is-active" : "") + '" data-trend-scale="relative">Relative View</button>';
+        html += '<button type="button" class="trend-scale-btn' + (relative ? "" : " is-active") + '" data-trend-scale="absolute">Absolute View</button>';
+        html += "</div>";
+
+        html += '<svg class="trend-line-svg" viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" role="img" aria-label="Compliance score over time">';
+        html += "<defs>";
+        html += '<linearGradient id="' + uid + '-stroke" x1="0%" y1="0%" x2="100%" y2="0%">';
+        rawPoints.forEach(function (p, i) {
+            html += '<stop offset="' + (n === 1 ? 100 : Math.round(i / (n - 1) * 100)) + '%" stop-color="' + complianceColor(p.value) + '"/>';
+        });
+        html += "</linearGradient>";
+        html += '<linearGradient id="' + uid + '-fill" x1="0%" y1="0%" x2="0%" y2="100%">';
+        html += '<stop offset="0%" stop-color="' + complianceColor(current) + '" stop-opacity="0.28"/>';
+        html += '<stop offset="100%" stop-color="' + complianceColor(current) + '" stop-opacity="0.02"/>';
+        html += "</linearGradient>";
+        html += "</defs>";
+
+        var zones = [
+            { from: 0, to: 25, color: "rgba(239,68,68,0.10)" },
+            { from: 25, to: 50, color: "rgba(249,115,22,0.10)" },
+            { from: 50, to: 75, color: "rgba(251,191,36,0.08)" },
+            { from: 75, to: 100, color: "rgba(34,197,94,0.08)" }
+        ];
+        zones.forEach(function (zone) {
+            var top = Math.min(max, Math.max(min, zone.to));
+            var bottom = Math.max(min, Math.min(max, zone.from));
+            if (top <= bottom) return;
+            html += '<rect class="trend-zone" x="' + PAD_LEFT + '" y="' + y(top).toFixed(1) + '" width="' +
+                (W - PAD_LEFT - PAD_RIGHT) + '" height="' + (y(bottom) - y(top)).toFixed(1) + '" fill="' + zone.color + '"/>';
+        });
+
+        var ticks = 4;
+        for (var g = 0; g <= ticks; g++) {
+            var gv = min + (max - min) * g / ticks;
             var gy = y(gv);
             html += '<line x1="' + PAD_LEFT + '" y1="' + gy.toFixed(1) + '" x2="' + (W - PAD_RIGHT) + '" y2="' + gy.toFixed(1) + '" class="trend-grid"/>';
-            html += '<text x="' + (PAD_LEFT - 8) + '" y="' + (gy + 3).toFixed(1) + '" class="trend-axis-label" text-anchor="end">' + gv + "</text>";
+            html += '<text x="' + (PAD_LEFT - 8) + '" y="' + (gy + 3).toFixed(1) + '" class="trend-axis-label" text-anchor="end">' + Math.round(gv) + "</text>";
         }
 
-        var pts = points.filter(function (p) { return times.indexOf(p.ts) !== -1; });
-        if (pts.length === 1) {
-            var p = pts[0];
-            html += '<circle cx="' + x(p.ts).toFixed(1) + '" cy="' + y(p.value).toFixed(1) + '" r="4" fill="' + color + '"><title>' + escapeHtml(series[0].name + ": " + p.value + "%") + "</title></circle>";
-        } else if (pts.length > 1) {
-            var line = "M" + pts.map(function (p) { return x(p.ts).toFixed(1) + " " + y(p.value).toFixed(1); }).join(" L");
-            html += '<path d="' + line + '" fill="none" stroke="' + color + '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
-            pts.forEach(function (p) {
-                html += '<circle cx="' + x(p.ts).toFixed(1) + '" cy="' + y(p.value).toFixed(1) + '" r="2.6" fill="' + color + '" vector-effect="non-scaling-stroke"><title>' + escapeHtml(series[0].name + ": " + p.value + "%") + "</title></circle>";
-            });
+        if (rawPoints.length === 1) {
+            html += '<circle cx="' + x(rawPoints[0].ts).toFixed(1) + '" cy="' + y(rawPoints[0].value).toFixed(1) + '" r="5" fill="' + complianceColor(current) + '"/>';
+        } else {
+            html += '<path d="' + areaPath + '" fill="url(#' + uid + '-fill)" stroke="none"/>';
+            html += '<path d="' + linePath + '" fill="none" stroke="url(#' + uid + '-stroke)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>';
+            html += '<path d="' + avgPath + '" fill="none" stroke="rgba(209,213,219,0.55)" stroke-width="1.6" stroke-dasharray="6 5"/>';
+            if (forecast) {
+                html += '<path d="M' + x(rawPoints[rawPoints.length - 1].ts).toFixed(1) + " " + y(rawPoints[rawPoints.length - 1].value).toFixed(1) +
+                    " L" + x(forecast.ts).toFixed(1) + " " + y(forecast.value).toFixed(1) + '" fill="none" stroke="' +
+                    complianceColor(forecast.value) + '" stroke-width="2" stroke-dasharray="5 5" opacity="0.8"/>';
+            }
         }
 
+        function markerLabel(p) {
+            if (events.highest && p.ts === events.highest.ts) return "Highest Compliance";
+            if (events.worstDrop && p.ts === events.worstDrop.point.ts) return "Significant Drop";
+            if (events.lowest && p.ts === events.lowest.ts && events.lowest.ts !== events.highest.ts) return "Lowest Score";
+            if (events.bestGain && p.ts === events.bestGain.point.ts) return "Largest Improvement";
+            return "";
+        }
+
+        rawPoints.forEach(function (p, i) {
+            var prevVal = i ? rawPoints[i - 1].value : null;
+            var delta = prevVal != null ? Math.round((p.value - prevVal) * 10) / 10 : null;
+            var status = delta == null ? "Unchanged" : delta > 0 ? "Improving" : delta < 0 ? "Declining" : "Unchanged";
+            var eventName = markerLabel(p);
+            html += '<circle class="trend-hit" cx="' + x(p.ts).toFixed(1) + '" cy="' + y(p.value).toFixed(1) +
+                '" r="9" fill="transparent" data-date="' + escapeHtml(formatShortTs(p.ts)) +
+                '" data-score="' + fmtPct(p.value) +
+                '" data-prev="' + fmtPct(prevVal) +
+                '" data-change="' + fmtSignedPct(delta) +
+                '" data-status="' + status +
+                '" data-event="' + escapeHtml(eventName) + '"/>';
+            html += '<circle cx="' + x(p.ts).toFixed(1) + '" cy="' + y(p.value).toFixed(1) + '" r="3.4" fill="' +
+                complianceColor(p.value) + '" class="trend-dot"/>';
+            if (eventName === "Highest Compliance") {
+                html += '<text class="trend-event-label" x="' + x(p.ts).toFixed(1) + '" y="' + (y(p.value) - 12).toFixed(1) + '" text-anchor="middle">Highest Compliance</text>';
+            } else if (eventName === "Significant Drop") {
+                html += '<text class="trend-event-label is-drop" x="' + x(p.ts).toFixed(1) + '" y="' + (y(p.value) - 12).toFixed(1) + '" text-anchor="middle">Significant Drop</text>';
+            }
+        });
         html += "</svg>";
+
         html += '<div class="trend-labels">';
         times.forEach(function (ts, i) {
             if (i === 0 || i === n - 1 || i === Math.floor((n - 1) / 2)) {
@@ -742,8 +1026,12 @@
             }
         });
         html += "</div>";
-
-        html += '<div class="trend-legend"><span class="trend-legend-item"><i style="background:' + color + '"></i>' + escapeHtml(series[0].name) + "</span></div>";
+        html += '<div class="trend-legend">' +
+            '<span class="trend-legend-item"><i style="background:' + complianceColor(current) + '"></i>Compliance Score</span>' +
+            '<span class="trend-legend-item is-avg"><i></i>Trend Average</span>' +
+            (forecast ? '<span class="trend-legend-item is-forecast"><i></i>Projected Next Scan</span>' : "") +
+            "</div>";
+        html += '<div class="trend-tip" hidden></div>';
 
         el.innerHTML = html;
         clearSection(section);
@@ -785,8 +1073,7 @@
         renderRecentFindings(root, data.recent_findings || []);
         renderVerticalBars(root, data.findings_list || [], cid);
         renderDomainClustered(root, data.findings_list || [], cid);
-        renderTrendStats(root, data.history || [], cid, c.compliance_score);
-        renderComplianceTrend(root, data.history || [], cid);
+        renderComplianceTrend(root, data.history || [], cid, c.compliance_score);
     }
 
     function applyGroupError(root, fw) {

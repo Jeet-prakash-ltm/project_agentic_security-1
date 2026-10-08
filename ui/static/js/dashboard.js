@@ -100,6 +100,41 @@
         return d.toLocaleString(undefined, { month: "short", day: "numeric" });
     }
 
+    function formatRelative(ts) {
+        var d = parseDate(ts);
+        if (!d) return "No scan yet";
+        var mins = Math.round((Date.now() - d.getTime()) / 60000);
+        if (mins < 1) return "Just now";
+        if (mins < 60) return mins + "m ago";
+        var hrs = Math.round(mins / 60);
+        if (hrs < 24) return hrs + "h ago";
+        return Math.round(hrs / 24) + "d ago";
+    }
+
+    function lastScanTs(history) {
+        var latest = 0;
+        (history || []).forEach(function (s) {
+            if (s && typeof s.ts === "number" && s.ts > latest) latest = s.ts;
+        });
+        return latest || null;
+    }
+
+    function postureGrade(pct) {
+        var score = Number(pct) || 0;
+        if (score >= 90) return "A";
+        if (score >= 80) return "B";
+        if (score >= 65) return "C";
+        if (score >= 50) return "D";
+        return "F";
+    }
+
+    function postureTone(pct) {
+        var score = Number(pct) || 0;
+        if (score >= 80) return "healthy";
+        if (score >= 50) return "warn";
+        return "critical";
+    }
+
     // ============================================================
     // GROUP SHELL (one block of sections per selected firewall)
     // ============================================================
@@ -113,33 +148,39 @@
     }
 
     function groupShell(fw) {
-        var pie =
-            '<section class="dash-grid-2">' +
+        var ops =
+            '<section class="soc-ops-grid">' +
             '<div class="card dash-panel pie-panel is-loading">' +
-            '<div class="section-head"><h3>Compliance Score</h3></div>' +
+            '<div class="section-head"><h3>Compliance Score</h3><span class="soc-live-pill">Awaiting data</span></div>' +
             '<div class="donut-wrap">' +
             '<svg class="compliance-pie" viewBox="0 0 200 200" aria-label="Compliance donut"></svg>' +
             '<div class="donut-center">' +
             '<strong class="donut-percent">—%</strong>' +
             "<span>Compliance Score</span>" +
             '<em class="donut-status">—</em>' +
+            '<b class="donut-grade">—</b>' +
             "</div>" +
             "</div>" +
             '<div class="donut-pills"></div>' +
             '<div class="section-loading section-loading-overlay"><span class="spinner"></span><span class="section-loading-text">Loading</span></div>' +
             "</div>" +
-            sectionPanel("Findings by Severity", "", '<div class="severity-grid"></div>') +
+            '<section class="card dash-panel sev-panel is-loading">' +
+            '<div class="section-head"><h3>Findings by Severity</h3></div>' +
+            '<div class="severity-grid"></div>' +
+            '<div class="section-loading section-loading-overlay"><span class="spinner"></span><span class="section-loading-text">Loading</span></div>' +
+            "</section>" +
             "</section>";
 
-        var recent =
-            '<section class="card dash-panel is-loading">' +
+        var mid =
+            '<section class="soc-mid-grid">' +
+            sectionPanel("Top Risk Domains", "", '<div class="vertical-bars"></div>') +
+            '<section class="card dash-panel feed-panel is-loading">' +
             '<div class="section-head"><h3>Recent Findings</h3>' +
             '<a href="' + findingsUrl(fw, null, null) + '" class="view-all">View All &rarr;</a></div>' +
             '<div class="recent-findings"></div>' +
             '<div class="section-loading section-loading-overlay"><span class="spinner"></span><span class="section-loading-text">Loading</span></div>' +
+            "</section>" +
             "</section>";
-
-        var domains = sectionPanel("Top Risk Domains", "", '<div class="vertical-bars"></div>');
 
         var domainSev =
             '<section class="card dash-panel domain-risk-panel is-loading">' +
@@ -158,8 +199,15 @@
             '<div class="section-loading section-loading-overlay"><span class="spinner"></span><span class="section-loading-text">Loading</span></div>' +
             "</section>";
 
+        var insights =
+            '<section class="card dash-panel soc-insights is-loading">' +
+            '<div class="section-head"><h3>Operational Insights</h3></div>' +
+            '<div class="soc-insights-body"></div>' +
+            '<div class="section-loading section-loading-overlay"><span class="spinner"></span><span class="section-loading-text">Loading</span></div>' +
+            "</section>";
+
         return '<section class="dash-group" data-fw="' + escapeHtml(fw) + '">' +
-            pie + recent + domains + domainSev + trend + "</section>";
+            ops + mid + domainSev + trend + insights + "</section>";
     }
 
     function clearSection(el) {
@@ -215,6 +263,14 @@
         }
         if (percentEl) percentEl.textContent = pct + "%";
         if (statusEl) statusEl.textContent = statusText(pct);
+        var gradeEl = panel.querySelector(".donut-grade");
+        if (gradeEl) gradeEl.textContent = "Grade " + postureGrade(pct);
+        var livePill = panel.querySelector(".soc-live-pill");
+        if (livePill) {
+            livePill.textContent = c.source === "live" ? "Live telemetry" : "Sample data";
+            livePill.className = "soc-live-pill" + (c.source === "live" ? " is-live" : " is-sample");
+        }
+        panel.setAttribute("data-tone", postureTone(pct));
 
         var cx = 100, cy = 100, outerR = 92, innerR = 62;
         var segments = [
@@ -288,25 +344,21 @@
     function renderSeverityGrid(root, f, fw) {
         var panel = groupSection(root, ".severity-grid");
         if (!panel) return;
+        var open = (f.critical || 0) + (f.high || 0) + (f.medium || 0) + (f.low || 0);
         var sev = [
-            { label: "Critical", color: "#DC2626", count: f.critical || 0, status: "critical" },
-            { label: "High", color: "#F97316", count: f.high || 0, status: "high" },
-            { label: "Medium", color: "#F59E0B", count: f.medium || 0, status: "medium" },
-            { label: "Low", color: "#22C55E", count: f.low || 0, status: "low" }
+            { label: "Critical", color: "#EF4444", count: f.critical || 0, status: "critical", hint: "Immediate action" },
+            { label: "High", color: "#F97316", count: f.high || 0, status: "high", hint: "Priority queue" },
+            { label: "Medium", color: "#FBBF24", count: f.medium || 0, status: "medium", hint: "Plan remediation" },
+            { label: "Low", color: "#22C55E", count: f.low || 0, status: "low", hint: "Monitor" }
         ];
-        var max = 1;
-        sev.forEach(function (s) { max = Math.max(max, s.count); });
         var html = "";
         sev.forEach(function (s) {
-            var width = Math.round(s.count / max * 100);
-            html += '<a class="sev-bar" href="' + findingsUrl(fw, "severity", s.status) + '" title="' + s.label + ': ' + s.count + ' findings">' +
-                '<span class="sev-bar-head">' +
-                '<span class="sev-bar-label">' + s.label + "</span>" +
-                '<span class="sev-bar-count">' + s.count + "</span>" +
-                "</span>" +
-                '<span class="sev-bar-track">' +
-                '<span class="sev-bar-fill" style="width:' + width + "%;background:" + s.color + '"></span>' +
-                "</span>" +
+            var share = open ? Math.round(s.count / open * 100) : 0;
+            html += '<a class="sev-card is-' + s.status + '" href="' + findingsUrl(fw, "severity", s.status) + '" title="' + s.label + ': ' + s.count + ' findings">' +
+                '<span class="sev-card-label">' + s.label + "</span>" +
+                '<strong class="sev-card-count">' + s.count + "</strong>" +
+                '<span class="sev-card-hint">' + s.hint + " · " + share + "%</span>" +
+                '<span class="sev-card-track"><span class="sev-card-fill" style="width:' + share + "%;background:" + s.color + '"></span></span>' +
                 "</a>";
         });
         panel.innerHTML = html;
@@ -317,7 +369,7 @@
     // RECENT FINDINGS
     // ============================================================
 
-    function renderRecentFindings(root, recent) {
+    function renderRecentFindings(root, recent, fw) {
         var panel = groupSection(root, ".recent-findings");
         if (!panel) return;
         if (!recent.length) {
@@ -329,18 +381,20 @@
         recent.forEach(function (f) {
             var risk = (f.risk || "LOW").toLowerCase();
             var cls = risk === "critical" ? "bad" : risk === "high" ? "warn" : risk === "medium" ? "flat" : "good";
-            html += '<div class="recent-finding">' +
+            html += '<a class="recent-finding" href="' + findingsUrl(fw, null, null) + '">' +
+                '<span class="recent-finding-risk ' + cls + '">' + escapeHtml(f.risk || "LOW") + "</span>" +
+                '<span class="recent-finding-body">' +
                 '<span class="recent-finding-control">' + escapeHtml(f.control || "") + "</span>" +
                 '<span class="recent-finding-title">' + escapeHtml(f.title || "") + "</span>" +
-                '<span class="recent-finding-risk ' + cls + '">' + escapeHtml(f.risk || "LOW") + "</span>" +
-                "</div>";
+                "</span>" +
+                "</a>";
         });
         panel.innerHTML = html;
         clearSection(panel.closest(".dash-panel"));
     }
 
     // ============================================================
-    // TOP RISK DOMAINS (vertical bar graph, 7 categories)
+    // TOP RISK DOMAINS (ranked list)
     // ============================================================
 
     function categoryForControl(control) {
@@ -358,17 +412,24 @@
             var cat = categoryForControl(f.control);
             if (cat) counts[cat] = (counts[cat] || 0) + 1;
         });
+        var ranked = CATEGORY_ORDER.map(function (cat) {
+            return { cat: cat, n: counts[cat] || 0 };
+        }).sort(function (a, b) { return b.n - a.n; });
         var max = 1;
-        CATEGORY_ORDER.forEach(function (c) { max = Math.max(max, counts[c] || 0); });
+        ranked.forEach(function (row) { max = Math.max(max, row.n); });
+        var total = ranked.reduce(function (acc, row) { return acc + row.n; }, 0);
 
-        var html = '<div class="vertical-bars-axis">';
-        CATEGORY_ORDER.forEach(function (cat) {
-            var n = counts[cat] || 0;
-            var h = max ? Math.round(n / max * 100) : 0;
-            html += '<a class="vbar" href="' + findingsUrl(fw, "domain", cat) + '" title="' + escapeHtml(cat) + ": " + n + '">' +
-                '<span class="vbar-count">' + n + "</span>" +
-                '<span class="vbar-track"><span class="vbar-fill" style="height:' + h + '%"></span></span>' +
-                '<span class="vbar-label">' + escapeHtml(shortLabel(cat)) + "</span>" +
+        var html = '<div class="domain-rank-list">';
+        ranked.forEach(function (row, i) {
+            var w = max ? Math.round(row.n / max * 100) : 0;
+            var share = total ? Math.round(row.n / total * 100) : 0;
+            html += '<a class="domain-rank' + (i === 0 && row.n ? " is-top" : "") + '" href="' + findingsUrl(fw, "domain", row.cat) + '" title="' + escapeHtml(row.cat) + ": " + row.n + '">' +
+                '<span class="domain-rank-idx">' + (i + 1) + "</span>" +
+                '<span class="domain-rank-copy">' +
+                '<span class="domain-rank-name">' + escapeHtml(row.cat) + "</span>" +
+                '<span class="domain-rank-track"><span class="domain-rank-fill" style="width:' + w + '%"></span></span>' +
+                "</span>" +
+                '<span class="domain-rank-meta"><strong>' + row.n + "</strong><em>" + share + "%</em></span>" +
                 "</a>";
         });
         html += "</div>";
@@ -1059,6 +1120,100 @@
         if (report) report.href = "/generate-excel?firewall=" + encodeURIComponent(fw);
     }
 
+    function renderPostureBanner(data, fw) {
+        var banner = document.getElementById("socBanner");
+        if (!banner) return;
+        var c = data.compliance || {};
+        var f = data.findings || {};
+        var pct = Number(c.compliance_score) || 0;
+        var grade = postureGrade(pct);
+        var tone = postureTone(pct);
+        var open = Number(f.open) || ((f.critical || 0) + (f.high || 0) + (f.medium || 0) + (f.low || 0));
+        var critical = Number(f.critical) || 0;
+        var scan = lastScanTs(data.history);
+        var scope = fw === ALL || !fw ? "All Firewalls" : fw;
+        var headlines = {
+            healthy: scope + " posture is healthy.",
+            warn: scope + " posture needs attention.",
+            critical: scope + " posture is critical."
+        };
+        banner.className = "soc-banner is-" + tone;
+        var gradeEl = document.getElementById("socGrade");
+        var headline = document.getElementById("socHeadline");
+        var meta = document.getElementById("socMeta");
+        var score = document.getElementById("socScore");
+        var openEl = document.getElementById("socOpen");
+        var critEl = document.getElementById("socCritical");
+        var scanEl = document.getElementById("socScan");
+        if (gradeEl) gradeEl.textContent = grade;
+        if (headline) headline.textContent = headlines[tone] || headlines.warn;
+        if (meta) {
+            meta.textContent = (c.source === "live" ? "Live telemetry" : "Sample data") +
+                " · " + (c.compliant || 0) + " compliant / " + (c.non_compliant || 0) + " gaps · " +
+                formatRelative(scan);
+        }
+        if (score) score.textContent = pct + "%";
+        if (openEl) openEl.textContent = String(open);
+        if (critEl) critEl.textContent = String(critical);
+        if (scanEl) scanEl.textContent = formatRelative(scan);
+    }
+
+    function renderInsights(root, data, fw) {
+        var panel = groupSection(root, ".soc-insights-body");
+        if (!panel) return;
+        var c = data.compliance || {};
+        var f = data.findings || {};
+        var findingsList = data.findings_list || [];
+        var pct = Number(c.compliance_score) || 0;
+        var open = Number(f.open) || findingsList.length;
+        var critical = Number(f.critical) || 0;
+        var counts = {};
+        findingsList.forEach(function (item) {
+            var cat = categoryForControl(item.control);
+            if (cat) counts[cat] = (counts[cat] || 0) + 1;
+        });
+        var topDomain = CATEGORY_ORDER.slice().sort(function (a, b) {
+            return (counts[b] || 0) - (counts[a] || 0);
+        })[0];
+        var cards = [];
+        if (critical) {
+            cards.push({
+                tone: "critical",
+                title: critical + " critical finding" + (critical === 1 ? "" : "s"),
+                body: "Triage the highest-severity gaps first to recover estate posture."
+            });
+        }
+        if (topDomain && counts[topDomain]) {
+            cards.push({
+                tone: "warn",
+                title: topDomain + " leads risk",
+                body: counts[topDomain] + " findings concentrate in this domain. Focus remediation there."
+            });
+        }
+        cards.push({
+            tone: pct >= 80 ? "healthy" : "flat",
+            title: open + " open finding" + (open === 1 ? "" : "s"),
+            body: (c.not_assessed || 0) + " controls remain unassessed across " +
+                (fw === ALL ? "the estate" : escapeHtml(fw)) + "."
+        });
+        if (data.cost && data.cost.total_cost) {
+            cards.push({
+                tone: "flat",
+                title: "AI spend $" + Number(data.cost.total_cost).toFixed(2),
+                body: Number(data.cost.total_tokens || 0).toLocaleString() + " tokens across agent operations."
+            });
+        }
+        var html = "";
+        cards.slice(0, 3).forEach(function (card) {
+            html += '<article class="soc-insight is-' + card.tone + '">' +
+                "<strong>" + card.title + "</strong>" +
+                "<p>" + card.body + "</p>" +
+                "</article>";
+        });
+        panel.innerHTML = html || '<p class="empty-inline">No insights yet.</p>';
+        clearSection(panel.closest(".dash-panel"));
+    }
+
     function applyNetsecData(root, data, fw) {
         var c = data.compliance || {};
         var cid = data.firewall_id || fw;
@@ -1068,16 +1223,26 @@
         var dot = root && root.querySelector(".dash-group-dot");
         if (dot) dot.className = "dash-group-dot " + statusClass(fw);
         updateChipDots();
+        renderPostureBanner(data, cid);
         renderCompliancePie(root, c, cid);
         renderSeverityGrid(root, data.findings || {}, cid);
-        renderRecentFindings(root, data.recent_findings || []);
+        renderRecentFindings(root, data.recent_findings || [], cid);
         renderVerticalBars(root, data.findings_list || [], cid);
         renderDomainClustered(root, data.findings_list || [], cid);
         renderComplianceTrend(root, data.history || [], cid, c.compliance_score);
+        renderInsights(root, data, cid);
     }
 
     function applyGroupError(root, fw) {
         if (fw) state.status[fw] = "down";
+        var banner = document.getElementById("socBanner");
+        if (banner) {
+            banner.className = "soc-banner is-critical";
+            var headline = document.getElementById("socHeadline");
+            var meta = document.getElementById("socMeta");
+            if (headline) headline.textContent = "Dashboard data unavailable.";
+            if (meta) meta.textContent = "Refresh or reselect a firewall to retry.";
+        }
         if (root) {
             var dot = root.querySelector(".dash-group-dot");
             if (dot) dot.className = "dash-group-dot " + statusClass(fw);
@@ -1105,6 +1270,7 @@
             recent_findings: [],
             findings_list: [],
             history: [],
+            cost: { total_cost: 0, total_tokens: 0, top_drivers: [] },
             firewall_id: labelId
         };
         payloads.forEach(function (data) {
@@ -1123,6 +1289,9 @@
             result.recent_findings = result.recent_findings.concat(data.recent_findings || []);
             result.findings_list = result.findings_list.concat(data.findings_list || []);
             result.history = result.history.concat(data.history || []);
+            var cost = data.cost || {};
+            result.cost.total_cost += Number(cost.total_cost) || 0;
+            result.cost.total_tokens += Number(cost.total_tokens) || 0;
         });
         var total = result.compliance.total_controls;
         result.compliance.compliance_score = total

@@ -2,191 +2,6 @@
    PAGE HEADER (landing-style hero band)
    ============================================================ */
 
-.soc-banner {
-    display: grid;
-    grid-template-columns: 88px minmax(0, 1.4fr) minmax(0, 1fr);
-    gap: 22px;
-    align-items: center;
-    margin-bottom: 16px;
-    padding: 22px 26px;
-    border-radius: 22px;
-    border: 1px solid rgba(255, 94, 79, 0.22);
-    background:
-        radial-gradient(520px 180px at 100% 0%, rgba(255, 94, 79, 0.16), transparent 62%),
-        linear-gradient(180deg, rgba(18, 18, 18, 0.92), rgba(18, 18, 18, 0.78));
-    box-shadow: var(--shadow-glass);
-}
-
-.soc-banner-grade {
-    width: 88px;
-    height: 88px;
-    border-radius: 22px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.soc-banner-grade strong {
-    font-size: 38px;
-    font-weight: 800;
-    letter-spacing: -0.04em;
-    line-height: 1;
-    color: #fff;
-}
-
-.soc-banner-grade span {
-    margin-top: 4px;
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #D1D5DB;
-}
-
-.soc-banner.is-healthy .soc-banner-grade { border-color: rgba(34, 197, 94, 0.45); box-shadow: 0 0 24px rgba(34, 197, 94, 0.18); }
-.soc-banner.is-warn .soc-banner-grade { border-color: rgba(249, 115, 22, 0.5); box-shadow: 0 0 24px rgba(249, 115, 22, 0.16); }
-.soc-banner.is-critical .soc-banner-grade { border-color: rgba(239, 68, 68, 0.55); box-shadow: 0 0 24px rgba(239, 68, 68, 0.2); }
-.soc-banner.is-healthy .soc-banner-grade strong { color: #22C55E; }
-.soc-banner.is-warn .soc-banner-grade strong { color: #F97316; }
-.soc-banner.is-critical .soc-banner-grade strong { color: #EF4444; }
-
-.soc-banner-kicker {
-    margin: 0 0 6px;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: #F97316;
-}
-
-.soc-banner-copy h2 {
-    margin: 0 0 6px;
-    font-size: 24px;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    color: #fff;
-}
-
-.soc-banner-meta {
-    margin: 0;
-    font-size: 12.5px;
-    color: #D1D5DB;
-}
-
-.soc-banner-stats {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-    margin: 0;
-}
-
-.soc-banner-stats div {
-    padding: 10px 12px;
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.soc-banner-stats dt {
-    font-size: 9.5px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #D1D5DB;
-}
-
-.soc-banner-stats dd {
-    margin: 3px 0 0;
-    font-size: 20px;
-    font-weight: 800;
-    color: #fff;
-    letter-spacing: -0.03em;
-}
-
-.soc-command {
-    margin-bottom: 22px;
-    padding: 16px 18px 14px;
-}
-
-.soc-ops-grid,
-.soc-mid-grid {
-    display: grid;
-    grid-template-columns: 1.05fr 1fr;
-    gap: 20px;
-}
-
-.soc-live-pill {
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    padding: 4px 8px;
-    border-radius: 999px;
-    color: #D1D5DB;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.soc-live-pill.is-live {
-    color: #22C55E;
-    border-color: rgba(34, 197, 94, 0.35);
-    background: rgba(34, 197, 94, 0.1);
-}
-
-.soc-live-pill.is-sample {
-    color: #FBBF24;
-    border-color: rgba(251, 191, 36, 0.35);
-    background: rgba(251, 191, 36, 0.08);
-}
-
-.donut-grade {
-    display: block;
-    margin-top: 6px;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--red);
-}
-
-.pie-panel[data-tone="healthy"] .donut-grade { color: #22C55E; }
-.pie-panel[data-tone="warn"] .donut-grade { color: #F97316; }
-.pie-panel[data-tone="critical"] .donut-grade { color: #EF4444; }
-
-.soc-insights-body {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-}
-
-.soc-insight {
-    padding: 14px 14px 13px;
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.soc-insight strong {
-    display: block;
-    font-size: 13px;
-    font-weight: 800;
-    color: #fff;
-    margin-bottom: 6px;
-}
-
-.soc-insight p {
-    margin: 0;
-    font-size: 12px;
-    line-height: 1.45;
-    color: #D1D5DB;
-}
-
-.soc-insight.is-critical { border-color: rgba(239, 68, 68, 0.4); }
-.soc-insight.is-warn { border-color: rgba(249, 115, 22, 0.4); }
-.soc-insight.is-healthy { border-color: rgba(34, 197, 94, 0.35); }
-
 .dash-header {
     position: relative;
     z-index: 30;
@@ -542,11 +357,6 @@
     margin-bottom: 26px;
 }
 
-.dash-group .soc-ops-grid,
-.dash-group .soc-mid-grid {
-    margin-bottom: 0;
-}
-
 .dash-panel {
     padding: 24px 24px 22px;
     border-radius: 22px;
@@ -793,40 +603,26 @@
 
 .recent-finding {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 10px;
-    padding: 11px 10px;
-    margin: 0 -10px;
-    border-radius: 12px;
-    text-decoration: none;
-    border-top: 1px solid transparent;
-    transition: background 0.15s ease;
-}
-
-.recent-finding + .recent-finding {
+    padding: 10px 0;
     border-top: 1px solid var(--border-soft);
 }
 
-.recent-finding:hover {
-    background: rgba(255, 255, 255, 0.04);
-}
-
-.recent-finding-body {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    min-width: 0;
-    flex: 1;
+.recent-finding:first-child {
+    border-top: none;
 }
 
 .recent-finding-control {
     font-family: monospace;
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--text);
+    flex-shrink: 0;
 }
 
 .recent-finding-title {
+    flex: 1;
     font-size: 12.5px;
     color: var(--text-2);
     overflow: hidden;
@@ -867,98 +663,8 @@
 }
 
 /* ============================================================
-   TOP RISK DOMAINS (ranked list)
+   TOP RISK DOMAINS (vertical bar graph)
    ============================================================ */
-
-.domain-rank-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.domain-rank {
-    display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) auto;
-    gap: 10px;
-    align-items: center;
-    padding: 10px 12px;
-    border-radius: 14px;
-    text-decoration: none;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    transition: transform 0.16s ease, border-color 0.16s ease;
-}
-
-.domain-rank:hover {
-    transform: translateX(2px);
-    border-color: rgba(255, 94, 79, 0.35);
-}
-
-.domain-rank.is-top {
-    border-color: rgba(239, 68, 68, 0.4);
-    background: rgba(239, 68, 68, 0.08);
-}
-
-.domain-rank-idx {
-    width: 24px;
-    height: 24px;
-    border-radius: 8px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: 800;
-    color: #fff;
-    background: rgba(255, 255, 255, 0.08);
-}
-
-.domain-rank-copy {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.domain-rank-name {
-    font-size: 12.5px;
-    font-weight: 700;
-    color: #fff;
-}
-
-.domain-rank-track {
-    display: block;
-    height: 5px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.08);
-    overflow: hidden;
-}
-
-.domain-rank-fill {
-    display: block;
-    height: 100%;
-    border-radius: 999px;
-    background: linear-gradient(90deg, #ff7d70, var(--red));
-}
-
-.domain-rank-meta {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 1px;
-}
-
-.domain-rank-meta strong {
-    font-size: 16px;
-    font-weight: 800;
-    color: #fff;
-}
-
-.domain-rank-meta em {
-    font-style: normal;
-    font-size: 10px;
-    font-weight: 700;
-    color: #9CA3AF;
-}
 
 .vertical-bars-axis {
     display: flex;
@@ -1016,7 +722,7 @@
    ============================================================ */
 
 .domain-risk-panel {
-    padding: 18px 20px 16px;
+    padding: 26px 26px 24px;
     border-radius: 18px;
     border: 1px solid rgba(255, 94, 79, 0.18);
     background:
@@ -1033,8 +739,8 @@
 .domain-risk-kpis {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: 10px;
+    margin-bottom: 16px;
 }
 
 .domain-risk-kpi {
@@ -1108,7 +814,7 @@
     justify-content: space-between;
     align-items: flex-end;
     width: 28px;
-    padding-top: 46px;
+    padding-top: 58px;
     padding-bottom: 34px;
     flex-shrink: 0;
     font-size: 10px;
@@ -1127,8 +833,8 @@
     position: absolute;
     left: 0;
     right: 0;
-    top: 46px;
-    height: 132px;
+    top: 58px;
+    height: 180px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -1208,7 +914,7 @@
     justify-content: center;
     gap: 4px;
     width: 100%;
-    height: 132px;
+    height: 180px;
 }
 
 .domain-cluster-col {
@@ -1611,25 +1317,12 @@
    ============================================================ */
 
 @media (max-width: 1100px) {
-    .dash-grid-2,
-    .soc-ops-grid,
-    .soc-mid-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .soc-banner {
-        grid-template-columns: 1fr;
-    }
-
-    .soc-insights-body {
+    .dash-grid-2 {
         grid-template-columns: 1fr;
     }
 }
 
 @media (max-width: 768px) {
-    .soc-banner-stats {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
     .severity-grid {
         grid-template-columns: 1fr;
     }
@@ -1637,8 +1330,8 @@
         gap: 6px;
     }
     .pie-panel {
-        max-width: none;
-        margin: 0;
+        max-width: 320px;
+        margin: 0 auto;
     }
     .dash-header {
         flex-direction: column;

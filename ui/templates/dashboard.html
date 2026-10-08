@@ -4,7 +4,7 @@
 
 {% block page_title %}Network Security{% endblock %}
 
-{% block hero_eyebrow %}SOC / Network Security{% endblock %}
+{% block hero_eyebrow %}Dashboard / Network Security{% endblock %}
 
 {% block navbar_actions %}
 <span class="hero-chip" id="dataSourceBadge">Connecting…</span>
@@ -16,40 +16,10 @@
 
 {% block content %}
 
-<section class="soc-banner is-pending" id="socBanner" aria-live="polite">
-    <div class="soc-banner-grade">
-        <strong id="socGrade">—</strong>
-        <span>Posture Grade</span>
-    </div>
-    <div class="soc-banner-copy">
-        <p class="soc-banner-kicker">Network Security Operations</p>
-        <h2 id="socHeadline">Assessing estate posture…</h2>
-        <p class="soc-banner-meta" id="socMeta">Waiting for live telemetry.</p>
-    </div>
-    <dl class="soc-banner-stats">
-        <div>
-            <dt>Compliance</dt>
-            <dd id="socScore">—</dd>
-        </div>
-        <div>
-            <dt>Open Findings</dt>
-            <dd id="socOpen">—</dd>
-        </div>
-        <div>
-            <dt>Critical</dt>
-            <dd id="socCritical">—</dd>
-        </div>
-        <div>
-            <dt>Last Scan</dt>
-            <dd id="socScan">—</dd>
-        </div>
-    </dl>
-</section>
-
-<div class="dash-header soc-command">
+<div class="dash-header">
     <div class="dash-meta">
         <div class="dash-fw-search">
-            <span class="dash-fw-label">Scope</span>
+            <span class="dash-fw-label">Firewall</span>
             <div class="rep-combobox" id="dashCombobox" data-initial-firewall="{{ firewall_id }}">
                 <svg class="rep-combo-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
                 <input type="text" id="dashFwInput" class="rep-combo-input" placeholder="All Firewalls — search estate" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Search firewall inventory">

@@ -1503,8 +1503,10 @@ def api_insights():
     if not _is_admin(user):
         return jsonify({"error": "Administrator access required."}), 403
 
-    target_user_id = (request.args.get("user_id") or "").strip() or current_user_id()
-    return jsonify(insights_service.summarize(user_id=target_user_id))
+    target_user_id = (request.args.get("user_id") or "").strip()
+    if target_user_id:
+        return jsonify(insights_service.summarize(user_id=target_user_id))
+    return jsonify(insights_service.summarize())
 
 
 @app.route("/api/insights/conversation/<conversation_id>")

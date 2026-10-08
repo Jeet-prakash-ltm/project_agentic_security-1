@@ -6,6 +6,9 @@
     var userInput = document.getElementById("insightsUserInput");
     var userList = document.getElementById("insightsUserList");
     var userClear = document.getElementById("insightsUserClear");
+    var agentInput = document.getElementById("insightsAgentInput");
+    var agentList = document.getElementById("insightsAgentList");
+    var agentClear = document.getElementById("insightsAgentClear");
 
     var costTotal = document.getElementById("costTotal");
     var costTokens = document.getElementById("costTokens");
@@ -18,10 +21,14 @@
 
     var insightsAgents = [];
     var insightsTotals = {};
+    var ALL_USERS_ID = "__all__";
+    var ALL_USERS_LABEL = "All users";
     var selectedAgent = "";
+    var selectedAgentLabel = "";
     var selectedUserId = "";
-    var selectedUserLabel = "";
+    var selectedUserLabel = ALL_USERS_LABEL;
     var usersCatalog = [];
+    var healthAgents = [];
     var agentRanges = {};
     var insightsRendered = false;
     var healthRendered = false;
@@ -260,9 +267,15 @@
             .slice(0, 5);
 
         if (!list.length) {
-            costDrivers.innerHTML = selectedUserId
-                ? '<p class="cost-driver-empty">No token usage recorded yet for this user and agent.</p>'
-                : '<p class="cost-driver-empty">No token usage recorded yet. Chat with an agent in the AI Workspace to start tracking.</p>';
+            var emptyCost = "No token usage recorded yet. Chat with an agent in the AI Workspace to start tracking.";
+            if (selectedUserId && selectedAgent) {
+                emptyCost = "No token usage recorded yet for this user and agent.";
+            } else if (selectedUserId) {
+                emptyCost = "No token usage recorded yet for this user.";
+            } else if (selectedAgent) {
+                emptyCost = "No token usage recorded yet for this agent.";
+            }
+            costDrivers.innerHTML = '<p class="cost-driver-empty">' + emptyCost + "</p>";
             return;
         }
 
@@ -506,21 +519,9 @@
     function renderSelectedHistory() {
         if (!historyList) return;
 
-        if (!selectedAgent) {
+        if (!selectedUserId || !selectedAgent) {
             historyList.setAttribute("hidden", "");
             historyList.innerHTML = "";
-            return;
-        }
-
-        if (!selectedUserId) {
-            historyList.removeAttribute("hidden");
-            historyList.innerHTML = "";
-            historyList.appendChild(historyEmpty(
-                "Agent history cannot be shown without User.",
-                "",
-                false,
-                true
-            ));
             return;
         }
 
@@ -561,6 +562,7 @@
         healthRendered = true;
 
         var list = agents || [];
+        healthAgents = list;
         if (!list.length) {
             agentHealthList.innerHTML = '<p class="agent-health-empty">No agents registered yet. Add one in the Settings page.</p>';
             if (agentHealthUpdated) agentHealthUpdated.textContent = "";
@@ -604,8 +606,15 @@
         }
     }
 
-    function selectAgent(name) {
+    function selectAgent(name, fromSearch) {
         selectedAgent = name || "";
+        selectedAgentLabel = selectedAgent;
+        if (agentInput) {
+            agentInput.value = selectedAgentLabel;
+            agentInput.placeholder = "Search agents";
+        }
+        if (agentClear) agentClear.hidden = !selectedAgent;
+        if (!fromSearch) closeAgentList();
         markActiveCards();
         renderSelectedHistory();
         renderCost(insightsTotals, insightsAgents);
@@ -637,16 +646,21 @@
     function renderUserOptions(query) {
         if (!userList) return;
         var q = String(query || "").trim().toLowerCase();
+        var html = "";
+        var allActive = !selectedUserId;
+        var allMatch = !q || ALL_USERS_LABEL.toLowerCase().indexOf(q) !== -1;
+        if (allMatch) {
+            html += '<li class="insights-user-row' + (allActive ? " is-active" : "") +
+                '" role="option" data-user-id="' + ALL_USERS_ID + '">' +
+                '<span class="insights-user-name">' + escapeHtml(ALL_USERS_LABEL) + "</span>" +
+                '<span class="insights-user-meta">Cost observability across every user</span>' +
+                "</li>";
+        }
         var rows = (usersCatalog || []).filter(function (user) {
             var hay = [user.name, user.email, user.role, user.id].join(" ").toLowerCase();
             return !q || hay.indexOf(q) !== -1;
         });
-        if (!rows.length) {
-            userList.innerHTML = '<li class="insights-user-empty">No users match</li>';
-            openUserList();
-            return;
-        }
-        userList.innerHTML = rows.map(function (user) {
+        html += rows.map(function (user) {
             var active = user.id === selectedUserId;
             return '<li class="insights-user-row' + (active ? " is-active" : "") + '" role="option" data-user-id="' +
                 escapeHtml(user.id) + '">' +
@@ -654,19 +668,91 @@
                 '<span class="insights-user-meta">' + escapeHtml(userSub(user)) + "</span>" +
                 "</li>";
         }).join("");
+        if (!html) {
+            userList.innerHTML = '<li class="insights-user-empty">No users match</li>';
+            openUserList();
+            return;
+        }
+        userList.innerHTML = html;
         openUserList();
     }
 
     function setSelectedUser(user, reload) {
         selectedUserId = user && user.id ? user.id : "";
-        selectedUserLabel = userLabel(user);
+        selectedUserLabel = selectedUserId ? userLabel(user) : ALL_USERS_LABEL;
         if (userInput) {
             userInput.value = selectedUserLabel;
-            userInput.placeholder = selectedUserLabel ? selectedUserLabel : "Search users";
+            userInput.placeholder = ALL_USERS_LABEL;
         }
         if (userClear) userClear.hidden = !selectedUserId;
         closeUserList();
         if (reload) load(true);
+        else renderSelectedHistory();
+    }
+
+    function closeAgentList() {
+        if (!agentList) return;
+        agentList.hidden = true;
+        if (agentInput) agentInput.setAttribute("aria-expanded", "false");
+    }
+
+    function openAgentList() {
+        if (!agentList) return;
+        agentList.hidden = false;
+        if (agentInput) agentInput.setAttribute("aria-expanded", "true");
+    }
+
+    function agentCatalog() {
+        var seen = {};
+        var rows = [];
+        (healthAgents || []).forEach(function (agent) {
+            var name = agent && agent.name ? String(agent.name) : "";
+            if (!name || seen[name]) return;
+            seen[name] = true;
+            rows.push({
+                name: name,
+                type: agent.type || agent.agent_type || "",
+                status: agent.status || ""
+            });
+        });
+        (insightsAgents || []).forEach(function (agent) {
+            var name = agent && agent.agent_name ? String(agent.agent_name) : "";
+            if (!name || seen[name]) return;
+            seen[name] = true;
+            rows.push({
+                name: name,
+                type: agent.agent_type || "",
+                status: ""
+            });
+        });
+        rows.sort(function (a, b) {
+            return a.name.localeCompare(b.name);
+        });
+        return rows;
+    }
+
+    function renderAgentOptions(query) {
+        if (!agentList) return;
+        var q = String(query || "").trim().toLowerCase();
+        var rows = agentCatalog().filter(function (agent) {
+            var hay = [agent.name, agent.type, agent.status].join(" ").toLowerCase();
+            return !q || hay.indexOf(q) !== -1;
+        });
+        if (!rows.length) {
+            agentList.innerHTML = '<li class="insights-user-empty">No agents match</li>';
+            openAgentList();
+            return;
+        }
+        agentList.innerHTML = rows.map(function (agent) {
+            var active = agent.name === selectedAgent;
+            var meta = [agent.type, agent.status].filter(Boolean).join(" \u00b7 ");
+            return '<li class="insights-user-row' + (active ? " is-active" : "") +
+                '" role="option" data-agent-name="' + escapeHtml(agent.name) + '">' +
+                '<span class="insights-user-name">' + escapeHtml(agent.name) + "</span>" +
+                (meta ? '<span class="insights-user-meta">' + escapeHtml(meta) + "</span>" : "") +
+                "</li>";
+        }).join("");
+        openAgentList();
     }
 
     function loadUsers() {
@@ -769,10 +855,13 @@
         if (costDrivers && window.loadingHtml) {
             costDrivers.innerHTML = window.loadingHtml("Loading cost data…");
         }
-        if (historyList && window.loadingHtml) {
+        if (historyList && window.loadingHtml && selectedUserId && selectedAgent) {
             historyList.removeAttribute("hidden");
             historyList.innerHTML = '<div class="empty-state card">' +
                 window.loadingHtml("Loading agent usage history…") + "</div>";
+        } else if (historyList) {
+            historyList.setAttribute("hidden", "");
+            historyList.innerHTML = "";
         }
     }
 
@@ -792,24 +881,37 @@
             })
             .catch(function () {
                 loading = false;
-                if (historyList) historyList.innerHTML = '<div class="empty-state card"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></div><h3>Unable to load insights</h3><p>Backend unavailable.</p></div>';
+                if (historyList && selectedUserId && selectedAgent) {
+                    historyList.removeAttribute("hidden");
+                    historyList.innerHTML = '<div class="empty-state card"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></div><h3>Unable to load insights</h3><p>Backend unavailable.</p></div>';
+                } else if (historyList) {
+                    historyList.setAttribute("hidden", "");
+                    historyList.innerHTML = "";
+                }
             });
     }
 
     if (userInput) {
         userInput.addEventListener("focus", function () {
-            renderUserOptions(userInput.value);
+            renderUserOptions("");
         });
         userInput.addEventListener("input", function () {
             if (selectedUserId && userInput.value !== selectedUserLabel) {
                 selectedUserId = "";
-                selectedUserLabel = "";
+                selectedUserLabel = ALL_USERS_LABEL;
                 if (userClear) userClear.hidden = true;
+                renderSelectedHistory();
             }
             renderUserOptions(userInput.value);
         });
         userInput.addEventListener("keydown", function (event) {
             if (event.key === "Escape") closeUserList();
+        });
+        userInput.addEventListener("blur", function () {
+            if (!selectedUserId) {
+                userInput.value = ALL_USERS_LABEL;
+                selectedUserLabel = ALL_USERS_LABEL;
+            }
         });
     }
     if (userList) {
@@ -818,6 +920,10 @@
             if (!row) return;
             event.preventDefault();
             var id = row.getAttribute("data-user-id");
+            if (id === ALL_USERS_ID) {
+                setSelectedUser(null, true);
+                return;
+            }
             var user = null;
             for (var i = 0; i < usersCatalog.length; i += 1) {
                 if (usersCatalog[i].id === id) {
@@ -831,15 +937,53 @@
     if (userClear) {
         userClear.addEventListener("click", function () {
             setSelectedUser(null, true);
-            if (userInput) {
-                userInput.value = "";
-                userInput.focus();
+            if (userInput) userInput.focus();
+        });
+    }
+    if (agentInput) {
+        agentInput.addEventListener("focus", function () {
+            renderAgentOptions("");
+        });
+        agentInput.addEventListener("input", function () {
+            if (selectedAgent && agentInput.value !== selectedAgentLabel) {
+                selectedAgent = "";
+                selectedAgentLabel = "";
+                if (agentClear) agentClear.hidden = true;
+                markActiveCards();
+                renderSelectedHistory();
+                renderCost(insightsTotals, insightsAgents);
+            }
+            renderAgentOptions(agentInput.value);
+        });
+        agentInput.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") closeAgentList();
+        });
+        agentInput.addEventListener("blur", function () {
+            agentInput.value = selectedAgentLabel || "";
+        });
+    }
+    if (agentList) {
+        agentList.addEventListener("mousedown", function (event) {
+            var row = event.target.closest("[data-agent-name]");
+            if (!row) return;
+            event.preventDefault();
+            selectAgent(row.getAttribute("data-agent-name") || "");
+        });
+    }
+    if (agentClear) {
+        agentClear.addEventListener("click", function () {
+            selectAgent("");
+            if (agentInput) {
+                agentInput.value = "";
+                agentInput.focus();
             }
         });
     }
     document.addEventListener("click", function (event) {
-        var wrap = document.getElementById("insightsUserSearch");
-        if (wrap && !wrap.contains(event.target)) closeUserList();
+        var userWrap = document.getElementById("insightsUserSearch");
+        var agentWrap = document.getElementById("insightsAgentSearch");
+        if (userWrap && !userWrap.contains(event.target)) closeUserList();
+        if (agentWrap && !agentWrap.contains(event.target)) closeAgentList();
     });
 
     if (refreshBtn) {

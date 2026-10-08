@@ -2,8 +2,8 @@
   "agents": [
     {
       "id": "master-orchestrator-agent",
-      "name": "Master Orchestrator Agent",
-      "type": "Master Orchestrator",
+      "name": "Maestro AI",
+      "type": "Maestro AI",
       "model": "gpt-5.1",
       "agent_endpoint": "https://network-security-agents.services.ai.azure.com/api/projects/network-security-agents-project",
       "api_key": "PLACEHOLDER_REPLACE_WITH_YOUR_API_KEY",

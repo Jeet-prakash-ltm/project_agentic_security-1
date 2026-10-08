@@ -1603,12 +1603,12 @@
     function isOrchestratorAgent(agent) {
         if (!agent) return false;
         var text = String(agent.id || "") + " " + String(agent.name || "") + " " + String(agent.type || "") + " " + String(agent.agent_id || "");
-        return /orchestrat/i.test(text);
+        return /orchestrat|maestro/i.test(text) || String(agent.id || "") === DEFAULT_WORKSPACE_AGENT_ID;
     }
 
     function emptyStateCopy() {
         if (isOrchestratorAgent(state.activeAgent)) {
-            return "Talk to the Master Orchestrator Agent \u2014 it coordinates network, cloud, and firewall specialist agents.";
+            return "Talk to Maestro AI \u2014 it coordinates network, cloud, and firewall specialist agents.";
         }
         return "Talk to your security copilot \u2014 run compliance assessments, review findings, and generate executive reports.";
     }
@@ -1708,11 +1708,11 @@
         state.activeAgent = agent;
         state.activeAgentId = agent.id || null;
 
-        if (chatAgentTitle) chatAgentTitle.textContent = agent.name || "Master Orchestrator Agent";
+        if (chatAgentTitle) chatAgentTitle.textContent = agent.name || "Maestro AI";
         if (chatAgentSub) chatAgentSub.textContent = ((agent.model ? agent.model + " \u00b7 " : "") + (agent.type || "Copilot")).trim();
         if (chatAgentAvatar) {
             chatAgentAvatar.textContent = avatarFor(agent.name);
-            chatAgentAvatar.title = agent.name || "Master Orchestrator Agent";
+            chatAgentAvatar.title = agent.name || "Maestro AI";
         }
 
         if (composerAgentBadge) {
@@ -1965,7 +1965,7 @@
         var lower = prompt.toLowerCase();
         if (lower.indexOf("hello") !== -1 || lower.indexOf("hi ") !== -1 || lower.indexOf("hey") !== -1) {
             if (isOrchestratorAgent(state.activeAgent)) {
-                return "Hello. I'm the Master Orchestrator Agent. I coordinate network, cloud, and firewall specialist agents. Tell me what you need assessed, investigated, or changed.";
+                return "Hello. I'm Maestro AI. I coordinate network, cloud, and firewall specialist agents. Tell me what you need assessed, investigated, or changed.";
             }
             return "Hello. I'm the Firewall Audit Agent, connected to your Palo Alto firewall (vmpafw01, PAN-OS 10.2.10-h9). Ask me about your security posture, inventory, compliance status, or any firewall configuration.";
         }

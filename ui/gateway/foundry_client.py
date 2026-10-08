@@ -101,9 +101,9 @@ def _system_prompt(agent):
         str(agent.get("id") or "").lower(),
         str(agent.get("agent_id") or "").lower(),
     ])
-    if "orchestrat" in agent_key:
+    if "orchestrat" in agent_key or "maestro" in agent_key:
         return (
-            "You are the Master Orchestrator Agent on the LTM Security Platform. "
+            "You are Maestro AI on the LTM Security Platform. "
             "Coordinate network, cloud, and firewall specialist agents. "
             "Route requests, summarize results, and keep answers concise with clear next steps."
         )

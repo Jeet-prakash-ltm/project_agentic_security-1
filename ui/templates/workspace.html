@@ -43,12 +43,12 @@
             </button>
 
             <div class="ws-chat-title">
-                <span class="ws-agent-avatar agent-avatar agent-avatar-blue" id="chatAgentAvatar" title="Master Orchestrator Agent">MO</span>
+                <span class="ws-agent-avatar agent-avatar agent-avatar-blue" id="chatAgentAvatar" title="Maestro AI">MA</span>
                 <label class="ws-agent-picker" for="wsAgentSelect">
                     <span class="sr-only">Active copilot</span>
                     <select id="wsAgentSelect" aria-label="Active copilot"></select>
                 </label>
-                <strong id="chatAgentTitle" class="sr-only">Master Orchestrator Agent</strong>
+                <strong id="chatAgentTitle" class="sr-only">Maestro AI</strong>
                 <span id="chatAgentSub" class="sr-only">Copilot session</span>
             </div>
 
@@ -121,5 +121,5 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=7"></script>
 <script src="{{ url_for('static', filename='js/netsec.js') }}?v=7"></script>
-    <script src="{{ url_for('static', filename='js/workspace.js') }}?v=27"></script>
+    <script src="{{ url_for('static', filename='js/workspace.js') }}?v=28"></script>
 {% endblock %}

@@ -39,8 +39,10 @@ LEGACY_OWNERS = ("anonymous", "demo")
 AGENT_NAME_ALIASES = {
     "Firewall-Audit-Agent": "Firewall Audit Agent",
     "Firewall Auditor": "Firewall Audit Agent",
-    "Master-Orchrestrator-Agent": "Master Orchestrator Agent",
-    "Master-Orchestrator-Agent": "Master Orchestrator Agent",
+    "Master-Orchrestrator-Agent": "Maestro AI",
+    "Master-Orchestrator-Agent": "Maestro AI",
+    "Master Orchestrator Agent": "Maestro AI",
+    "Master Orchestrator": "Maestro AI",
 }
 
 MASTER_ORCHESTRATOR_ID = "master-orchestrator-agent"

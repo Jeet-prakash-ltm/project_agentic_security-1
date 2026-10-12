@@ -274,6 +274,18 @@
     cursor: pointer;
 }
 
+.roles-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.roles-action.is-editing .roles-assign-select {
+    min-width: 160px;
+    flex: 1;
+}
+
 .invite-user-row--agent {
     grid-template-columns: 1.4fr 2fr 1.6fr auto;
 }

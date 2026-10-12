@@ -217,25 +217,47 @@
             .replace(/"/g, "&quot;");
     }
 
-    function roleSelect(user) {
+    function roleSelect(user, mode) {
         var current = user.role || "";
-        var options = '<option value=""' + (current ? "" : " selected") + ">No role assigned</option>";
+        var placeholder = mode === "apply" ? "Select role" : "Select new role";
+        var options = '<option value="">' + placeholder + "</option>";
         roleOptions.forEach(function (role) {
             options += '<option value="' + escapeHtml(role) + '"' +
-                (current === role ? " selected" : "") + ">" + escapeHtml(role) + "</option>";
+                (mode === "change" && current === role ? " selected" : "") + ">" +
+                escapeHtml(role) + "</option>";
         });
         return '<select class="roles-assign-select" data-user-id="' + escapeHtml(user.id) + '">' + options + "</select>";
+    }
+
+    function roleActionCell(user) {
+        if (user.role) {
+            return '<div class="roles-action" data-mode="idle" data-user-id="' + escapeHtml(user.id) + '">' +
+                '<button type="button" class="btn btn-sm btn-ghost roles-change-btn">Change</button>' +
+                "</div>";
+        }
+        return '<div class="roles-action is-editing" data-mode="apply" data-user-id="' + escapeHtml(user.id) + '">' +
+            roleSelect(user, "apply") +
+            '<button type="button" class="btn btn-sm btn-primary roles-apply-btn">Apply</button>' +
+            "</div>";
+    }
+
+    function enterChangeMode(wrap, user) {
+        wrap.setAttribute("data-mode", "change");
+        wrap.classList.add("is-editing");
+        wrap.innerHTML = roleSelect(user, "change") +
+            '<button type="button" class="btn btn-sm btn-primary roles-apply-btn">Apply</button>' +
+            '<button type="button" class="btn btn-sm btn-ghost roles-cancel-btn">Cancel</button>';
     }
 
     function renderRoleUsers(users) {
         var cols = isRolesAdmin ? 4 : 2;
         var rows = (users || []).map(function (user) {
             if (isRolesAdmin) {
-                return "<tr>" +
+                return "<tr data-user-id=\"" + escapeHtml(user.id) + "\" data-user-role=\"" + escapeHtml(user.role || "") + "\">" +
                     "<td>" + escapeHtml(user.name || "") + "</td>" +
                     "<td>" + escapeHtml(user.email || "") + "</td>" +
                     "<td>" + escapeHtml(user.role || "No role assigned") + "</td>" +
-                    "<td>" + roleSelect(user) + "</td>" +
+                    "<td>" + roleActionCell(user) + "</td>" +
                     "</tr>";
             }
             return "<tr>" +
@@ -257,33 +279,53 @@
             });
     }
 
+    function assignRole(userId, role) {
+        if (!role) {
+            window.showToast("Select Admin, Security Analyst, or Viewer.", "error");
+            return;
+        }
+        fetch("/api/admin/users/" + encodeURIComponent(userId) + "/role", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            body: JSON.stringify({ role: role })
+        }).then(function (res) {
+            return res.json().then(function (data) {
+                if (!res.ok) throw new Error(data.error || "Request failed");
+                return data;
+            });
+        }).then(function () {
+            window.showToast("Role assigned.", "success");
+            loadRoleUsers();
+        }).catch(function (err) {
+            window.showToast(err.message, "error");
+            loadRoleUsers();
+        });
+    }
+
     if (isRolesAdmin) {
-        rolesBody.addEventListener("change", function (event) {
-            var select = event.target.closest(".roles-assign-select");
-            if (!select) return;
-            var userId = select.getAttribute("data-user-id");
-            var role = (select.value || "").trim();
-            if (!role) {
-                window.showToast("Select Admin, Security Analyst, or Viewer.", "error");
+        rolesBody.addEventListener("click", function (event) {
+            var changeBtn = event.target.closest(".roles-change-btn");
+            if (changeBtn) {
+                var wrap = changeBtn.closest(".roles-action");
+                var row = changeBtn.closest("tr");
+                if (!wrap || !row) return;
+                enterChangeMode(wrap, {
+                    id: wrap.getAttribute("data-user-id"),
+                    role: row.getAttribute("data-user-role") || ""
+                });
+                return;
+            }
+            var cancelBtn = event.target.closest(".roles-cancel-btn");
+            if (cancelBtn) {
                 loadRoleUsers();
                 return;
             }
-            fetch("/api/admin/users/" + encodeURIComponent(userId) + "/role", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Accept": "application/json" },
-                body: JSON.stringify({ role: role })
-            }).then(function (res) {
-                return res.json().then(function (data) {
-                    if (!res.ok) throw new Error(data.error || "Request failed");
-                    return data;
-                });
-            }).then(function () {
-                window.showToast("Role assigned.", "success");
-                loadRoleUsers();
-            }).catch(function (err) {
-                window.showToast(err.message, "error");
-                loadRoleUsers();
-            });
+            var applyBtn = event.target.closest(".roles-apply-btn");
+            if (!applyBtn) return;
+            var action = applyBtn.closest(".roles-action");
+            if (!action) return;
+            var select = action.querySelector(".roles-assign-select");
+            assignRole(action.getAttribute("data-user-id"), select ? (select.value || "").trim() : "");
         });
     }
 

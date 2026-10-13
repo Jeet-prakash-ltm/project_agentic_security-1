@@ -7,9 +7,28 @@ from urllib.parse import quote
 
 import requests
 
+from gateway import interactive_blocks
+
 logger = logging.getLogger(__name__)
 
 CHAT_TIMEOUT = 120
+
+# Injected into agent instructions so the model renders asks/choices as native
+# workspace UI (forms, option buttons, cards) instead of plain prose.
+UI_BLOCK_DIRECTIVE = (
+    "Interactive UI: when you need the user to supply information or choose "
+    "between options, keep a one-sentence lead-in as plain text and end the "
+    "reply with a single fenced ```ui block containing JSON. Use a form block "
+    "for free-text inputs, options for a choice, confirm for yes/no, and card "
+    "or kv to present structured results. Example: "
+    '```ui\n{"ui":[{"type":"form","title":"Create firewall rule",'
+    '"fields":[{"name":"rule_name","label":"Rule name","type":"text","required":true},'
+    '{"name":"source_zone","label":"Source zone","type":"text"},'
+    '{"name":"action","label":"Action","type":"select","options":["allow","deny","drop"]},'
+    '{"name":"log","label":"Enable logging","type":"boolean"}]}]}\n``` '
+    "Never place anything else inside the fence and never ask a bare list of "
+    "questions without the ui block."
+)
 
 
 class FoundryHTTPError(RuntimeError):
@@ -102,13 +121,15 @@ def _system_prompt(agent):
         str(agent.get("agent_id") or "").lower(),
     ])
     if "orchestrat" in agent_key or "maestro" in agent_key:
-        return (
+        base = (
             "You are Maestro AI on the LTM Security Platform. "
             "Coordinate network, cloud, and firewall specialist agents. "
-            "Route requests, summarize results, and keep answers concise with clear next steps."
+            "Route requests, summarize results, and keep answers concise with clear next steps. "
+            "Before performing a firewall or cloud change you must collect the required "
+            "details from the user and confirm before applying anything."
         )
-    if "netsec" in agent_type or "execution" in agent_type or "netsec" in agent_name.lower():
-        return (
+    elif "netsec" in agent_type or "execution" in agent_type or "netsec" in agent_name.lower():
+        base = (
             "You are the Firewall Execution Agent, an AI security agent that makes "
             "manual and bulk configuration changes to the Palo Alto firewall from "
             "Excel playbook workbooks (address/service objects, groups, zones, VRs, "
@@ -118,8 +139,8 @@ def _system_prompt(agent):
             "NETSEC_FW_DRY_RUN=0. Keep answers short and point users to the "
             "Workspace Action chip for manual and bulk playbooks."
         )
-    if "firewall" in agent_type or "firewall" in agent_name.lower():
-        return (
+    elif "firewall" in agent_type or "firewall" in agent_name.lower():
+        base = (
             "You are the Firewall Audit Agent, an AI security agent specialized in Palo Alto Networks firewall compliance. "
             "You have live access to a Palo Alto firewall (vmpafw01, PAN-OS 10.2.10-h9) and perform assessments across "
             "44 controls spanning inventory, health, HA, security policy, threat prevention, network segmentation, VPN, "
@@ -130,15 +151,17 @@ def _system_prompt(agent):
             "Format responses with clear headings, bullet points, and severity indicators. "
             "Always reference the actual assessment data and offer to run a fresh assessment if needed."
         )
-    if "cloud" in agent_type or "incident" in agent_type or "cloud" in agent_name.lower():
-        return (
+    elif "cloud" in agent_type or "incident" in agent_type or "cloud" in agent_name.lower():
+        base = (
             "You are the Cloud Incident Response Agent, an AI security agent specialized in Azure cloud security incident response. "
             "Provide structured incident response guidance."
         )
-    return (
-        "You are an AI security agent on the LTM Security Platform. "
-        "Provide concise, actionable security guidance. Format responses with clear headings and bullet points."
-    )
+    else:
+        base = (
+            "You are an AI security agent on the LTM Security Platform. "
+            "Provide concise, actionable security guidance. Format responses with clear headings and bullet points."
+        )
+    return base + " " + UI_BLOCK_DIRECTIVE
 
 
 def is_cloud_agent(agent):
@@ -158,6 +181,18 @@ def _normalize_messages(messages):
         for m in messages
         if m.get("role") in ("user", "assistant")
     ]
+
+
+def _with_ui_blocks(result):
+    """Strip any fenced ui block from the reply and expose it as blocks.
+
+    Runs on both the Foundry prompt-agent and the ephemeral model routes, so
+    every agent answer is eligible for native card/form rendering.
+    """
+    text, blocks = interactive_blocks.finalize(result.get("reply") or "")
+    result["reply"] = text
+    result["blocks"] = blocks
+    return result
 
 
 def _merge_usage(total, usage):
@@ -325,7 +360,7 @@ def chat(agent, messages):
             result["routed_via"] = "foundry_agent"
             result["agent_route"] = url
             result["fallback_status"] = None
-            return result
+            return _with_ui_blocks(result)
         except FoundryHTTPError as exc:
             if (
                 exc.status_code in (404, 403)
@@ -356,4 +391,4 @@ def chat(agent, messages):
     result["routed_via"] = "ephemeral_model"
     result["agent_route"] = None
     result["fallback_status"] = fallback_status
-    return result
+    return _with_ui_blocks(result)

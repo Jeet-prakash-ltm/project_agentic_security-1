@@ -340,6 +340,7 @@
                 ts: m.ts,
                 html: m.html,
                 cardTitle: m.cardTitle,
+                blocks: m.blocks,
                 tool: m.tool,
                 usage: m.usage,
                 agentName: m.agentName
@@ -504,7 +505,196 @@
         return h;
     }
 
+    // ============================================================
+    // INTERACTIVE UI BLOCKS (cards, choices, inputs)
+    // ============================================================
+
+    function uiEsc(value) {
+        return escapeHtml(value == null ? "" : String(value));
+    }
+
+    function uiAttr(value) {
+        return uiEsc(value).replace(/"/g, "&quot;");
+    }
+
+    function renderUiField(field) {
+        var name = uiAttr(field.name);
+        var type = field.type || "text";
+        var ph = field.placeholder ? ' placeholder="' + uiAttr(field.placeholder) + '"' : "";
+        var req = field.required ? " required" : "";
+        var value = field.value == null ? "" : field.value;
+        var help = field.help ? '<span class="ws-ui-field-help">' + uiEsc(field.help) + "</span>" : "";
+        var body;
+
+        if (type === "textarea") {
+            body = '<textarea class="ws-ui-input ws-ui-textarea" data-ui-name="' + name + '"' + ph + req + ">" + uiEsc(value) + "</textarea>";
+        } else if (type === "select" || type === "multiselect") {
+            var multi = type === "multiselect";
+            var selected = multi ? (Array.isArray(value) ? value : []) : [value];
+            body = '<select class="ws-ui-input" data-ui-name="' + name + '" data-ui-type="' + type + '"' + (multi ? " multiple" : "") + req + ">";
+            if (!multi) body += '<option value="">Select\u2026</option>';
+            (field.options || []).forEach(function (opt) {
+                var sel = selected.indexOf(opt.value) !== -1 ? " selected" : "";
+                body += '<option value="' + uiAttr(opt.value) + '"' + sel + ">" + uiEsc(opt.label) + "</option>";
+            });
+            body += "</select>";
+        } else if (type === "radio") {
+            body = '<span class="ws-ui-radios">';
+            (field.options || []).forEach(function (opt) {
+                body += '<label class="ws-ui-radio"><input type="radio" name="ui-' + name + '" data-ui-name="' + name +
+                    '" value="' + uiAttr(opt.value) + '">' + uiEsc(opt.label) + "</label>";
+            });
+            body += "</span>";
+        } else if (type === "boolean") {
+            body = '<label class="ws-ui-check"><input type="checkbox" data-ui-name="' + name + '" data-ui-type="boolean"' +
+                (value === true || value === "true" || value === "yes" ? " checked" : "") + "><span>" +
+                uiEsc(field.placeholder || "Yes") + "</span></label>";
+        } else {
+            var inputType = ["number", "email", "url", "tel", "date"].indexOf(type) !== -1 ? type : "text";
+            body = '<input class="ws-ui-input" type="' + inputType + '" data-ui-name="' + name + '"' + ph + req +
+                ' value="' + uiAttr(value) + '">';
+        }
+
+        return '<label class="ws-ui-field" data-ui-field="' + name + '">' +
+            '<span class="ws-ui-field-label">' + uiEsc(field.label) +
+            (field.required ? ' <span class="ws-ui-req">*</span>' : "") + "</span>" +
+            body + help + "</label>";
+    }
+
+    function renderUiForm(block) {
+        var html = '<form class="ws-ui-card ws-ui-form" data-ui-form="1" novalidate ' +
+            'data-ui-title="' + uiAttr(block.title || "") + '" ' +
+            'data-ui-submit-message="' + uiAttr(block.submit_message || "") + '">';
+        if (block.title) html += '<div class="ws-ui-card-head"><strong>' + uiEsc(block.title) + "</strong></div>";
+        if (block.description) html += '<p class="ws-ui-desc">' + uiEsc(block.description) + "</p>";
+        html += '<div class="ws-ui-fields">';
+        (block.fields || []).forEach(function (field) { html += renderUiField(field); });
+        html += "</div>";
+        html += '<div class="ws-ui-form-actions"><button type="submit" class="ws-ui-submit">' +
+            uiEsc(block.submit_label || "Submit") + "</button></div>";
+        return html + "</form>";
+    }
+
+    function renderUiOptions(block) {
+        var multi = !!block.multi;
+        var html = '<div class="ws-ui-card ws-ui-choices">';
+        if (block.title) html += '<div class="ws-ui-card-head"><strong>' + uiEsc(block.title) + "</strong></div>";
+        if (block.description) html += '<p class="ws-ui-desc">' + uiEsc(block.description) + "</p>";
+        html += '<div class="ws-ui-options' + (multi ? " ws-ui-options-multi" : "") + '">';
+        (block.options || []).forEach(function (opt) {
+            var desc = opt.description ? '<span class="ws-ui-opt-desc">' + uiEsc(opt.description) + "</span>" : "";
+            if (multi) {
+                html += '<label class="ws-ui-option"><input type="checkbox" class="ws-ui-opt-check" value="' +
+                    uiAttr(opt.value) + '"><span class="ws-ui-opt-label">' + uiEsc(opt.label) + "</span>" + desc + "</label>";
+            } else {
+                html += '<button type="button" class="ws-ui-option" data-ui-send="' + uiAttr(opt.value) + '">' +
+                    '<span class="ws-ui-opt-label">' + uiEsc(opt.label) + "</span>" + desc +
+                    '<span class="ws-ui-opt-arrow">&rarr;</span></button>';
+            }
+        });
+        html += "</div>";
+        if (multi) html += '<div class="ws-ui-form-actions"><button type="button" class="ws-ui-submit ws-ui-multi-submit">' +
+            uiEsc(block.submit_label || "Submit") + "</button></div>";
+        return html + "</div>";
+    }
+
+    function renderUiButtons(block) {
+        var html = '<div class="ws-ui-card ws-ui-buttons-card">';
+        if (block.title) html += '<div class="ws-ui-card-head"><strong>' + uiEsc(block.title) + "</strong></div>";
+        if (block.description) html += '<p class="ws-ui-desc">' + uiEsc(block.description) + "</p>";
+        html += '<div class="ws-ui-actions">';
+        (block.options || []).forEach(function (opt) {
+            html += '<button type="button" class="ws-ui-btn" data-ui-send="' + uiAttr(opt.value) + '">' + uiEsc(opt.label) + "</button>";
+        });
+        return html + "</div></div>";
+    }
+
+    function renderUiConfirm(block) {
+        var html = '<div class="ws-ui-card ws-ui-confirm">';
+        if (block.title) html += '<div class="ws-ui-card-head"><strong>' + uiEsc(block.title) + "</strong></div>";
+        if (block.text) html += '<p class="ws-ui-desc">' + uiEsc(block.text) + "</p>";
+        html += '<div class="ws-ui-form-actions">' +
+            '<button type="button" class="ws-ui-submit" data-ui-send="' + uiAttr(block.confirm_value || "Confirmed") + '">' +
+            uiEsc(block.confirm_label || "Confirm") + "</button>" +
+            '<button type="button" class="ws-ui-submit ws-ui-ghost" data-ui-send="' + uiAttr(block.cancel_value || "Cancelled") + '">' +
+            uiEsc(block.cancel_label || "Cancel") + "</button></div>";
+        return html + "</div>";
+    }
+
+    function renderUiKvRows(items) {
+        var rows = items || [];
+        if (!rows.length) return "";
+        var html = '<div class="ws-ui-kv">';
+        rows.forEach(function (item) {
+            html += '<div class="ws-ui-kv-row"><span class="ws-ui-kv-label">' + uiEsc(item.label) +
+                '</span><span class="ws-ui-kv-value">' + uiEsc(item.value) + "</span></div>";
+        });
+        return html + "</div>";
+    }
+
+    function renderUiCard(block) {
+        var html = '<div class="ws-ui-card">';
+        if (block.title) html += '<div class="ws-ui-card-head"><strong>' + uiEsc(block.title) + "</strong></div>";
+        if (block.subtitle) html += '<p class="ws-ui-desc">' + uiEsc(block.subtitle) + "</p>";
+        html += renderUiKvRows(block.items);
+        return html + "</div>";
+    }
+
+    function renderUiTable(block) {
+        var columns = block.columns || [];
+        var html = '<div class="ws-ui-card ws-ui-table-card">';
+        if (block.title) html += '<div class="ws-ui-card-head"><strong>' + uiEsc(block.title) + "</strong></div>";
+        html += '<div class="msg-table-wrap"><table class="ws-ui-table"><thead><tr>';
+        columns.forEach(function (col) { html += "<th>" + uiEsc(col) + "</th>"; });
+        html += "</tr></thead><tbody>";
+        (block.rows || []).forEach(function (row) {
+            html += "<tr>";
+            row.forEach(function (cell) { html += "<td>" + uiEsc(cell) + "</td>"; });
+            html += "</tr>";
+        });
+        return html + "</tbody></table></div></div>";
+    }
+
+    function renderUiSteps(block) {
+        var html = '<div class="ws-ui-card">';
+        if (block.title) html += '<div class="ws-ui-card-head"><strong>' + uiEsc(block.title) + "</strong></div>";
+        html += '<ol class="ws-ui-steps">';
+        (block.items || []).forEach(function (item) { html += "<li>" + uiEsc(item.label || item.value) + "</li>"; });
+        return html + "</ol></div>";
+    }
+
+    function renderInteractiveBlocks(blocks) {
+        if (!blocks || !blocks.length) return "";
+        var html = '<div class="ws-ui">';
+        blocks.forEach(function (block) {
+            if (!block || !block.type) return;
+            var inner = "";
+            if (block.type === "form") inner = renderUiForm(block);
+            else if (block.type === "options") inner = renderUiOptions(block);
+            else if (block.type === "buttons") inner = renderUiButtons(block);
+            else if (block.type === "confirm") inner = renderUiConfirm(block);
+            else if (block.type === "card") inner = renderUiCard(block);
+            else if (block.type === "kv") inner = '<div class="ws-ui-card">' +
+                (block.title ? '<div class="ws-ui-card-head"><strong>' + uiEsc(block.title) + "</strong></div>" : "") +
+                renderUiKvRows(block.items) + "</div>";
+            else if (block.type === "table") inner = renderUiTable(block);
+            else if (block.type === "steps") inner = renderUiSteps(block);
+            else if (block.type === "callout") inner = '<div class="ws-ui-callout ws-ui-callout-' + uiEsc(block.tone || "info") + '">' +
+                formatAgentReply(block.text || "") + "</div>";
+            else if (block.type === "text") inner = '<div class="ws-ui-textblock">' + formatAgentReply(block.text || "") + "</div>";
+            else if (block.type === "divider") inner = '<div class="ws-ui-divider"></div>';
+            if (inner) html += '<div class="ws-ui-el">' + inner + "</div>";
+        });
+        return html + "</div>";
+    }
+
     function assistantBodyHtml(msg) {
+        if (msg.blocks && msg.blocks.length) {
+            var lead = msg.content && String(msg.content).trim()
+                ? '<div class="ws-msg-text">' + formatAgentReply(msg.content) + "</div>"
+                : "";
+            return lead + renderInteractiveBlocks(msg.blocks);
+        }
         if (msg.html) {
             return toolCardHtml(msg.cardTitle || "Firewall Data", msg.html, null);
         }
@@ -514,6 +704,85 @@
             return toolCardHtml(meta.name, formatAgentReply(msg.content), link, meta.icon);
         }
         return '<div class="ws-msg-text">' + formatAgentReply(msg.content || "") + "</div>";
+    }
+
+    function uiMarkDone(container) {
+        if (!container) return;
+        container.classList.add("ws-ui-submitted");
+        Array.prototype.forEach.call(container.querySelectorAll("input, select, textarea, button"), function (el) {
+            el.disabled = true;
+        });
+    }
+
+    function uiGatherForm(form) {
+        var values = {};
+        var labels = {};
+        Array.prototype.forEach.call(form.querySelectorAll("[data-ui-field]"), function (fieldEl) {
+            var name = fieldEl.getAttribute("data-ui-field");
+            var labelEl = fieldEl.querySelector(".ws-ui-field-label");
+            labels[name] = labelEl ? labelEl.textContent.replace(/\s*\*\s*$/, "").trim() : name;
+
+            var checkbox = fieldEl.querySelector('input[type="checkbox"][data-ui-name]');
+            var radios = fieldEl.querySelectorAll('input[type="radio"][data-ui-name]');
+            var select = fieldEl.querySelector("select[data-ui-name]");
+            var input = fieldEl.querySelector("input[data-ui-name], textarea[data-ui-name]");
+
+            if (checkbox) {
+                values[name] = checkbox.checked ? "yes" : "no";
+            } else if (radios.length) {
+                var picked = "";
+                Array.prototype.forEach.call(radios, function (radio) { if (radio.checked) picked = radio.value; });
+                values[name] = picked;
+            } else if (select) {
+                if (select.multiple) {
+                    var selected = [];
+                    Array.prototype.forEach.call(select.selectedOptions, function (opt) { selected.push(opt.value); });
+                    values[name] = selected.join(", ");
+                } else {
+                    values[name] = select.value;
+                }
+            } else if (input) {
+                values[name] = input.value;
+            } else {
+                values[name] = "";
+            }
+        });
+        return { values: values, labels: labels };
+    }
+
+    function uiComposeMessage(form, gathered) {
+        var template = form.getAttribute("data-ui-submit-message") || "";
+        if (template) {
+            return template.replace(/\{([a-z0-9_]+)\}/gi, function (match, key) {
+                return gathered.values[key] != null ? gathered.values[key] : match;
+            }).trim();
+        }
+        var lines = [];
+        Object.keys(gathered.values).forEach(function (name) {
+            var value = gathered.values[name];
+            if (value == null || value === "") return;
+            lines.push(gathered.labels[name] + ": " + value);
+        });
+        if (!lines.length) return "";
+        var title = form.getAttribute("data-ui-title") || "";
+        var prefix = (title && title !== "Additional details required") ? title + "\n" : "";
+        return prefix + lines.join("\n");
+    }
+
+    function uiSubmitForm(form) {
+        if (!form || form.classList.contains("ws-ui-submitted")) return;
+        if (!form.checkValidity()) {
+            if (form.reportValidity) form.reportValidity();
+            return;
+        }
+        var gathered = uiGatherForm(form);
+        var message = uiComposeMessage(form, gathered);
+        if (!message) {
+            if (window.showToast) window.showToast("Fill in at least one field.", "info");
+            return;
+        }
+        uiMarkDone(form.closest(".ws-ui-el") || form);
+        sendPrompt(message, {});
     }
 
     function renderAssistantMessage(msg, index) {
@@ -1539,7 +1808,8 @@
                 if (data && data.error) throw new Error(data.error);
                 if (data.conversation_id) state.activeId = data.conversation_id;
                 var reply = (data && data.reply) || buildAssistantReply(text);
-                appendMessage({ role: "assistant", content: reply, tool: opts.tool || null, usage: (data && data.usage) || null, agentName: (data && data.agent && data.agent.name) || null, ts: now() });
+                var blocks = (data && data.blocks && data.blocks.length) ? data.blocks : null;
+                appendMessage({ role: "assistant", content: reply, blocks: blocks, tool: opts.tool || null, usage: (data && data.usage) || null, agentName: (data && data.agent && data.agent.name) || null, ts: now() });
                 loadConversations();
                 loadConversationInsights();
             })
@@ -2004,6 +2274,29 @@
 
     if (chatWindow) {
         chatWindow.addEventListener("click", function (e) {
+            var multiBtn = e.target.closest(".ws-ui-multi-submit");
+            if (multiBtn) {
+                var multiCard = multiBtn.closest(".ws-ui-el");
+                var picked = [];
+                Array.prototype.forEach.call(multiCard.querySelectorAll(".ws-ui-opt-check"), function (box) {
+                    if (box.checked) picked.push(box.value);
+                });
+                if (!picked.length) {
+                    if (window.showToast) window.showToast("Select at least one option.", "info");
+                    return;
+                }
+                uiMarkDone(multiCard);
+                sendPrompt(picked.join(", "), {});
+                return;
+            }
+            var uiChoice = e.target.closest("[data-ui-send]");
+            if (uiChoice) {
+                var value = uiChoice.getAttribute("data-ui-send");
+                uiChoice.classList.add("is-selected");
+                uiMarkDone(uiChoice.closest(".ws-ui-el"));
+                sendPrompt(value, {});
+                return;
+            }
             var cloudBtn = e.target.closest(".ws-cloud-run");
             if (cloudBtn) {
                 handleCloudActionButton(cloudBtn);
@@ -2033,6 +2326,13 @@
             if (!option) return;
             var sectionId = option.getAttribute("data-section");
             if (sectionId) showSection(sectionId);
+        });
+
+        chatWindow.addEventListener("submit", function (e) {
+            var form = e.target.closest(".ws-ui-form");
+            if (!form) return;
+            e.preventDefault();
+            uiSubmitForm(form);
         });
     }
 
@@ -2170,6 +2470,9 @@
         },
         setBusy: function (busy) {
             if (sendBtn) sendBtn.disabled = !!busy;
+        },
+        renderBlocks: function (blocks) {
+            return renderInteractiveBlocks(blocks);
         },
         persist: function (msgs) {
             if (!msgs || !msgs.length) return Promise.resolve();

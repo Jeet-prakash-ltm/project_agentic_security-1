@@ -37,35 +37,37 @@
 <div class="reports-domain-panel" id="reportsDomainNetwork">
 
 <section class="recent-reports card">
-    <div class="reports-filter-bar" id="reportsFilters">
-        <div class="report-filter-group">
-            <span class="filter-label">Firewall</span>
-            <div class="rep-combobox" id="repCombobox">
-                <svg class="rep-combo-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-                <input type="text" id="repFwInput" class="rep-combo-input" value="" placeholder="All devices — search estate" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Search firewall estate">
-                <button type="button" class="rep-combo-clear" id="repFwClear" hidden aria-label="Clear firewall filter">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                </button>
-                <ul class="rep-combo-list" id="repFwList" role="listbox" hidden></ul>
+    <div class="reports-toolbar">
+        <div class="reports-toolbar-head">
+            <h3>Report History</h3>
+            <div class="reports-toolbar-sub">
+                <span class="section-sub">Executive summaries and assessment workbooks generated for the selected firewall</span>
+                <span class="reports-count" id="reportsCount">—</span>
             </div>
         </div>
-        <div class="report-filter-group">
-            <span class="filter-label">Report type</span>
-            <div class="filter-chips report-type-chips" id="reportTypeChips">
-                <button class="chip is-active" data-value="all">All</button>
-                <button class="chip" data-value="Executive Summary">Executive Summary</button>
-                <button class="chip" data-value="Workbook">Workbook</button>
+        <div class="reports-toolbar-actions">
+            <div class="report-filter-group">
+                <div class="rep-combobox" id="repCombobox">
+                    <svg class="rep-combo-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                    <input type="text" id="repFwInput" class="rep-combo-input" value="" placeholder="All devices — search estate" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Search firewall estate">
+                    <button type="button" class="rep-combo-clear" id="repFwClear" hidden aria-label="Clear firewall filter">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    </button>
+                    <ul class="rep-combo-list" id="repFwList" role="listbox" hidden></ul>
+                </div>
             </div>
+            <div class="filter-chips report-type-chips" id="reportTypeChips" role="tablist" aria-label="Report type">
+                <button class="chip is-active" data-value="all" role="tab" aria-selected="true">All</button>
+                <button class="chip" data-value="Executive Summary" role="tab" aria-selected="false">Executive Summary</button>
+                <button class="chip" data-value="Workbook" role="tab" aria-selected="false">Workbook</button>
+            </div>
+            <a class="btn btn-primary rep-generate-btn" href="{{ url_for('workspace') }}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                Generate report
+            </a>
         </div>
-        <span class="reports-count" id="reportsCount">—</span>
     </div>
 
-    <div class="section-head">
-        <div>
-            <h3>Report History</h3>
-            <span class="section-sub">Executive summaries and assessment workbooks generated for the selected firewall</span>
-        </div>
-    </div>
     <div class="table-wrap">
         <table class="data-table">
             <thead>
@@ -86,6 +88,8 @@
             </tbody>
         </table>
     </div>
+
+    <div class="reports-pagination" id="reportsPagination" hidden></div>
 </section>
 
 {% if summary %}
@@ -187,5 +191,5 @@
 <script>
     window.REPORT_DATA = {{ reports | tojson }};
 </script>
-<script src="{{ url_for('static', filename='js/reports.js') }}?v=7"></script>
+<script src="{{ url_for('static', filename='js/reports.js') }}?v=8"></script>
 {% endblock %}

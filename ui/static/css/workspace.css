@@ -2778,6 +2778,26 @@ button.ns-file-card { width: 100%; }
     transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
     -webkit-appearance: none;
     appearance: none;
+    color-scheme: dark;
+}
+
+/* Native <option> menus ignore the select's background, so force the popup
+   itself (and the checkbox/radio controls) to dark so text stays readable. */
+.ws-ui-input option,
+.ws-ui-input optgroup {
+    background-color: var(--card);
+    color: var(--text);
+}
+
+.ws-ui-input option:checked {
+    background-color: rgba(255, 94, 79, 0.22);
+    color: var(--text);
+}
+
+.ws-ui-check input,
+.ws-ui-radio input,
+.ws-ui-option input {
+    color-scheme: dark;
 }
 
 .ws-ui-input::placeholder {

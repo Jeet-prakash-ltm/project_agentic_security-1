@@ -48,6 +48,9 @@
 
 html, body {
     background: #1a1a1a;
+    /* Render native controls (select dropdown lists, date pickers, scrollbars)
+       in dark mode so option popups are not white-on-white. */
+    color-scheme: dark;
 }
 
 body {

@@ -2,25 +2,123 @@
     --text-3: #8A94A3;
 }
 
+/* ------------------------------------------------------------
+   Page header (title + info icon + count + filter trigger)
+   ------------------------------------------------------------ */
+
 .reports-header {
     margin-bottom: 24px;
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
     gap: 20px;
     flex-wrap: wrap;
 }
 
-.reports-header h1 {
+.reports-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.reports-title-line {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.reports-title-line h1 {
     font-size: 28px;
     font-weight: 700;
     letter-spacing: -0.02em;
-    margin-bottom: 5px;
+    margin: 0;
 }
 
-.reports-header p {
-    color: var(--muted);
-    font-size: 14px;
+/* Info "(!)" circle icon with hover tooltip */
+
+.reports-info-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-3);
+    cursor: help;
+    flex-shrink: 0;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.reports-info-btn svg {
+    width: 21px;
+    height: 21px;
+}
+
+.reports-info-btn:hover,
+.reports-info-btn:focus-visible {
+    color: var(--red);
+    background: rgba(255, 94, 79, 0.12);
+    outline: none;
+}
+
+.reports-info-tip {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%) translateY(-4px);
+    width: 300px;
+    padding: 11px 14px;
+    background: #2a2a2a;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow-glass);
+    color: var(--text-2);
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1.5;
+    letter-spacing: normal;
+    text-align: left;
+    white-space: normal;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+    z-index: 60;
+}
+
+.reports-info-tip::before {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-bottom-color: #2a2a2a;
+}
+
+.reports-info-btn:hover .reports-info-tip,
+.reports-info-btn:focus-visible .reports-info-tip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+.reports-count {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 13px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-2);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--glass-border);
+    white-space: nowrap;
 }
 
 .reports-header-side {
@@ -32,135 +130,190 @@
 }
 
 /* ------------------------------------------------------------
-   List toolbar (title + search + segmented filter + action)
+   Filter trigger (funnel) + dropdown panel
    ------------------------------------------------------------ */
 
-.reports-toolbar {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 20px 24px;
-    flex-wrap: wrap;
-    margin-bottom: 18px;
-}
-
-.reports-toolbar-head {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 240px;
-    flex: 1 1 320px;
-}
-
-.reports-toolbar-head h3 {
-    font-size: 18px;
-    font-weight: 700;
-    font-family: var(--font-display);
-    letter-spacing: -0.01em;
-    color: var(--text);
-}
-
-.reports-toolbar-sub {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.reports-toolbar-sub .section-sub {
-    color: var(--muted);
-    font-size: 12.5px;
-}
-
-.reports-toolbar-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-}
-
-.report-filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    flex: 0 1 260px;
-    min-width: 200px;
-}
-
-/* ------------------------------------------------------------
-   Report type — segmented control
-   ------------------------------------------------------------ */
-
-.report-type-chips {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--glass-soft);
-}
-
-.filter-chips {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-}
-
-.chip {
-    font-size: 12px;
-    font-weight: 600;
-    padding: 7px 14px;
-    border-radius: 999px;
-    border: 1px solid transparent;
-    background: transparent;
-    color: var(--text-2);
-    cursor: pointer;
-    transition: all 0.15s ease;
-    font-family: inherit;
-    white-space: nowrap;
-}
-
-.report-type-chips .chip:hover {
-    color: var(--text);
-    background: rgba(255, 255, 255, 0.06);
-}
-
-.chip.is-active {
-    background: var(--gradient-red);
-    color: #fff;
-    border-color: transparent;
-    box-shadow: 0 6px 16px rgba(255, 94, 79, 0.28);
-}
-
-.rep-generate-btn {
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-.reports-count {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 12px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-2);
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid var(--glass-border);
-    white-space: nowrap;
-}
-
-/* ------------------------------------------------------------
-   Firewall estate search combobox (dark-safe, glassy)
-   ------------------------------------------------------------ */
-
-.rep-combobox {
+.reports-filter {
     position: relative;
 }
 
-.rep-combo-search {
+.reports-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--glass-soft);
+    color: var(--text-2);
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.reports-filter-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.reports-filter-btn:hover {
+    color: var(--text);
+    border-color: rgba(255, 94, 79, 0.4);
+    background: rgba(255, 94, 79, 0.1);
+}
+
+.reports-filter-btn.is-active {
+    background: var(--gradient-red);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 8px 20px rgba(255, 94, 79, 0.32);
+}
+
+.reports-filter-panel {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 340px;
+    max-width: calc(100vw - 40px);
+    padding: 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-glass);
+    z-index: 70;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.reports-filter-panel[hidden] {
+    display: none;
+}
+
+.rep-filter-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.rep-filter-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.rep-filter-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-3);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.rep-filter-close svg {
+    width: 16px;
+    height: 16px;
+}
+
+.rep-filter-close:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text);
+}
+
+.rep-filter-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.rep-filter-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-3);
+}
+
+.rep-filter-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.rep-pill {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 13px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-2);
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+.rep-pill:hover {
+    border-color: rgba(255, 94, 79, 0.5);
+    color: var(--text);
+}
+
+.rep-pill.is-active {
+    background: var(--gradient-red);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 5px 14px rgba(255, 94, 79, 0.28);
+}
+
+.rep-filter-dates {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.rep-date-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.rep-date-field span {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-3);
+}
+
+.rep-date-field input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+    font-size: 12.5px;
+    padding: 8px 10px;
+    outline: none;
+    color-scheme: dark;
+}
+
+.rep-date-field input:focus {
+    border-color: var(--crimson);
+    box-shadow: 0 0 0 3px rgba(255, 94, 79, 0.18);
+}
+
+.rep-filter-search {
+    position: relative;
+}
+
+.rep-filter-search svg {
     position: absolute;
     left: 12px;
     top: 50%;
@@ -171,107 +324,37 @@
     pointer-events: none;
 }
 
-.rep-combo-input {
+.rep-filter-search input {
     width: 100%;
     border: 1px solid var(--border);
     border-radius: 999px;
     background: var(--bg);
-    padding: 10px 34px 10px 34px;
+    color: var(--text);
     font: inherit;
     font-size: 13px;
-    color: var(--text);
+    padding: 10px 14px 10px 34px;
     outline: none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.rep-combo-input::placeholder {
+.rep-filter-search input::placeholder {
     color: var(--text-3);
 }
 
-.rep-combo-input:focus {
+.rep-filter-search input:focus {
     border-color: var(--crimson);
     box-shadow: 0 0 0 3px rgba(255, 94, 79, 0.18);
 }
 
-.rep-combo-clear {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 20px;
-    height: 20px;
-    border: 0;
-    background: transparent;
-    color: var(--text-3);
-    cursor: pointer;
-    border-radius: 50%;
+.rep-filter-actions {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
+    gap: 10px;
+    justify-content: flex-end;
+    padding-top: 2px;
 }
 
-.rep-combo-clear:hover {
-    background: var(--border-soft);
-    color: var(--text);
-}
-
-.rep-combo-clear[hidden] {
-    display: none;
-}
-
-.rep-combo-clear svg {
-    width: 12px;
-    height: 12px;
-}
-
-.rep-combo-list {
-    position: absolute;
-    z-index: 40;
-    top: calc(100% + 6px);
-    left: 0;
-    right: 0;
-    list-style: none;
-    margin: 0;
-    padding: 5px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    box-shadow: var(--shadow-glass);
-    max-height: 250px;
-    overflow: auto;
-}
-
-.rep-combo-row {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    padding: 8px 10px;
-    border-radius: 8px;
-    cursor: pointer;
-}
-
-.rep-combo-row:hover {
-    background: var(--border-soft);
-}
-
-.rep-combo-row.is-active {
-    background: rgba(255, 94, 79, 0.12);
-}
-
-.rep-combo-name {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-    font-weight: 600;
-    font-size: 12.5px;
-    color: var(--text);
-}
-
-.rep-combo-sub {
-    font-size: 11px;
-    color: var(--text-3);
+.rep-filter-actions .btn {
+    padding: 9px 18px;
+    font-size: 13px;
 }
 
 /* ------------------------------------------------------------
@@ -282,7 +365,7 @@
     margin-bottom: 24px;
 }
 
-/* The list container stays put on hover (large surface, no lift). */
+/* Large list surface stays put (no lift on hover). */
 .recent-reports.card:hover {
     transform: none;
     border-color: var(--border);
@@ -298,7 +381,7 @@
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    min-width: 820px;
+    min-width: 900px;
 }
 
 .data-table th {
@@ -358,6 +441,14 @@
     text-align: right;
 }
 
+.rep-report-id {
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    color: var(--text-3);
+}
+
 .report-name {
     display: inline-flex;
     align-items: center;
@@ -394,6 +485,41 @@
 
 .file-icon-red {
     background: linear-gradient(135deg, #B91C1C, #EF4444);
+}
+
+/* Device cell + info affordance */
+
+.rep-device {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.rep-device-info {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-3);
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.rep-device-info svg {
+    width: 15px;
+    height: 15px;
+}
+
+.rep-device-info:hover {
+    color: var(--red);
+    background: rgba(255, 94, 79, 0.14);
 }
 
 /* Row action buttons — small rounded squares, grouped */
@@ -446,6 +572,97 @@
 
 .reports-empty-action {
     margin-top: 16px;
+}
+
+/* ------------------------------------------------------------
+   Device info popover
+   ------------------------------------------------------------ */
+
+.rep-device-pop {
+    position: fixed;
+    z-index: 90;
+    width: 280px;
+    max-width: calc(100vw - 32px);
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-glass);
+}
+
+.rep-device-pop[hidden] {
+    display: none;
+}
+
+.rep-device-pop-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.rep-device-pop-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.rep-device-pop-name svg {
+    width: 16px;
+    height: 16px;
+    color: var(--red);
+}
+
+.rep-device-pop-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-3);
+    cursor: pointer;
+}
+
+.rep-device-pop-close:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text);
+}
+
+.rep-device-pop-close svg {
+    width: 14px;
+    height: 14px;
+}
+
+.rep-device-pop-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 0;
+    font-size: 12.5px;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.rep-device-pop-row:last-child {
+    border-bottom: none;
+}
+
+.rep-device-pop-row span:first-child {
+    color: var(--text-3);
+}
+
+.rep-device-pop-row span:last-child {
+    color: var(--text);
+    font-weight: 600;
+    text-align: right;
 }
 
 /* ------------------------------------------------------------
@@ -624,49 +841,7 @@
         grid-template-columns: repeat(2, 1fr);
     }
 
-    .reports-toolbar-actions {
-        justify-content: flex-start;
-        width: 100%;
+    .reports-header-side {
+        align-items: flex-start;
     }
-
-    .report-filter-group {
-        flex: 1 1 100%;
-    }
-}
-
-/* --------------------------------------------------
-   DOMAIN NAVIGATION (Network Security / Cloud Security)
--------------------------------------------------- */
-
-.reports-domain-nav {
-    display: inline-flex;
-    gap: 6px;
-    padding: 6px;
-    margin-bottom: 0;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--glass-soft);
-}
-
-.reports-domain-btn {
-    border: 0;
-    background: transparent;
-    color: var(--text-2);
-    font: inherit;
-    font-weight: 600;
-    font-size: 13px;
-    padding: 9px 20px;
-    border-radius: 999px;
-    cursor: pointer;
-    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.reports-domain-btn:hover {
-    color: var(--text);
-}
-
-.reports-domain-btn.is-active {
-    background: var(--gradient-red);
-    color: #fff;
-    box-shadow: 0 6px 16px rgba(255, 94, 79, 0.28);
 }

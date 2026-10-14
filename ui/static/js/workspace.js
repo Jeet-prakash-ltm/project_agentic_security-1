@@ -517,48 +517,73 @@
         return uiEsc(value).replace(/"/g, "&quot;");
     }
 
+    var uidSeq = 0;
+
+    function uiOption(opt) {
+        if (opt == null) return { label: "", value: "", description: "" };
+        if (typeof opt === "string" || typeof opt === "number") {
+            return { label: String(opt), value: String(opt), description: "" };
+        }
+        if (typeof opt !== "object") return { label: "", value: "", description: "" };
+        var label = opt.label != null ? opt.label : (opt.title != null ? opt.title : opt.value);
+        var value = opt.value != null ? opt.value : label;
+        return {
+            label: label == null ? "" : String(label),
+            value: value == null ? "" : String(value),
+            description: opt.description || opt.help || ""
+        };
+    }
+
     function renderUiField(field) {
         var name = uiAttr(field.name);
         var type = field.type || "text";
+        var inputId = "ui-" + String(field.name).replace(/[^a-z0-9_-]/gi, "-") + "-" + uidSeq++;
         var ph = field.placeholder ? ' placeholder="' + uiAttr(field.placeholder) + '"' : "";
         var req = field.required ? " required" : "";
         var value = field.value == null ? "" : field.value;
         var help = field.help ? '<span class="ws-ui-field-help">' + uiEsc(field.help) + "</span>" : "";
+        var wide = "";
+        var labelFor = ' for="' + inputId + '"';
         var body;
 
         if (type === "textarea") {
-            body = '<textarea class="ws-ui-input ws-ui-textarea" data-ui-name="' + name + '"' + ph + req + ">" + uiEsc(value) + "</textarea>";
+            wide = " ws-ui-field-wide";
+            body = '<textarea id="' + inputId + '" class="ws-ui-input ws-ui-textarea" data-ui-name="' + name + '"' + ph + req + ">" + uiEsc(value) + "</textarea>";
         } else if (type === "select" || type === "multiselect") {
             var multi = type === "multiselect";
             var selected = multi ? (Array.isArray(value) ? value : []) : [value];
-            body = '<select class="ws-ui-input" data-ui-name="' + name + '" data-ui-type="' + type + '"' + (multi ? " multiple" : "") + req + ">";
+            body = '<select id="' + inputId + '" class="ws-ui-input" data-ui-name="' + name + '" data-ui-type="' + type + '"' + (multi ? " multiple" : "") + req + ">";
             if (!multi) body += '<option value="">Select\u2026</option>';
-            (field.options || []).forEach(function (opt) {
+            (field.options || []).forEach(function (raw) {
+                var opt = uiOption(raw);
                 var sel = selected.indexOf(opt.value) !== -1 ? " selected" : "";
                 body += '<option value="' + uiAttr(opt.value) + '"' + sel + ">" + uiEsc(opt.label) + "</option>";
             });
             body += "</select>";
         } else if (type === "radio") {
+            labelFor = "";
             body = '<span class="ws-ui-radios">';
-            (field.options || []).forEach(function (opt) {
+            (field.options || []).forEach(function (raw) {
+                var opt = uiOption(raw);
                 body += '<label class="ws-ui-radio"><input type="radio" name="ui-' + name + '" data-ui-name="' + name +
                     '" value="' + uiAttr(opt.value) + '">' + uiEsc(opt.label) + "</label>";
             });
             body += "</span>";
         } else if (type === "boolean") {
+            labelFor = "";
             body = '<label class="ws-ui-check"><input type="checkbox" data-ui-name="' + name + '" data-ui-type="boolean"' +
                 (value === true || value === "true" || value === "yes" ? " checked" : "") + "><span>" +
                 uiEsc(field.placeholder || "Yes") + "</span></label>";
         } else {
             var inputType = ["number", "email", "url", "tel", "date"].indexOf(type) !== -1 ? type : "text";
-            body = '<input class="ws-ui-input" type="' + inputType + '" data-ui-name="' + name + '"' + ph + req +
+            body = '<input id="' + inputId + '" class="ws-ui-input" type="' + inputType + '" data-ui-name="' + name + '"' + ph + req +
                 ' value="' + uiAttr(value) + '">';
         }
 
-        return '<label class="ws-ui-field" data-ui-field="' + name + '">' +
-            '<span class="ws-ui-field-label">' + uiEsc(field.label) +
-            (field.required ? ' <span class="ws-ui-req">*</span>' : "") + "</span>" +
-            body + help + "</label>";
+        return '<div class="ws-ui-field' + wide + '" data-ui-field="' + name + '">' +
+            '<label class="ws-ui-field-label"' + labelFor + ">" + uiEsc(field.label) +
+            (field.required ? ' <span class="ws-ui-req">*</span>' : "") + "</label>" +
+            body + help + "</div>";
     }
 
     function renderUiForm(block) {
@@ -581,7 +606,8 @@
         if (block.title) html += '<div class="ws-ui-card-head"><strong>' + uiEsc(block.title) + "</strong></div>";
         if (block.description) html += '<p class="ws-ui-desc">' + uiEsc(block.description) + "</p>";
         html += '<div class="ws-ui-options' + (multi ? " ws-ui-options-multi" : "") + '">';
-        (block.options || []).forEach(function (opt) {
+        (block.options || []).forEach(function (raw) {
+            var opt = uiOption(raw);
             var desc = opt.description ? '<span class="ws-ui-opt-desc">' + uiEsc(opt.description) + "</span>" : "";
             if (multi) {
                 html += '<label class="ws-ui-option"><input type="checkbox" class="ws-ui-opt-check" value="' +
@@ -603,7 +629,8 @@
         if (block.title) html += '<div class="ws-ui-card-head"><strong>' + uiEsc(block.title) + "</strong></div>";
         if (block.description) html += '<p class="ws-ui-desc">' + uiEsc(block.description) + "</p>";
         html += '<div class="ws-ui-actions">';
-        (block.options || []).forEach(function (opt) {
+        (block.options || []).forEach(function (raw) {
+            var opt = uiOption(raw);
             html += '<button type="button" class="ws-ui-btn" data-ui-send="' + uiAttr(opt.value) + '">' + uiEsc(opt.label) + "</button>";
         });
         return html + "</div></div>";

@@ -4,7 +4,7 @@
 
 {% block page_title %}Reports Center{% endblock %}
 
-{% block hero_eyebrow %}Reporting Hub{% endblock %}
+{% block hero_eyebrow %}Reporting Centre{% endblock %}
 
 {% block content %}
 
@@ -217,5 +217,5 @@
 <script>
     window.REPORT_DATA = {{ reports | tojson }};
 </script>
-<script src="{{ url_for('static', filename='js/reports.js') }}?v=10"></script>
+<script src="{{ url_for('static', filename='js/reports.js') }}?v=11"></script>
 {% endblock %}

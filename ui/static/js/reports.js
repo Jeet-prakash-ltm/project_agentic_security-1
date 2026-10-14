@@ -26,6 +26,15 @@
         inventory: []
     };
 
+    // Pending filter selection; committed to `state` only on Apply.
+    var draft = {
+        domain: "network",
+        type: "all",
+        search: "",
+        dateFrom: "",
+        dateTo: ""
+    };
+
     function escapeHtml(value) {
         return String(value == null ? "" : value)
             .replace(/&/g, "&amp;")
@@ -206,7 +215,7 @@
 
     function syncTypePills() {
         chips.querySelectorAll(".rep-pill").forEach(function (p) {
-            var on = p.getAttribute("data-value") === state.type;
+            var on = p.getAttribute("data-value") === draft.type;
             p.classList.toggle("is-active", on);
             p.setAttribute("aria-pressed", on ? "true" : "false");
         });
@@ -215,10 +224,8 @@
     chips.addEventListener("click", function (event) {
         var pill = event.target.closest(".rep-pill");
         if (!pill) return;
-        state.type = pill.getAttribute("data-value") || "all";
-        state.page = 1;
+        draft.type = pill.getAttribute("data-value") || "all";
         syncTypePills();
-        renderRows();
     });
 
     // ---- Filter panel open / close ----
@@ -229,6 +236,7 @@
 
     function openFilter() {
         if (!filterPanel) return;
+        syncDraftFromState();
         filterPanel.hidden = false;
         if (filterBtn) {
             filterBtn.classList.add("is-active");
@@ -268,19 +276,26 @@
     var networkPanel = document.getElementById("reportsDomainNetwork");
     var cloudPanel = document.getElementById("reportsDomainCloud");
 
+    function syncDomainPills() {
+        if (!domainNav) return;
+        domainNav.querySelectorAll(".rep-pill").forEach(function (b) {
+            var on = b.getAttribute("data-domain") === draft.domain;
+            b.classList.toggle("is-active", on);
+            b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+    }
+
+    function applyDomainPanels() {
+        if (networkPanel) networkPanel.hidden = state.domain !== "network";
+        if (cloudPanel) cloudPanel.hidden = state.domain !== "cloud";
+    }
+
     if (domainNav) {
         domainNav.addEventListener("click", function (event) {
             var button = event.target.closest(".rep-pill");
             if (!button) return;
-            var domain = button.getAttribute("data-domain") || "network";
-            state.domain = domain;
-            domainNav.querySelectorAll(".rep-pill").forEach(function (b) {
-                var on = b === button;
-                b.classList.toggle("is-active", on);
-                b.setAttribute("aria-pressed", on ? "true" : "false");
-            });
-            if (networkPanel) networkPanel.hidden = domain !== "network";
-            if (cloudPanel) cloudPanel.hidden = domain !== "cloud";
+            draft.domain = button.getAttribute("data-domain") || "network";
+            syncDomainPills();
         });
     }
 
@@ -290,10 +305,8 @@
     var dateTo = document.getElementById("repDateTo");
 
     function onDateChange() {
-        state.dateFrom = dateFrom ? dateFrom.value : "";
-        state.dateTo = dateTo ? dateTo.value : "";
-        state.page = 1;
-        renderRows();
+        draft.dateFrom = dateFrom ? dateFrom.value : "";
+        draft.dateTo = dateTo ? dateTo.value : "";
     }
     if (dateFrom) dateFrom.addEventListener("change", onDateChange);
     if (dateTo) dateTo.addEventListener("change", onDateChange);
@@ -303,10 +316,22 @@
     var searchEl = document.getElementById("repFilterSearch");
     if (searchEl) {
         searchEl.addEventListener("input", function () {
-            state.search = searchEl.value.trim();
-            state.page = 1;
-            renderRows();
+            draft.search = searchEl.value.trim();
         });
+    }
+
+    // Reflect the currently applied filters back into the panel controls.
+    function syncDraftFromState() {
+        draft.domain = state.domain;
+        draft.type = state.type;
+        draft.search = state.search;
+        draft.dateFrom = state.dateFrom;
+        draft.dateTo = state.dateTo;
+        if (searchEl) searchEl.value = state.search;
+        if (dateFrom) dateFrom.value = state.dateFrom;
+        if (dateTo) dateTo.value = state.dateTo;
+        syncTypePills();
+        syncDomainPills();
     }
 
     // ---- Reset / Apply ----
@@ -314,15 +339,14 @@
     var resetBtn = document.getElementById("repFilterReset");
     if (resetBtn) {
         resetBtn.addEventListener("click", function () {
+            state.domain = "network";
             state.type = "all";
             state.search = "";
             state.dateFrom = "";
             state.dateTo = "";
             state.page = 1;
-            if (searchEl) searchEl.value = "";
-            if (dateFrom) dateFrom.value = "";
-            if (dateTo) dateTo.value = "";
-            syncTypePills();
+            syncDraftFromState();
+            applyDomainPanels();
             renderRows();
         });
     }
@@ -330,7 +354,14 @@
     var applyBtn = document.getElementById("repFilterApply");
     if (applyBtn) {
         applyBtn.addEventListener("click", function () {
+            state.domain = draft.domain;
+            state.type = draft.type;
+            state.search = draft.search;
+            state.dateFrom = draft.dateFrom;
+            state.dateTo = draft.dateTo;
             state.page = 1;
+            syncTypePills();
+            applyDomainPanels();
             renderRows();
             closeFilter();
         });
@@ -449,7 +480,8 @@
             });
     }
 
-    syncTypePills();
+    syncDraftFromState();
+    applyDomainPanels();
     loadInventory();
     renderRows();
 })();

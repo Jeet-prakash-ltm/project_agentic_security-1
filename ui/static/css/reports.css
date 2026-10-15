@@ -473,6 +473,16 @@
     text-align: right;
 }
 
+/* Rounded-rectangle badges in the report table (instead of pills). */
+.data-table .tag,
+.data-table .status-chip {
+    border-radius: 10px;
+}
+
+.data-table .tag {
+    white-space: nowrap;
+}
+
 .rep-report-id {
     font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
     font-size: 12px;

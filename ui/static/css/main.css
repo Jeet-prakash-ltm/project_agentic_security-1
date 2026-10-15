@@ -1330,7 +1330,7 @@ body.sidebar-expanded .sidebar-expand-toggle svg {
     color: var(--red);
     background: var(--rose);
     padding: 6px 14px;
-    border-radius: 999px;
+    border-radius: 10px;
     border: 1px solid rgba(255, 94, 79, 0.25);
     margin-bottom: 14px;
 }

@@ -114,7 +114,7 @@
     display: inline-flex;
     align-items: center;
     padding: 5px 13px;
-    border-radius: 999px;
+    border-radius: 10px;
     font-size: 12px;
     font-weight: 600;
     color: var(--text-2);
@@ -266,7 +266,7 @@
     font-size: 12px;
     font-weight: 600;
     padding: 7px 11px;
-    border-radius: 999px;
+    border-radius: 10px;
     border: 1px solid var(--border);
     background: transparent;
     color: var(--text-2);
@@ -345,7 +345,7 @@
 .rep-filter-search input {
     width: 100%;
     border: 1px solid var(--glass-border);
-    border-radius: 999px;
+    border-radius: 10px;
     background: var(--glass-soft);
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);

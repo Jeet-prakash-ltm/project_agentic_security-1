@@ -15,17 +15,31 @@
     var deviceClose = document.getElementById("autoJobDeviceClose");
     var numberInput = document.getElementById("autoJobsNumber");
     var deviceInput = document.getElementById("autoJobsDevice");
-    var domainSelect = document.getElementById("autoJobsDomain");
-    var statusSelect = document.getElementById("autoJobsStatus");
+    var domainPills = document.getElementById("autoJobsDomainPills");
+    var statusPills = document.getElementById("autoJobsStatusPills");
     var dateSelect = document.getElementById("autoJobsDate");
     var startInput = document.getElementById("autoJobsStart");
     var endInput = document.getElementById("autoJobsEnd");
-    var customStartWrap = document.getElementById("autoJobsCustomRange");
-    var customEndWrap = document.getElementById("autoJobsCustomRangeEnd");
+    var customRangeWrap = document.getElementById("autoJobsCustomRange");
+    var filterBtn = document.getElementById("autoJobsFilterBtn");
+    var filterPanel = document.getElementById("autoJobsFilterPanel");
+    var filterClose = document.getElementById("autoJobsFilterClose");
+    var filterApply = document.getElementById("autoJobsFilterApply");
+    var filterReset = document.getElementById("autoJobsFilterReset");
     var jobsById = {};
     var allJobs = [];
     var inventory = [];
     var filters = {
+        number: "",
+        domain: "all",
+        device: "",
+        status: "all",
+        date: "all",
+        start: "",
+        end: ""
+    };
+    // Pending selection; committed to `filters` only when Apply is clicked.
+    var draft = {
         number: "",
         domain: "all",
         device: "",
@@ -250,7 +264,7 @@
         return '<span class="auto-job-device">' +
             '<span>' + esc(deviceDisplayName(job)) + "</span>" +
             '<button type="button" class="auto-job-device-info" data-device-info="' + esc(job.id) + '" title="Device info" aria-label="Show device info">' +
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>' +
             "</button></span>";
     }
 
@@ -363,9 +377,35 @@
     }
 
     function syncCustomRange() {
-        var show = filters.date === "custom";
-        if (customStartWrap) customStartWrap.hidden = !show;
-        if (customEndWrap) customEndWrap.hidden = !show;
+        if (customRangeWrap) customRangeWrap.hidden = draft.date !== "custom";
+    }
+
+    function syncPills(container, attr, value) {
+        if (!container) return;
+        container.querySelectorAll(".rep-pill").forEach(function (p) {
+            var on = p.getAttribute(attr) === value;
+            p.classList.toggle("is-active", on);
+            p.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+    }
+
+    // Reflect the applied filters into the panel controls and the draft.
+    function syncDraftFromFilters() {
+        draft.number = filters.number;
+        draft.domain = filters.domain;
+        draft.device = filters.device;
+        draft.status = filters.status;
+        draft.date = filters.date;
+        draft.start = filters.start;
+        draft.end = filters.end;
+        if (numberInput) numberInput.value = filters.number;
+        if (deviceInput) deviceInput.value = filters.device;
+        if (dateSelect) dateSelect.value = filters.date;
+        if (startInput) startInput.value = filters.start;
+        if (endInput) endInput.value = filters.end;
+        syncPills(domainPills, "data-domain", draft.domain);
+        syncPills(statusPills, "data-status", draft.status);
+        syncCustomRange();
     }
 
     function opsHtml(job) {
@@ -469,52 +509,118 @@
         render(filteredJobs());
     }
 
-    if (numberInput) {
-        numberInput.addEventListener("input", function () {
-            filters.number = numberInput.value || "";
-            applyFilters();
+    // ---- Filter panel open / close ----
+
+    function openFilter() {
+        if (!filterPanel) return;
+        syncDraftFromFilters();
+        filterPanel.hidden = false;
+        if (filterBtn) {
+            filterBtn.classList.add("is-active");
+            filterBtn.setAttribute("aria-expanded", "true");
+        }
+    }
+
+    function closeFilter() {
+        if (!filterPanel) return;
+        filterPanel.hidden = true;
+        if (filterBtn) {
+            filterBtn.classList.remove("is-active");
+            filterBtn.setAttribute("aria-expanded", "false");
+        }
+    }
+
+    function toggleFilter() {
+        if (filterPanel && filterPanel.hidden) openFilter(); else closeFilter();
+    }
+
+    if (filterBtn) {
+        filterBtn.addEventListener("click", function (event) {
+            event.stopPropagation();
+            toggleFilter();
         });
     }
-    if (deviceInput) {
-        deviceInput.addEventListener("input", function () {
-            filters.device = deviceInput.value || "";
-            applyFilters();
+    if (filterClose) filterClose.addEventListener("click", closeFilter);
+    if (filterPanel) {
+        filterPanel.addEventListener("click", function (event) { event.stopPropagation(); });
+    }
+    document.addEventListener("click", function () { closeFilter(); });
+
+    // ---- Staged filter inputs (applied only on Apply) ----
+
+    if (domainPills) {
+        domainPills.addEventListener("click", function (event) {
+            var pill = event.target.closest(".rep-pill");
+            if (!pill) return;
+            draft.domain = pill.getAttribute("data-domain") || "all";
+            syncPills(domainPills, "data-domain", draft.domain);
         });
     }
-    if (domainSelect) {
-        domainSelect.addEventListener("change", function () {
-            filters.domain = domainSelect.value || "all";
-            applyFilters();
-        });
-    }
-    if (statusSelect) {
-        statusSelect.addEventListener("change", function () {
-            filters.status = statusSelect.value || "all";
-            applyFilters();
+    if (statusPills) {
+        statusPills.addEventListener("click", function (event) {
+            var pill = event.target.closest(".rep-pill");
+            if (!pill) return;
+            draft.status = pill.getAttribute("data-status") || "all";
+            syncPills(statusPills, "data-status", draft.status);
         });
     }
     if (dateSelect) {
         dateSelect.addEventListener("change", function () {
-            filters.date = dateSelect.value || "all";
+            draft.date = dateSelect.value || "all";
             syncCustomRange();
-            applyFilters();
         });
     }
     if (startInput) {
         startInput.addEventListener("change", function () {
-            filters.start = startInput.value || "";
-            applyFilters();
+            draft.start = startInput.value || "";
         });
     }
     if (endInput) {
         endInput.addEventListener("change", function () {
-            filters.end = endInput.value || "";
+            draft.end = endInput.value || "";
+        });
+    }
+    if (numberInput) {
+        numberInput.addEventListener("input", function () {
+            draft.number = numberInput.value || "";
+        });
+    }
+    if (deviceInput) {
+        deviceInput.addEventListener("input", function () {
+            draft.device = deviceInput.value || "";
+        });
+    }
+    if (filterApply) {
+        filterApply.addEventListener("click", function () {
+            filters.number = draft.number;
+            filters.domain = draft.domain;
+            filters.device = draft.device;
+            filters.status = draft.status;
+            filters.date = draft.date;
+            filters.start = draft.start;
+            filters.end = draft.end;
+            applyFilters();
+            closeFilter();
+        });
+    }
+    if (filterReset) {
+        filterReset.addEventListener("click", function () {
+            filters.number = "";
+            filters.domain = "all";
+            filters.device = "";
+            filters.status = "all";
+            filters.date = "all";
+            filters.start = "";
+            filters.end = "";
+            syncDraftFromFilters();
             applyFilters();
         });
     }
-    syncCustomRange();
+
+    syncDraftFromFilters();
     document.addEventListener("keydown", function (e) {
         if (e.key === "Escape") {
+            closeFilter();
             closeLogModal();
             closeDeviceModal();
         }

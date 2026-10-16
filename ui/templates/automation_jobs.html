@@ -8,61 +8,91 @@
 
 {% block content %}
 
-<section class="card auto-jobs-panel">
-    <div class="auto-jobs-head">
-        <div>
-            <h3>Execution Job History</h3>
-        </div>
-        <span class="auto-jobs-count" id="autoJobsCount">—</span>
-    </div>
-    <div class="auto-jobs-filters" id="autoJobsFilters">
-        <div class="auto-jobs-filter">
-            <label class="auto-jobs-filter-label" for="autoJobsNumber">Job number</label>
-            <input type="text" id="autoJobsNumber" class="auto-jobs-filter-input" placeholder="Search job number" autocomplete="off">
-        </div>
-        <div class="auto-jobs-filter">
-            <label class="auto-jobs-filter-label" for="autoJobsDomain">Security domain</label>
-            <select id="autoJobsDomain" class="auto-jobs-filter-input auto-jobs-filter-select">
-                <option value="all">All</option>
-                <option value="network">Network security</option>
-                <option value="cloud">Cloud security</option>
-            </select>
-        </div>
-        <div class="auto-jobs-filter">
-            <label class="auto-jobs-filter-label" for="autoJobsDevice">Device</label>
-            <input type="text" id="autoJobsDevice" class="auto-jobs-filter-input" placeholder="Search device" autocomplete="off">
-        </div>
-        <div class="auto-jobs-filter">
-            <label class="auto-jobs-filter-label" for="autoJobsStatus">Status</label>
-            <select id="autoJobsStatus" class="auto-jobs-filter-input auto-jobs-filter-select">
-                <option value="all">All</option>
-                <option value="successful">Successful</option>
-                <option value="failed">Failed</option>
-            </select>
-        </div>
-        <div class="auto-jobs-filter auto-jobs-filter-date">
-            <label class="auto-jobs-filter-label" for="autoJobsDate">Date</label>
-            <select id="autoJobsDate" class="auto-jobs-filter-input auto-jobs-filter-select">
-                <option value="all">All</option>
-                <option value="today">Today</option>
-                <option value="yesterday">Yesterday</option>
-                <option value="week">Last 1 week</option>
-                <option value="month">Last 1 month</option>
-                <option value="sixmonths">Last 6 months</option>
-                <option value="year">Last year</option>
-                <option value="custom">Custom</option>
-            </select>
-        </div>
-        <div class="auto-jobs-filter auto-jobs-custom-range" id="autoJobsCustomRange" hidden>
-            <label class="auto-jobs-filter-label" for="autoJobsStart">Start date</label>
-            <input type="date" id="autoJobsStart" class="auto-jobs-filter-input" aria-label="Custom start date">
-        </div>
-        <div class="auto-jobs-filter auto-jobs-custom-range" id="autoJobsCustomRangeEnd" hidden>
-            <label class="auto-jobs-filter-label" for="autoJobsEnd">End date</label>
-            <input type="date" id="autoJobsEnd" class="auto-jobs-filter-input" aria-label="Custom end date">
+<div class="reports-header">
+    <div class="reports-title-wrap">
+        <div class="reports-title-line">
+            <h1>Execution Job History</h1>
+            <span class="reports-count" id="autoJobsCount">—</span>
         </div>
     </div>
-    <div class="table-wrap auto-jobs-wrap">
+    <div class="reports-header-side">
+        <div class="reports-filter">
+            <button type="button" class="reports-filter-btn" id="autoJobsFilterBtn" aria-label="Filters" aria-haspopup="true" aria-expanded="false" aria-controls="autoJobsFilterPanel">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/></svg>
+            </button>
+            <div class="reports-filter-panel" id="autoJobsFilterPanel" hidden>
+                <div class="rep-filter-head">
+                    <span class="rep-filter-title">Filter</span>
+                    <button type="button" class="rep-filter-close" id="autoJobsFilterClose" aria-label="Close filters">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <div class="rep-filter-section">
+                    <span class="rep-filter-label">Security domain</span>
+                    <div class="rep-filter-pills" id="autoJobsDomainPills" role="group" aria-label="Security domain">
+                        <button type="button" class="rep-pill is-active" data-domain="all" aria-pressed="true">All</button>
+                        <button type="button" class="rep-pill" data-domain="network" aria-pressed="false">Network security</button>
+                        <button type="button" class="rep-pill" data-domain="cloud" aria-pressed="false">Cloud security</button>
+                    </div>
+                </div>
+
+                <div class="rep-filter-section">
+                    <span class="rep-filter-label">Status</span>
+                    <div class="rep-filter-pills" id="autoJobsStatusPills" role="group" aria-label="Status">
+                        <button type="button" class="rep-pill is-active" data-status="all" aria-pressed="true">All</button>
+                        <button type="button" class="rep-pill" data-status="successful" aria-pressed="false">Successful</button>
+                        <button type="button" class="rep-pill" data-status="failed" aria-pressed="false">Failed</button>
+                    </div>
+                </div>
+
+                <div class="rep-filter-section">
+                    <span class="rep-filter-label">Date</span>
+                    <select id="autoJobsDate" class="rep-select">
+                        <option value="all">All</option>
+                        <option value="today">Today</option>
+                        <option value="yesterday">Yesterday</option>
+                        <option value="week">Last 1 week</option>
+                        <option value="month">Last 1 month</option>
+                        <option value="sixmonths">Last 6 months</option>
+                        <option value="year">Last year</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                    <div class="rep-filter-dates" id="autoJobsCustomRange" hidden>
+                        <label class="rep-date-field">
+                            <span>From</span>
+                            <input type="date" id="autoJobsStart" aria-label="Custom start date">
+                        </label>
+                        <label class="rep-date-field">
+                            <span>To</span>
+                            <input type="date" id="autoJobsEnd" aria-label="Custom end date">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="rep-filter-section">
+                    <span class="rep-filter-label">Search</span>
+                    <div class="rep-filter-search">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                        <input type="text" id="autoJobsNumber" placeholder="Search job number" autocomplete="off" aria-label="Search job number">
+                    </div>
+                    <div class="rep-filter-search">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                        <input type="text" id="autoJobsDevice" placeholder="Search device" autocomplete="off" aria-label="Search device">
+                    </div>
+                </div>
+
+                <div class="rep-filter-actions">
+                    <button type="button" class="btn btn-ghost rep-filter-reset" id="autoJobsFilterReset">Reset</button>
+                    <button type="button" class="btn btn-primary rep-filter-apply" id="autoJobsFilterApply">Apply</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="recent-reports card">
+    <div class="table-wrap">
         <table class="data-table auto-jobs-table">
             <thead>
                 <tr>
@@ -123,5 +153,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/automation_jobs.js') }}?v=11"></script>
+<script src="{{ url_for('static', filename='js/automation_jobs.js') }}?v=12"></script>
 {% endblock %}

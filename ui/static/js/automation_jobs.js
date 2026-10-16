@@ -253,9 +253,7 @@
             ["Device name", device.device_name || "—"],
             ["Device type", device.device_type || "Firewall"],
             ["Vendor", device.vendor || "Palo Alto Networks"],
-            ["Host name", device.host_name || "—"],
             ["IP", device.host_ip || "—"],
-            ["Port", device.port == null || device.port === "" ? "—" : String(device.port)],
             ["Status", device.status === "live" ? "Live" : "Down"]
         ];
     }
@@ -427,35 +425,45 @@
             "</tr></thead><tbody>" + rows + "</tbody></table>";
     }
 
+    function countValue(list) {
+        return (list || []).filter(Boolean).length;
+    }
+
+    function countBadge(value) {
+        return '<span class="auto-job-count">' + value + "</span>";
+    }
+
     function render(jobs) {
         jobsById = {};
         (allJobs || []).forEach(function (job) { jobsById[String(job.id)] = job; });
         countEl.textContent = (jobs.length || 0) + " job" + (jobs.length === 1 ? "" : "s");
         if (!allJobs.length) {
-            body.innerHTML = '<tr><td colspan="9" class="auto-jobs-empty">No Change Excution jobs yet. Execute a bulk workbook on Automation Hub / Network Security.</td></tr>';
+            body.innerHTML = '<tr><td colspan="8" class="auto-jobs-empty">No Change Excution jobs yet. Execute a bulk workbook on Automation Hub / Network Security.</td></tr>';
             return;
         }
         if (!jobs.length) {
-            body.innerHTML = '<tr><td colspan="9" class="auto-jobs-empty">No jobs match the selected filters.</td></tr>';
+            body.innerHTML = '<tr><td colspan="8" class="auto-jobs-empty">No jobs match the selected filters.</td></tr>';
             return;
         }
         body.innerHTML = jobs.map(function (job) {
             var hasOps = (job.operations || []).length > 0;
             return '<tr class="auto-job-row" data-job="' + esc(job.id) + '">' +
-                '<td><button type="button" class="auto-job-toggle" data-job-toggle="' + esc(job.id) + '"' +
-                (hasOps ? "" : " disabled") + ' aria-expanded="false">' +
-                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>' +
-                "</button></td>" +
-                '<td class="auto-job-number">' + esc(job.job_number) + "</td>" +
+                '<td><span class="auto-job-id">' +
+                '<span class="auto-job-number">' + esc(job.job_number) + "</span>" +
+                '<button type="button" class="auto-job-expand" data-job-toggle="' + esc(job.id) + '"' +
+                (hasOps ? "" : " disabled") +
+                ' title="View job details" aria-label="View job details" aria-expanded="false">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>' +
+                "</button></span></td>" +
                 "<td>" + esc(securityDomain(job)) + "</td>" +
                 "<td>" + deviceCell(job) + "</td>" +
-                "<td>" + esc(joinList(job.actions)) + "</td>" +
-                "<td>" + esc(joinList(job.playbooks)) + "</td>" +
+                "<td>" + countBadge(countValue(job.actions)) + "</td>" +
+                "<td>" + countBadge(countValue(job.playbooks)) + "</td>" +
                 "<td>" + esc(job.created_display || "—") + "</td>" +
                 "<td>" + statusChip(job.status, failedOpCount(job)) + "</td>" +
                 "<td>" + logsCell(job) + "</td>" +
                 "</tr>" +
-                '<tr class="auto-job-ops" data-job-ops="' + esc(job.id) + '" hidden><td colspan="9">' +
+                '<tr class="auto-job-ops" data-job-ops="' + esc(job.id) + '" hidden><td colspan="8">' +
                 opsHtml(job) +
                 "</td></tr>";
         }).join("");
@@ -639,7 +647,7 @@
         render(filteredJobs());
     }).catch(function (err) {
         countEl.textContent = "0 jobs";
-        body.innerHTML = '<tr><td colspan="9" class="auto-jobs-empty">Could not load jobs. ' +
+        body.innerHTML = '<tr><td colspan="8" class="auto-jobs-empty">Could not load jobs. ' +
             esc(err.message || "Request failed") + "</td></tr>";
     });
 })();

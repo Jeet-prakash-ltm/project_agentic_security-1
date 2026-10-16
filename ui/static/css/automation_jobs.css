@@ -19,35 +19,70 @@
     background: rgba(255, 255, 255, 0.035);
 }
 
-.auto-job-toggle {
-    width: 28px;
-    height: 28px;
+.auto-job-id {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* View-details (eye) icon sitting to the right of the Job Id. */
+.auto-job-expand {
+    width: 30px;
+    height: 30px;
     border: 1px solid var(--glass-border);
-    border-radius: 8px;
+    border-radius: 9px;
     background: var(--glass-soft);
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
-    color: var(--text);
+    color: var(--text-2);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     padding: 0;
+    transition: transform 0.15s ease, border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 
-.auto-job-toggle svg {
-    width: 14px;
-    height: 14px;
-    transition: transform 0.15s ease;
+.auto-job-expand svg {
+    width: 15px;
+    height: 15px;
 }
 
-.auto-job-row.is-open .auto-job-toggle svg {
-    transform: rotate(90deg);
+.auto-job-expand:hover:not(:disabled) {
+    border-color: rgba(255, 94, 79, 0.5);
+    color: var(--red);
+    background: rgba(255, 94, 79, 0.08);
+    transform: translateY(-1px);
 }
 
-.auto-job-toggle:disabled {
+.auto-job-row.is-open .auto-job-expand {
+    border-color: transparent;
+    background: var(--gradient-red);
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(255, 94, 79, 0.3);
+}
+
+.auto-job-expand:disabled {
     opacity: 0.35;
     cursor: default;
+}
+
+/* Count-only badges for the Actions / Change columns. */
+.auto-job-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    padding: 4px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--glass-border);
+    background: var(--glass-soft);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
 }
 
 .auto-job-number {

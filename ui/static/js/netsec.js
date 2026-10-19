@@ -18,7 +18,7 @@
     "use strict";
 
     var NETSEC_AGENT_ID = "netsec-execution-agent";
-    var state = { info: null, uploading: false };
+    var state = { info: null, uploading: false, workbookName: "" };
 
     /* Enum picker options keyed by workbook column header. */
     var ENUM_FIELDS = {
@@ -180,6 +180,103 @@
         var bridge = chat();
         if (!bridge || !pair || !pair.length) return Promise.resolve();
         return bridge.persist(pair);
+    }
+
+    function unique(values) {
+        var seen = [];
+        (values || []).forEach(function (value) {
+            var text = String(value == null ? "" : value).trim();
+            if (text && seen.indexOf(text) === -1) seen.push(text);
+        });
+        return seen;
+    }
+
+    function rowAction(row) {
+        var action = String((row && row.action) || "").trim();
+        if (action) return action;
+        var op = String((row && row.op) || "").trim();
+        if (op && op.toLowerCase() !== "error" && op.toLowerCase() !== "skipped") return op;
+        return "";
+    }
+
+    function opActions(data) {
+        var actions = [];
+        ((data && data.rows) || []).forEach(function (row) {
+            var action = rowAction(row);
+            if (action) actions.push(action);
+        });
+        var counts = (data && data.counts) || {};
+        if (!actions.length) {
+            if (counts.created) actions.push("create");
+            if (counts.updated) actions.push("update");
+            if (counts.deleted) actions.push("delete");
+        }
+        return unique(actions);
+    }
+
+    function rowErrors(data) {
+        var errs = [];
+        ((data && data.rows) || []).forEach(function (row) {
+            if (row && row.error) {
+                errs.push({
+                    row: row.row != null ? row.row : null,
+                    action: rowAction(row),
+                    error: String(row.error)
+                });
+            }
+        });
+        return errs;
+    }
+
+    function jobFailed(data) {
+        return !!(data && (data.commit_error || ((data.counts || {}).errors)));
+    }
+
+    function announceJobRegistered() {
+        var bridge = chat();
+        if (!bridge) return Promise.resolve();
+        return persist([bridge.assistantText("New Job registered in Job Section")]);
+    }
+
+    function registerJob(data, pb, extras) {
+        extras = extras || {};
+        var failed = jobFailed(data) || !!extras.error;
+        var title = (data && data.playbook_title) || (pb && pb.title) || extras.playbook_id || "";
+        var payload = {
+            firewall_name: (data && data.host) || (state.info && state.info.host) || "",
+            security_domain: "Network security",
+            workbook_name: extras.workbook_name || state.workbookName || "Workspace chat",
+            actions: opActions(data).length ? opActions(data) : unique([extras.action]),
+            playbooks: unique([title]),
+            sheets: unique([(data && data.sheet) || (pb && pb.sheet) || ""]),
+            status: failed ? "failed" : "successful",
+            operations: [{
+                playbook_id: (data && data.playbook_id) || (pb && pb.id) || extras.playbook_id || "",
+                playbook_title: title,
+                sheet: (data && data.sheet) || (pb && pb.sheet) || "",
+                actions: opActions(data).length ? opActions(data) : unique([extras.action]),
+                counts: (data && data.counts) || (failed ? { errors: 1 } : {}),
+                committed: !!(data && data.committed),
+                commit_error: (data && data.commit_error) || extras.error || "",
+                summary: (data && data.summary) || extras.error || "",
+                row_errors: rowErrors(data),
+                error_reason: failed ? ((data && data.commit_error) || extras.error || "") : "",
+                executed_at: new Date().toISOString(),
+                status: failed ? "failed" : "successful"
+            }]
+        };
+        return fetch("/api/automation/jobs", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        }).then(function (r) {
+            return r.json().then(function (d) { return { ok: r.ok, data: d }; });
+        }).then(function (res) {
+            if (res.ok && res.data && res.data.job) {
+                return announceJobRegistered().then(function () { return res.data.job; });
+            }
+            return null;
+        }).catch(function () { return null; });
     }
 
     function opWord(op) {
@@ -472,11 +569,19 @@
                 .then(function (res) {
                     if (!res.ok) throw new Error(res.data && res.data.error ? res.data.error : "Run failed");
                     var asstMsg = resultMessage(res.data, pb);
-                    persist([userMsg, asstMsg]);
+                    return persist([userMsg, asstMsg]).then(function () {
+                        return registerJob(res.data, pb, { action: op, workbook_name: "Workspace chat" });
+                    });
                 })
                 .catch(function (err) {
                     var asstMsg = bridge.assistantText("The operation could not be completed. " + (err.message || "Run failed."));
-                    persist([userMsg, asstMsg]);
+                    return persist([userMsg, asstMsg]).then(function () {
+                        return registerJob(
+                            { playbook_id: pbId, playbook_title: pb ? pb.title : pbId, host: state.info && state.info.host, counts: { errors: 1 }, commit_error: err.message || "Run failed", rows: [] },
+                            pb,
+                            { action: op, error: err.message || "Run failed", workbook_name: "Workspace chat" }
+                        );
+                    });
                 })
                 .finally(function () {
                     bridge.typingEnd(typing);
@@ -634,11 +739,19 @@
                 .then(function (res) {
                     if (!res.ok) throw new Error(res.data && res.data.error ? res.data.error : "Run failed");
                     var asstMsg = resultMessage(res.data, pb);
-                    persist([userMsg, asstMsg]);
+                    return persist([userMsg, asstMsg]).then(function () {
+                        return registerJob(res.data, pb, { workbook_name: state.workbookName || "Workspace chat" });
+                    });
                 })
                 .catch(function (err) {
                     var asstMsg = bridge.assistantText("The playbook could not be run. " + (err.message || "Run failed."));
-                    persist([userMsg, asstMsg]);
+                    return persist([userMsg, asstMsg]).then(function () {
+                        return registerJob(
+                            { playbook_id: pbId, playbook_title: pb ? pb.title : pbId, host: state.info && state.info.host, counts: { errors: 1 }, commit_error: err.message || "Run failed", rows: [] },
+                            pb,
+                            { error: err.message || "Run failed", workbook_name: state.workbookName || "Workspace chat" }
+                        );
+                    });
                 })
                 .finally(function () {
                     bridge.typingEnd(typing);
@@ -666,6 +779,7 @@
             })
             .then(function (res) {
                 if (!res.ok) throw new Error(res.data && res.data.error ? res.data.error : "Upload failed");
+                state.workbookName = file.name;
                 var asstMsg = bridge.assistantHtml(bulkRunCardHtml(res.data.summary), "Bulk operation");
                 persist([userMsg, asstMsg]);
             })

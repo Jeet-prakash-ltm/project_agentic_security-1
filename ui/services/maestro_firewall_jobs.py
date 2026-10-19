@@ -173,10 +173,55 @@ _OBJECT_NAME_RE = re.compile(
     re.IGNORECASE,
 )
 _CREATE_NAME_RE = re.compile(
-    r"\b(?:create|add|update|delete|remove)\s+(?:(?:an?|the)\s+)?"
+    r"\b(?:create|add|update|delete|remove)\s+"
+    r"(?:(?:an?|the|this|that)\s+)*"
     r"(?:address\s+object|host\s+object|object|rule|policy|zone|service)\s+"
     r"[\"'`]?([A-Za-z0-9][A-Za-z0-9._-]{0,62})[\"'`]?",
     re.IGNORECASE,
+)
+_OBJECT_TOKEN = r"(?:[A-Za-z][A-Za-z0-9]*[ ])?[A-Za-z][A-Za-z0-9]*[-_][A-Za-z0-9._-]{1,60}"
+_DELETE_THIS_NAME_RE = re.compile(
+    r"\b(?:delete|remove)\s+(?:(?:an?|the|this|that|object|address|host)\s+)*"
+    r"[\"'` ]?(?P<name>" + _OBJECT_TOKEN + r")[\"'`]?",
+    re.IGNORECASE,
+)
+_BARE_OBJECT_NAME_RE = re.compile(
+    r"\b(" + _OBJECT_TOKEN + r")\b",
+    re.IGNORECASE,
+)
+_INLINE_LABELS = (
+    "Object name",
+    "Address name",
+    "Rule name",
+    "IP address",
+    "Address value",
+    "Address type",
+    "Description",
+    "Source",
+    "Destination",
+    "Protocol",
+    "Members",
+    "Action",
+    "Name",
+    "From",
+    "To",
+    "Port",
+    "Tags",
+    "Tag",
+)
+_INLINE_LABEL_RE = re.compile(
+    r"(?i)\b("
+    + "|".join(re.escape(label) for label in sorted(_INLINE_LABELS, key=len, reverse=True))
+    + r")\s*:\s*(.+?)(?=\s+(?:"
+    + "|".join(re.escape(label) for label in sorted(_INLINE_LABELS, key=len, reverse=True))
+    + r")\s*:|$)"
+)
+_NAME_STOPWORDS = frozenset(
+    (
+        "a", "an", "the", "this", "that", "it", "now", "please", "ok", "okay",
+        "object", "address", "host", "rule", "policy", "zone", "service",
+        "group", "named", "called", "name", "ip", "with", "from", "to",
+    )
 )
 _SERVICE_NAME_RE = re.compile(
     r"\b(?:tcp|udp|sctp)?\s*service\s+[\"'`]?([A-Za-z0-9._-]{1,63})[\"'`]?",
@@ -276,41 +321,63 @@ def _detect_category(text):
 
 def _fields_from_labeled_lines(text):
     fields = {}
-    for raw in (text or "").splitlines():
-        line = raw.strip()
-        if ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        header = FIELD_ALIASES.get(_norm_key(key))
+    blob = text or ""
+    for match in _INLINE_LABEL_RE.finditer(blob):
+        header = FIELD_ALIASES.get(_norm_key(match.group(1)))
         if not header:
             continue
-        value = value.strip()
+        value = match.group(2).strip()
         if value:
             fields[header] = value[:255]
     return fields
 
 
+def _usable_name(value):
+    name = (value or "").strip().strip("\"'`")
+    if not name:
+        return ""
+    if name.lower() in _NAME_STOPWORDS:
+        return ""
+    return name
+
+
 def _extract_name(text, category):
     quoted = _QUOTED_NAME_RE.search(text or "")
     if quoted:
-        return quoted.group(1).strip()
+        name = _usable_name(quoted.group(1))
+        if name:
+            return name
     if category in ("security_rule", "nat_rule"):
         match = _RULE_NAME_RE.search(text or "")
         if match:
-            return match.group(1).strip()
+            name = _usable_name(match.group(1))
+            if name:
+                return name
     if category == "service":
         match = _SERVICE_NAME_RE.search(text or "")
         if match:
-            return match.group(1).strip()
+            name = _usable_name(match.group(1))
+            if name:
+                return name
     match = _OBJECT_NAME_RE.search(text or "")
     if match:
-        return match.group(1).strip()
+        name = _usable_name(match.group(1))
+        if name:
+            return name
+    match = _DELETE_THIS_NAME_RE.search(text or "")
+    if match:
+        name = _usable_name(match.group(1))
+        if name:
+            return name
     match = _CREATE_NAME_RE.search(text or "")
     if match:
-        name = match.group(1).strip()
-        if name.lower() not in (
-            "object", "address", "host", "rule", "policy", "zone", "service",
-        ):
+        name = _usable_name(match.group(1))
+        if name:
+            return name
+    match = _BARE_OBJECT_NAME_RE.search(text or "")
+    if match:
+        name = _usable_name(match.group(1))
+        if name:
             return name
     return ""
 
@@ -409,6 +476,8 @@ def parse_firewall_change(text):
         fields.setdefault("Interface", name)
 
     required_ok = True
+    if action != "delete" and not (name or fields.get("Interface")):
+        required_ok = False
     if action != "delete":
         if category == "address" and not fields.get("Address Value"):
             required_ok = False
@@ -417,8 +486,6 @@ def parse_firewall_change(text):
         ):
             required_ok = False
         elif category in ("address_group", "service_group") and not fields.get("Members"):
-            required_ok = False
-        elif not (name or fields.get("Interface")):
             required_ok = False
 
     if not required_ok:
@@ -544,6 +611,48 @@ def build_requested_payload(change):
     return payload
 
 
+def _named_change_from_history(messages, skip_content=None):
+    skip = _folded(skip_content or "")
+    for item in reversed(messages or []):
+        role = (item.get("role") or "").lower()
+        content = (item.get("content") or "").strip()
+        if role != "user" or not content:
+            continue
+        if is_approval(content) or is_rejection(content):
+            continue
+        if skip and _folded(content) == skip:
+            continue
+        parsed = parse_firewall_change(content)
+        if parsed and parsed.get("name"):
+            return parsed
+    return None
+
+
+def _with_history_name(change, messages, skip_content=None):
+    if not change or change.get("name"):
+        return change
+    prior = _named_change_from_history(messages, skip_content=skip_content)
+    name = (prior or {}).get("name") or ""
+    if not name:
+        return None
+    fields = dict(change.get("fields") or {})
+    fields["Name"] = name
+    if change.get("category") == "interface":
+        fields.setdefault("Interface", name)
+    label = change.get("label") or CATEGORY_LABELS.get(
+        change.get("category"), "object"
+    )
+    change = dict(change)
+    change["name"] = name
+    change["fields"] = fields
+    change["summary"] = "{0} {1} {2}".format(
+        (change.get("action") or "change").capitalize(),
+        str(label).lower(),
+        name,
+    ).strip()
+    return change
+
+
 def pending_change_from_history(messages):
     user_texts = []
     for item in reversed(messages or []):
@@ -555,11 +664,15 @@ def pending_change_from_history(messages):
             continue
         parsed = parse_firewall_change(content)
         if parsed:
-            return parsed
+            filled = _with_history_name(parsed, messages, skip_content=content)
+            if filled:
+                return filled
         user_texts.append(content)
         parsed = parse_firewall_change("\n".join(reversed(user_texts)))
         if parsed:
-            return parsed
+            filled = _with_history_name(parsed, messages)
+            if filled:
+                return filled
     return None
 
 
@@ -681,6 +794,12 @@ def try_handle(agent, user_id, message, messages=None):
                 "(for example: create object web-server-007 with ip 192.168.11.14).",
                 started=started,
             )
+        if not change.get("name"):
+            return _result(
+                "I need the object name to apply this change. "
+                "For example: delete object web-server-013.",
+                started=started,
+            )
         try:
             job = _submit_change(user_id, change)
         except ValueError as exc:
@@ -718,6 +837,15 @@ def try_handle(agent, user_id, message, messages=None):
         return _result(reply, blocks, started=started)
 
     change = parse_firewall_change(text)
+    if change is not None:
+        filled = _with_history_name(change, history, skip_content=text)
+        if filled is None and not change.get("name"):
+            return _result(
+                "I need the object name to delete. "
+                "For example: delete object web-server-013.",
+                started=started,
+            )
+        change = filled or change
     if change is None:
         return None
 

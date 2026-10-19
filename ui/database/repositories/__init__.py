@@ -10,6 +10,7 @@ from database.repositories.automation_jobs_repository import AutomationJobsRepos
 from database.repositories.conversations_repository import ConversationsRepository
 from database.repositories.demo_requests_repository import DemoRequestsRepository
 from database.repositories.findings_repository import FindingsRepository
+from database.repositories.firewall_jobs_repository import FirewallJobsRepository
 from database.repositories.insights_repository import InsightsRepository
 from database.repositories.managed_firewalls_repository import ManagedFirewallsRepository
 from database.repositories.reports_repository import ReportsRepository
@@ -23,6 +24,7 @@ __all__ = [
     "ConversationsRepository",
     "DemoRequestsRepository",
     "FindingsRepository",
+    "FirewallJobsRepository",
     "InsightsRepository",
     "ManagedFirewallsRepository",
     "ReportsRepository",

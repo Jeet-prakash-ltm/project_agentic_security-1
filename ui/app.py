@@ -1415,6 +1415,91 @@ def api_netsec_manual():
         return jsonify({"error": str(e)}), 502
 
 
+@app.route("/api/firewall/jobs/preflight")
+@login_required
+def api_firewall_jobs_preflight():
+    from services import firewall_jobs_service
+
+    try:
+        return jsonify(
+            firewall_jobs_service.preflight(
+                current_user_id(), request.args.get("firewall_host")
+            )
+        )
+    except firewall_jobs_service.FirewallJobsError as e:
+        return jsonify({"error": str(e)}), e.status_code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/firewall/jobs", methods=["GET"])
+@login_required
+def api_firewall_jobs_list():
+    from services import firewall_jobs_service
+
+    try:
+        return jsonify(
+            {
+                "jobs": firewall_jobs_service.list_jobs(
+                    current_user_id(), status=request.args.get("status")
+                )
+            }
+        )
+    except firewall_jobs_service.FirewallJobsError as e:
+        return jsonify({"error": str(e)}), e.status_code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/firewall/jobs", methods=["POST"])
+@login_required
+def api_firewall_jobs_create():
+    from services import firewall_jobs_service
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        job = firewall_jobs_service.create_job(current_user_id(), payload)
+        return jsonify({"job": job}), 201
+    except firewall_jobs_service.FirewallJobsError as e:
+        return jsonify({"error": str(e)}), e.status_code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/firewall/jobs/<task_id>", methods=["GET"])
+@login_required
+def api_firewall_jobs_get(task_id):
+    from services import firewall_jobs_service
+
+    try:
+        return jsonify(
+            {"job": firewall_jobs_service.get_job(current_user_id(), task_id)}
+        )
+    except firewall_jobs_service.FirewallJobsError as e:
+        return jsonify({"error": str(e)}), e.status_code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/firewall/jobs/<task_id>/approve", methods=["POST"])
+@login_required
+def api_firewall_jobs_approve(task_id):
+    from services import firewall_jobs_service
+
+    payload = request.get_json(silent=True) or {}
+    approve = payload.get("approve")
+    approve = True if approve is None else bool(approve)
+    try:
+        job = firewall_jobs_service.approve_job(
+            current_user_id(), task_id, approve=approve
+        )
+        return jsonify({"job": job})
+    except firewall_jobs_service.FirewallJobsError as e:
+        return jsonify({"error": str(e)}), e.status_code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/tools")
 def api_tools():
     return jsonify(

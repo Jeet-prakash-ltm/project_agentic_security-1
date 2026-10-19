@@ -27,12 +27,16 @@ Additional tables:
 from sqlalchemy import (
     Boolean,
     Column,
+    DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
+    func,
 )
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.types import JSON
 
 from database.db import Base
@@ -273,3 +277,37 @@ class AutomationJob(Base):
     status = Column(String(32), default="failed", index=True)
     created = Column(Float, index=True)
     operations = Column(JSON)
+
+
+class FirewallJob(Base):
+    """One firewall execution task, tracked from request to completion.
+
+    This is the durable job ledger: PostgreSQL owns status and history while
+    Azure Service Bus delivers work and Durable Functions orchestrate the
+    long-running execution. ``task_id`` is also the Service Bus ``SessionId``
+    scope (firewall host + device group) used to serialize work per device.
+    """
+
+    __tablename__ = "firewall_jobs"
+    __table_args__ = (
+        Index("ix_firewall_jobs_host_group", "firewall_host", "device_group"),
+    )
+
+    task_id = Column(UUID(as_uuid=False), primary_key=True)
+    user_id = Column(String(64), default="anonymous", index=True)
+    session_id = Column(String(255), default="", index=True)
+    firewall_host = Column(String(255), default="")
+    device_group = Column(String(255), default="")
+    operation = Column(String(64), default="")
+    panos_job_id = Column(String(64))
+    status = Column(String(32), default="QUEUED", index=True)
+    requested_payload = Column(JSONB)
+    result = Column(JSONB)
+    error_message = Column(Text)
+    approval_status = Column(String(32), default="PENDING", index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

@@ -34,6 +34,7 @@ REQUIRED_TABLES = [
     "agent_activity_logs",
     "managed_firewalls",
     "automation_jobs",
+    "firewall_jobs",
 ]
 
 

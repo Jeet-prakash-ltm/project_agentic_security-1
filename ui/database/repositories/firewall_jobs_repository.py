@@ -46,9 +46,11 @@ class FirewallJobsRepository(BaseRepository):
             return None
         return self.session.get(FirewallJob, normalized)
 
-    def list_jobs(self, user_id=None, status=None, limit=200):
+    def list_jobs(self, user_id=None, user_ids=None, status=None, limit=200):
         query = self.session.query(FirewallJob)
-        if user_id:
+        if user_ids:
+            query = query.filter(FirewallJob.user_id.in_(list(user_ids)))
+        elif user_id:
             query = query.filter(FirewallJob.user_id == user_id)
         if status:
             query = query.filter(FirewallJob.status == status)

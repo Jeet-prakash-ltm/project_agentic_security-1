@@ -24,9 +24,11 @@ class AutomationJobsRepository(BaseRepository):
         self.session.commit()
         return job
 
-    def list_jobs(self, user_id=None, limit=200):
+    def list_jobs(self, user_id=None, user_ids=None, limit=200):
         query = self.session.query(AutomationJob)
-        if user_id:
+        if user_ids:
+            query = query.filter(AutomationJob.user_id.in_(list(user_ids)))
+        elif user_id:
             query = query.filter(AutomationJob.user_id == user_id)
         return (
             query.order_by(AutomationJob.id.desc())

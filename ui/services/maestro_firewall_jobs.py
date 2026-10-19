@@ -601,13 +601,7 @@ def _confirm_blocks(change):
 
 def _register_automation_job(user_id, change, job):
     status = (job.get("status") or "QUEUED").upper()
-    ui_status = {
-        "SUCCEEDED": "successful",
-        "FAILED": "failed",
-        "TIMEOUT": "failed",
-        "CANCELLED": "cancelled",
-        "PENDING_APPROVAL": "pending",
-    }.get(status, "queued" if status in ("QUEUED",) else "running")
+    ui_status = automation_jobs_service.feat_ui_status(status)
     payload = {
         "firewall_name": job.get("firewall_host") or "",
         "security_domain": "Network security",
@@ -615,9 +609,7 @@ def _register_automation_job(user_id, change, job):
         "actions": [change["action"]],
         "playbooks": [change["label"]],
         "sheets": [change["category"]],
-        "status": ui_status if ui_status in ("successful", "failed") else (
-            "failed" if ui_status in ("cancelled",) else "queued"
-        ),
+        "status": ui_status,
         "operations": [
             {
                 "playbook_id": change["category"],
@@ -625,7 +617,7 @@ def _register_automation_job(user_id, change, job):
                 "sheet": change["label"],
                 "actions": [change["action"]],
                 "counts": {},
-                "committed": False,
+                "committed": ui_status == "successful",
                 "task_id": job.get("task_id") or "",
                 "status": ui_status,
                 "summary": change["summary"],
@@ -633,8 +625,6 @@ def _register_automation_job(user_id, change, job):
             }
         ],
     }
-    if ui_status == "queued":
-        payload["status"] = "queued"
     try:
         return automation_jobs_service.create_job(user_id, payload)
     except Exception:

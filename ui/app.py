@@ -92,6 +92,8 @@ def login_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         if not current_user():
+            if _wants_json_response():
+                return jsonify({"error": "Authentication required."}), 401
             return _login_redirect()
         return f(*args, **kwargs)
     return wrapper
@@ -1211,6 +1213,7 @@ def api_agents_remove(agent_id):
 
 
 @app.route("/api/chat", methods=["POST"])
+@login_required
 def api_chat():
 
     payload = request.get_json(silent=True) or {}

@@ -453,7 +453,7 @@
         (allJobs || []).forEach(function (job) { jobsById[String(job.id)] = job; });
         countEl.textContent = (jobs.length || 0) + " job" + (jobs.length === 1 ? "" : "s");
         if (!allJobs.length) {
-            body.innerHTML = '<tr><td colspan="8" class="auto-jobs-empty">No Change Excution jobs yet. Execute a bulk workbook on Automation Hub / Network Security.</td></tr>';
+            body.innerHTML = '<tr><td colspan="8" class="auto-jobs-empty">No jobs yet. Approve a Maestro firewall change or run a bulk workbook on Automation Hub / Network Security.</td></tr>';
             return;
         }
         if (!jobs.length) {

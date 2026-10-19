@@ -113,6 +113,21 @@
     background: var(--danger-soft);
 }
 
+.auto-job-status.is-run {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+}
+
+.auto-job-status.is-wait {
+    color: var(--warning);
+    background: var(--warning-soft);
+}
+
+.auto-job-status.is-cancel {
+    color: var(--text-muted);
+    background: rgba(148, 163, 184, 0.14);
+}
+
 .auto-job-ops td {
     padding: 0 16px 14px 60px;
 }

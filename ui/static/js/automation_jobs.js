@@ -77,12 +77,20 @@
         return (job.operations || []).filter(isFailedOp).length;
     }
 
+    function statusMeta(status) {
+        var key = String(status || "").toLowerCase();
+        if (key === "successful") return { cls: "is-ok", label: "Successful" };
+        if (key === "queued") return { cls: "is-run", label: "Queued" };
+        if (key === "running" || key === "pending") return { cls: "is-wait", label: key === "pending" ? "Pending" : "Running" };
+        if (key === "cancelled") return { cls: "is-cancel", label: "Cancelled" };
+        return { cls: "is-err", label: "Failed" };
+    }
+
     function statusChip(status, failCount) {
-        var ok = String(status || "").toLowerCase() === "successful";
-        var label = ok ? "Successful" : "Failed";
-        if (!ok && failCount) label += " (" + failCount + ")";
-        return '<span class="auto-job-status ' + (ok ? "is-ok" : "is-err") + '">' +
-            esc(label) + "</span>";
+        var meta = statusMeta(status);
+        var label = meta.label;
+        if (meta.cls === "is-err" && failCount) label += " (" + failCount + ")";
+        return '<span class="auto-job-status ' + meta.cls + '">' + esc(label) + "</span>";
     }
 
     function countsText(counts) {
@@ -95,7 +103,9 @@
 
     function isFailedOp(op) {
         if (!op) return false;
-        if (String(op.status || "").toLowerCase() === "failed") return true;
+        var status = String(op.status || "").toLowerCase();
+        if (status === "queued" || status === "running" || status === "pending") return false;
+        if (status === "failed") return true;
         if (op.commit_error) return true;
         return !!((op.counts || {}).errors);
     }
@@ -127,7 +137,7 @@
     }
 
     function opStatusLabel(op) {
-        return isFailedOp(op) ? "Failed" : "Successful";
+        return statusMeta((op && op.status) || (isFailedOp(op) ? "failed" : "successful")).label;
     }
 
     function logsText(job) {
@@ -286,7 +296,12 @@
     }
 
     function jobStatusKey(job) {
-        return String((job && job.status) || "").toLowerCase() === "successful" ? "successful" : "failed";
+        var key = String((job && job.status) || "").toLowerCase();
+        if (key === "successful") return "successful";
+        if (key === "queued") return "queued";
+        if (key === "running" || key === "pending") return "running";
+        if (key === "cancelled") return "cancelled";
+        return "failed";
     }
 
     function jobDomainKey(job) {
@@ -417,7 +432,7 @@
                 "<td>" + esc(op.playbook_title || op.playbook_id || "—") + "</td>" +
                 "<td>" + esc(joinList(opActions(op))) + "</td>" +
                 "<td>" + esc(countsText(op.counts)) + "</td>" +
-                "<td>" + statusChip(op.status, (op.counts || {}).errors) + "</td>" +
+                "<td>" + statusChip(op.status || (isFailedOp(op) ? "failed" : "successful"), (op.counts || {}).errors) + "</td>" +
                 "</tr>";
         }).join("");
         return '<table class="auto-job-ops-table"><thead><tr>' +
@@ -634,6 +649,42 @@
         }
     });
 
+    var pollTimer = null;
+
+    function hasActiveJobs() {
+        return (allJobs || []).some(function (job) {
+            var key = jobStatusKey(job);
+            return key === "queued" || key === "running";
+        });
+    }
+
+    function schedulePoll() {
+        if (pollTimer) return;
+        pollTimer = setTimeout(function () {
+            pollTimer = null;
+            loadJobs(true);
+        }, 4000);
+    }
+
+    function loadJobs(silent) {
+        return fetch("/api/automation/jobs").then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data && data.error) throw new Error(data.error);
+                allJobs = data.jobs || [];
+                render(filteredJobs());
+                if (hasActiveJobs()) schedulePoll();
+            })
+            .catch(function (err) {
+                if (silent) {
+                    if (hasActiveJobs()) schedulePoll();
+                    return;
+                }
+                countEl.textContent = "0 jobs";
+                body.innerHTML = '<tr><td colspan="8" class="auto-jobs-empty">Could not load jobs. ' +
+                    esc(err.message || "Request failed") + "</td></tr>";
+            });
+    }
+
     Promise.all([
         fetch("/api/automation/jobs").then(function (r) { return r.json(); }),
         fetch("/api/admin/firewalls", { headers: { "Accept": "application/json" } })
@@ -645,6 +696,7 @@
         if (data && data.error) throw new Error(data.error);
         allJobs = data.jobs || [];
         render(filteredJobs());
+        if (hasActiveJobs()) schedulePoll();
     }).catch(function (err) {
         countEl.textContent = "0 jobs";
         body.innerHTML = '<tr><td colspan="8" class="auto-jobs-empty">Could not load jobs. ' +

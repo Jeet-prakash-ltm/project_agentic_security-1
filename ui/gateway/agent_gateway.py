@@ -40,10 +40,15 @@ class AgentGateway:
             if message:
                 messages.append({"role": "user", "content": message})
 
+        from services import maestro_firewall_jobs
         from services import telemetry_map_service
 
         try:
-            result = foundry_client.chat(agent, messages)
+            result = maestro_firewall_jobs.try_handle(
+                agent, user_id, message, messages
+            )
+            if result is None:
+                result = foundry_client.chat(agent, messages)
             if (
                 foundry_client.is_cloud_agent(agent)
                 and result.get("routed_via") == "ephemeral_model"

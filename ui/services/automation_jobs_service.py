@@ -65,7 +65,10 @@ def create_job(user_id, payload):
     if not sheets:
         sheets = _unique([op.get("sheet") for op in operations])
     status = (payload.get("status") or "").strip().lower()
-    if status not in ("successful", "failed"):
+    allowed_status = (
+        "successful", "failed", "queued", "running", "pending", "cancelled",
+    )
+    if status not in allowed_status:
         failed = any(
             (op.get("status") or "").lower() == "failed"
             or op.get("commit_error")
@@ -92,5 +95,96 @@ def create_job(user_id, payload):
     return _as_dict(job)
 
 
+_FEAT_TO_UI = {
+    "PENDING_APPROVAL": "pending",
+    "APPROVED": "queued",
+    "QUEUED": "queued",
+    "STARTING": "running",
+    "APPLYING_CONFIG": "running",
+    "COMMITTING": "running",
+    "RUNNING": "running",
+    "POST_VALIDATION": "running",
+    "SUCCEEDED": "successful",
+    "FAILED": "failed",
+    "TIMEOUT": "failed",
+    "CANCELLED": "cancelled",
+}
+
+
+def _overlay_feat_status(jobs, user_id):
+    task_ids = set()
+    for job in jobs:
+        for op in job.get("operations") or []:
+            task_id = str(op.get("task_id") or "").strip()
+            if task_id:
+                task_ids.add(task_id)
+    if not task_ids:
+        return jobs
+    try:
+        from services import firewall_jobs_service
+
+        feat_jobs = firewall_jobs_service.list_jobs(user_id, limit=200)
+    except Exception:
+        return jobs
+    by_id = {
+        str(item.get("task_id") or ""): item for item in (feat_jobs or [])
+    }
+    repo = None
+    for job in jobs:
+        ops = list(job.get("operations") or [])
+        changed = False
+        for op in ops:
+            feat = by_id.get(str(op.get("task_id") or ""))
+            if not feat:
+                continue
+            ui_status = _FEAT_TO_UI.get((feat.get("status") or "").upper())
+            if not ui_status:
+                continue
+            op["status"] = ui_status
+            if feat.get("panos_job_id"):
+                op["panos_job_id"] = feat.get("panos_job_id")
+            if feat.get("error_message"):
+                op["error_reason"] = feat.get("error_message")
+                op["commit_error"] = feat.get("error_message")
+            changed = True
+        if not changed:
+            continue
+        job["operations"] = ops
+        statuses = [(op.get("status") or "").lower() for op in ops]
+        if any(item == "failed" for item in statuses):
+            job["status"] = "failed"
+        elif any(item == "running" for item in statuses):
+            job["status"] = "running"
+        elif any(item == "queued" for item in statuses):
+            job["status"] = "queued"
+        elif any(item == "pending" for item in statuses):
+            job["status"] = "pending"
+        elif any(item == "cancelled" for item in statuses):
+            job["status"] = "cancelled"
+        elif statuses and all(item == "successful" for item in statuses):
+            job["status"] = "successful"
+        if job["status"] in ("successful", "failed", "cancelled"):
+            if repo is None:
+                repo = _repo()
+            row = repo.get_job(job["id"])
+            if row and (row.status or "").lower() not in (
+                "successful", "failed", "cancelled",
+            ):
+                repo.update(
+                    row, status=job["status"], operations=job["operations"]
+                )
+    return jobs
+
+
 def list_jobs(user_id=None, limit=200):
-    return [_as_dict(job) for job in _repo().list_jobs(user_id=user_id, limit=limit)]
+    jobs = [_as_dict(job) for job in _repo().list_jobs(user_id=user_id, limit=limit)]
+    return _overlay_feat_status(jobs, user_id)
+
+
+def get_job(user_id, job_id):
+    job = _repo().get_job(job_id)
+    if job is None:
+        return None
+    if user_id and job.user_id not in (user_id, "anonymous"):
+        return None
+    return _as_dict(job)

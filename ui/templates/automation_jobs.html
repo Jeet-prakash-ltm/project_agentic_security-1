@@ -41,6 +41,8 @@
                     <span class="rep-filter-label">Status</span>
                     <div class="rep-filter-pills" id="autoJobsStatusPills" role="group" aria-label="Status">
                         <button type="button" class="rep-pill is-active" data-status="all" aria-pressed="true">All</button>
+                        <button type="button" class="rep-pill" data-status="queued" aria-pressed="false">Queued</button>
+                        <button type="button" class="rep-pill" data-status="running" aria-pressed="false">Running</button>
                         <button type="button" class="rep-pill" data-status="successful" aria-pressed="false">Successful</button>
                         <button type="button" class="rep-pill" data-status="failed" aria-pressed="false">Failed</button>
                     </div>
@@ -152,5 +154,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/automation_jobs.js') }}?v=12"></script>
+<script src="{{ url_for('static', filename='js/automation_jobs.js') }}?v=13"></script>
 {% endblock %}

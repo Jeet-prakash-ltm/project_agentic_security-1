@@ -36,3 +36,11 @@ class AutomationJobsRepository(BaseRepository):
 
     def get_job(self, job_id):
         return self.session.get(AutomationJob, job_id)
+
+    def update(self, job, **fields):
+        for key, value in fields.items():
+            if hasattr(job, key):
+                setattr(job, key, value)
+        self.session.add(job)
+        self.session.commit()
+        return job

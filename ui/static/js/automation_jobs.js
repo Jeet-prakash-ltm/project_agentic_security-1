@@ -453,11 +453,11 @@
         (allJobs || []).forEach(function (job) { jobsById[String(job.id)] = job; });
         countEl.textContent = (jobs.length || 0) + " job" + (jobs.length === 1 ? "" : "s");
         if (!allJobs.length) {
-            body.innerHTML = '<tr><td colspan="8" class="auto-jobs-empty">No jobs yet. Approve a Maestro firewall change or run a bulk workbook on Automation Hub / Network Security.</td></tr>';
+            body.innerHTML = '<tr><td colspan="9" class="auto-jobs-empty">No jobs yet. Approve a Maestro firewall change or run a bulk workbook on Automation Hub / Network Security.</td></tr>';
             return;
         }
         if (!jobs.length) {
-            body.innerHTML = '<tr><td colspan="8" class="auto-jobs-empty">No jobs match the selected filters.</td></tr>';
+            body.innerHTML = '<tr><td colspan="9" class="auto-jobs-empty">No jobs match the selected filters.</td></tr>';
             return;
         }
         body.innerHTML = jobs.map(function (job) {
@@ -470,6 +470,7 @@
                 ' title="View job details" aria-label="View job details" aria-expanded="false">' +
                 '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>' +
                 "</button></span></td>" +
+                '<td><span class="auto-job-user">' + esc(job.user_name || job.user_id || "—") + "</span></td>" +
                 "<td>" + esc(securityDomain(job)) + "</td>" +
                 "<td>" + deviceCell(job) + "</td>" +
                 "<td>" + countBadge(countValue(job.actions)) + "</td>" +
@@ -478,7 +479,7 @@
                 "<td>" + statusChip(job.status, failedOpCount(job)) + "</td>" +
                 "<td>" + logsCell(job) + "</td>" +
                 "</tr>" +
-                '<tr class="auto-job-ops" data-job-ops="' + esc(job.id) + '" hidden><td colspan="8">' +
+                '<tr class="auto-job-ops" data-job-ops="' + esc(job.id) + '" hidden><td colspan="9">' +
                 opsHtml(job) +
                 "</td></tr>";
         }).join("");
@@ -730,7 +731,7 @@
                     return;
                 }
                 countEl.textContent = "0 jobs";
-                body.innerHTML = '<tr><td colspan="8" class="auto-jobs-empty">Could not load jobs. ' +
+                body.innerHTML = '<tr><td colspan="9" class="auto-jobs-empty">Could not load jobs. ' +
                     esc(err.message || "Request failed") + "</td></tr>";
             });
     }
@@ -750,7 +751,7 @@
         if (hasActiveJobs()) schedulePoll();
     }).catch(function (err) {
         countEl.textContent = "0 jobs";
-        body.innerHTML = '<tr><td colspan="8" class="auto-jobs-empty">Could not load jobs. ' +
+        body.innerHTML = '<tr><td colspan="9" class="auto-jobs-empty">Could not load jobs. ' +
             esc(err.message || "Request failed") + "</td></tr>";
     });
 })();

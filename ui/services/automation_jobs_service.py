@@ -7,6 +7,10 @@ from database.repositories.automation_jobs_repository import AutomationJobsRepos
 from database.repositories.firewall_jobs_repository import FirewallJobsRepository
 from services import managed_firewalls_service
 from services import timeutil
+from services import users_service
+
+
+JOBS_SEE_ALL_ROLES = ("Admin", "Security Analyst")
 
 
 def _repo():
@@ -17,7 +21,34 @@ def _feat_repo():
     return FirewallJobsRepository(get_session())
 
 
+def can_view_all_jobs(user_id=None):
+    if not user_id:
+        return False
+    user = users_service.get_user(user_id)
+    role = ""
+    if user is not None:
+        role = getattr(user, "role", None) or ""
+    return (role or "").strip() in JOBS_SEE_ALL_ROLES
+
+
+def _user_names():
+    names = {"anonymous": "Anonymous"}
+    for member in users_service.list_members():
+        uid = str(member.get("id") or "").strip()
+        if uid:
+            names[uid] = (member.get("name") or "").strip() or uid
+    return names
+
+
+def _user_display(user_id, names=None):
+    uid = str(user_id or "").strip() or "anonymous"
+    table = names if names is not None else _user_names()
+    return table.get(uid) or uid
+
+
 def _visible_user_ids(user_id):
+    if can_view_all_jobs(user_id):
+        return None
     ids = []
     if user_id:
         ids.append(user_id)
@@ -42,14 +73,16 @@ def _security_domain(value):
     return "Network security"
 
 
-def _as_dict(job):
+def _as_dict(job, names=None):
     if not job:
         return None
     operations = list(job.operations or [])
+    user_id = job.user_id or "anonymous"
     return {
         "id": job.id,
         "job_number": "JOB-{0:04d}".format(job.id),
-        "user_id": job.user_id,
+        "user_id": user_id,
+        "user_name": _user_display(user_id, names),
         "firewall_name": managed_firewalls_service.display_label(job.firewall_name),
         "security_domain": getattr(job, "security_domain", None) or "Network security",
         "workbook_name": job.workbook_name or "",
@@ -482,8 +515,9 @@ def _backfill_feat_jobs(jobs, feat_jobs, user_id):
 
 
 def list_jobs(user_id=None, limit=200):
+    names = _user_names()
     jobs = [
-        _as_dict(job)
+        _as_dict(job, names)
         for job in _repo().list_jobs(
             user_ids=_visible_user_ids(user_id), limit=limit
         )
@@ -491,6 +525,9 @@ def list_jobs(user_id=None, limit=200):
     feat_jobs = _list_feat_jobs(user_id, limit=limit)
     jobs = _overlay_feat_status(jobs, feat_jobs)
     jobs = _backfill_feat_jobs(jobs, feat_jobs, user_id)
+    for job in jobs:
+        if job and not job.get("user_name"):
+            job["user_name"] = _user_display(job.get("user_id"), names)
     return jobs[:limit]
 
 
@@ -498,6 +535,7 @@ def get_job(user_id, job_id):
     job = _repo().get_job(job_id)
     if job is None:
         return None
-    if user_id and job.user_id not in (user_id, "anonymous"):
-        return None
+    if not can_view_all_jobs(user_id):
+        if user_id and job.user_id not in (user_id, "anonymous"):
+            return None
     return _as_dict(job)

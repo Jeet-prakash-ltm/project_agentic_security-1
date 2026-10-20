@@ -12,7 +12,7 @@
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    min-width: 1180px;
+    min-width: 1280px;
 }
 
 .auto-jobs-table tbody tr.auto-job-row:hover td {
@@ -89,6 +89,12 @@
     font-weight: 700;
     color: var(--text);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.auto-job-user {
+    color: var(--text);
+    font-weight: 600;
+    white-space: nowrap;
 }
 
 .auto-job-status {

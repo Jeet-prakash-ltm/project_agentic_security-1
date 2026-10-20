@@ -715,21 +715,24 @@ def _confirm_blocks(change):
 def _register_automation_job(user_id, change, job):
     status = (job.get("status") or "QUEUED").upper()
     ui_status = automation_jobs_service.feat_ui_status(status)
+    title = automation_jobs_service.category_title(change["category"])
     payload = {
         "firewall_name": job.get("firewall_host") or "",
         "security_domain": "Network security",
         "workbook_name": "Maestro AI",
         "actions": [change["action"]],
-        "playbooks": [change["label"]],
-        "sheets": [change["category"]],
+        "playbooks": [title],
+        "sheets": [title],
         "status": ui_status,
         "operations": [
             {
                 "playbook_id": change["category"],
-                "playbook_title": change["summary"],
-                "sheet": change["label"],
+                "playbook_title": title,
+                "sheet": title,
                 "actions": [change["action"]],
-                "counts": {},
+                "counts": automation_jobs_service.change_counts(
+                    change["action"], ui_status, summary=change["summary"]
+                ),
                 "committed": ui_status == "successful",
                 "task_id": job.get("task_id") or "",
                 "status": ui_status,

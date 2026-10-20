@@ -129,6 +129,85 @@ def feat_ui_status(status):
     return _FEAT_TO_UI.get((status or "").upper(), "queued")
 
 
+_EMPTY_COUNTS = {
+    "created": 0,
+    "updated": 0,
+    "deleted": 0,
+    "errors": 0,
+}
+
+_CATEGORY_TITLES = {
+    "address": "Address Objects",
+    "address_group": "Address Groups",
+    "service": "Service Objects",
+    "service_group": "Service Groups",
+    "zone": "Zones",
+    "virtual_router": "Virtual Routers",
+    "static_route": "Static Routes",
+    "interface": "Interfaces",
+    "interface_mgmt_profile": "Interface Management Profiles",
+    "security_rule": "Security Rules",
+    "nat_rule": "NAT Rules",
+}
+
+
+def category_title(category):
+    key = str(category or "").strip().lower()
+    if key in _CATEGORY_TITLES:
+        return _CATEGORY_TITLES[key]
+    text = key.replace("_", " ").strip()
+    if not text:
+        return "Firewall Change"
+    return text.title() + ("s" if not text.endswith("s") else "")
+
+
+def _count_key(action, summary=""):
+    blob = " ".join(
+        [str(action or "").strip().lower(), str(summary or "").strip().lower()]
+    )
+    if any(word in blob for word in ("delete", "remove")):
+        return "deleted"
+    if any(word in blob for word in ("update", "edit", "modify")):
+        return "updated"
+    if any(word in blob for word in ("create", "add", "set")):
+        return "created"
+    return ""
+
+
+def _as_counts(value):
+    counts = dict(_EMPTY_COUNTS)
+    if not isinstance(value, dict):
+        return counts
+    for key in _EMPTY_COUNTS:
+        try:
+            counts[key] = int(value.get(key) or 0)
+        except (TypeError, ValueError):
+            counts[key] = 0
+    return counts
+
+
+def change_counts(action, status, error=None, existing=None, summary=""):
+    counts = _as_counts(existing)
+    ui = str(status or "").strip().lower()
+    feat = str(status or "").strip().upper()
+    err = str(error or "").strip()
+    failed = ui in ("failed", "cancelled") or feat in (
+        "FAILED", "TIMEOUT", "CANCELLED",
+    )
+    successful = ui == "successful" or feat == "SUCCEEDED"
+    if failed or err:
+        counts["created"] = 0
+        counts["updated"] = 0
+        counts["deleted"] = 0
+        counts["errors"] = max(counts["errors"], 1)
+        return counts
+    if successful:
+        key = _count_key(action, summary)
+        if key and counts[key] == 0 and counts["errors"] == 0:
+            counts[key] = 1
+    return counts
+
+
 def _created_ts(value):
     if value is None:
         return time.time()
@@ -188,10 +267,56 @@ def _feat_summary(feat):
     return "{0} {1} {2}".format(action, category, name).strip()
 
 
+def _feat_action(feat, op=None):
+    payload = (feat or {}).get("requested_payload") or {}
+    candidates = [
+        payload.get("row_action"),
+        (op or {}).get("action"),
+    ]
+    actions = list((op or {}).get("actions") or [])
+    if actions:
+        candidates.append(actions[0])
+    candidates.append(payload.get("action"))
+    for value in candidates:
+        text = str(value or "").strip().lower()
+        if text in ("create", "add", "update", "edit", "modify", "delete", "remove"):
+            return "delete" if text in ("delete", "remove") else (
+                "update" if text in ("update", "edit", "modify") else "create"
+            )
+        if text == "set":
+            return "create"
+    return "create"
+
+
+def _op_category(op, feat=None):
+    payload = (feat or {}).get("requested_payload") or {}
+    for candidate in (
+        payload.get("category"),
+        (op or {}).get("playbook_id"),
+        (op or {}).get("sheet"),
+    ):
+        key = str(candidate or "").strip().lower()
+        if key in _CATEGORY_TITLES:
+            return key
+    text = " ".join(
+        [
+            str((op or {}).get("playbook_title") or ""),
+            str((op or {}).get("summary") or ""),
+            str(payload.get("summary") or ""),
+        ]
+    ).lower()
+    for key, title in _CATEGORY_TITLES.items():
+        needle = title.lower().rstrip("s")
+        if key.replace("_", " ") in text or needle in text:
+            return key
+    return "address"
+
+
 def _feat_to_automation_payload(feat):
     payload = feat.get("requested_payload") or {}
-    action = payload.get("row_action") or payload.get("action") or "apply"
-    category = payload.get("category") or feat.get("operation") or "firewall"
+    action = _feat_action(feat)
+    category = _op_category({}, feat)
+    title = category_title(category)
     summary = _feat_summary(feat)
     ui_status = _FEAT_TO_UI.get((feat.get("status") or "").upper(), "queued")
     error = feat.get("error_message") or ""
@@ -200,17 +325,19 @@ def _feat_to_automation_payload(feat):
         "security_domain": "Network security",
         "workbook_name": "Maestro AI",
         "actions": [action],
-        "playbooks": [summary],
-        "sheets": [category],
+        "playbooks": [title],
+        "sheets": [title],
         "status": ui_status,
         "created": feat.get("created") or time.time(),
         "operations": [
             {
                 "playbook_id": category,
-                "playbook_title": summary,
-                "sheet": category,
+                "playbook_title": title,
+                "sheet": title,
                 "actions": [action],
-                "counts": {},
+                "counts": change_counts(
+                    action, ui_status, error, summary=summary
+                ),
                 "committed": ui_status == "successful",
                 "task_id": feat.get("task_id") or "",
                 "status": ui_status,
@@ -250,46 +377,85 @@ def _rollup_status(ops):
     return None
 
 
+def _is_maestro_job(job):
+    workbook = str((job or {}).get("workbook_name") or "").strip().lower()
+    if workbook == "maestro ai":
+        return True
+    ops = (job or {}).get("operations") or []
+    return any(str(op.get("task_id") or "").strip() for op in ops)
+
+
 def _overlay_feat_status(jobs, feat_jobs):
     by_id = {
         str(item.get("task_id") or ""): item for item in (feat_jobs or [])
     }
-    if not by_id:
-        return jobs
     repo = None
     for job in jobs:
+        if not _is_maestro_job(job):
+            continue
         ops = list(job.get("operations") or [])
         changed = False
         for op in ops:
             feat = by_id.get(str(op.get("task_id") or ""))
-            if not feat:
-                continue
-            ui_status = _FEAT_TO_UI.get((feat.get("status") or "").upper())
-            if not ui_status:
-                continue
-            op["status"] = ui_status
-            if feat.get("panos_job_id"):
-                op["panos_job_id"] = feat.get("panos_job_id")
-            if feat.get("error_message"):
-                op["error_reason"] = feat.get("error_message")
-                op["commit_error"] = feat.get("error_message")
-            changed = True
+            if feat:
+                ui_status = _FEAT_TO_UI.get((feat.get("status") or "").upper())
+                if ui_status and op.get("status") != ui_status:
+                    op["status"] = ui_status
+                    changed = True
+                if feat.get("panos_job_id") and op.get("panos_job_id") != feat.get("panos_job_id"):
+                    op["panos_job_id"] = feat.get("panos_job_id")
+                    changed = True
+                if feat.get("error_message"):
+                    if op.get("error_reason") != feat.get("error_message"):
+                        op["error_reason"] = feat.get("error_message")
+                        op["commit_error"] = feat.get("error_message")
+                        changed = True
+                payload = feat.get("requested_payload") or {}
+                category = _op_category(op, feat)
+                title = category_title(category)
+                if category and op.get("playbook_id") != category:
+                    op["playbook_id"] = category
+                    changed = True
+                if title and op.get("playbook_title") != title:
+                    op["playbook_title"] = title
+                    op["sheet"] = title
+                    changed = True
+                action = _feat_action(feat, op)
+            else:
+                ui_status = op.get("status")
+                action = _feat_action({}, op)
+                category = _op_category(op)
+                title = category_title(category)
+                if title and op.get("playbook_title") != title:
+                    op["playbook_title"] = title
+                    op["sheet"] = title
+                    changed = True
+            if action and (op.get("actions") or [None])[0] != action:
+                op["actions"] = [action]
+                changed = True
+            next_counts = change_counts(
+                action,
+                ui_status or op.get("status"),
+                op.get("commit_error") or op.get("error_reason"),
+                op.get("counts"),
+                op.get("summary") or op.get("playbook_title"),
+            )
+            if next_counts != _as_counts(op.get("counts")):
+                op["counts"] = next_counts
+                changed = True
         if not changed:
             continue
         job["operations"] = ops
         rolled = _rollup_status(ops)
         if rolled:
             job["status"] = rolled
-        if job["status"] in ("successful", "failed", "cancelled"):
-            if repo is None:
-                repo = _repo()
-            row = repo.get_job(job["id"])
-            if row and (row.status or "").lower() not in (
-                "successful", "failed", "cancelled",
-            ):
-                repo.update(
-                    row, status=job["status"], operations=job["operations"]
-                )
+        if repo is None:
+            repo = _repo()
+        row = repo.get_job(job["id"])
+        if row:
+            repo.update(
+                row, status=job["status"], operations=job["operations"]
+            )
     return jobs
 
 

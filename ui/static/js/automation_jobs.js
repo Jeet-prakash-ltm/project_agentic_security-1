@@ -650,6 +650,7 @@
     });
 
     var pollTimer = null;
+    var signalrConnected = false;
 
     function hasActiveJobs() {
         return (allJobs || []).some(function (job) {
@@ -663,7 +664,56 @@
         pollTimer = setTimeout(function () {
             pollTimer = null;
             loadJobs(true);
-        }, 4000);
+        }, signalrConnected ? 15000 : 4000);
+    }
+
+    function connectJobEvents() {
+        if (!window.signalR || !signalR.HubConnectionBuilder) return;
+        fetch("/api/firewall/jobs/negotiate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            body: "{}"
+        }).then(function (r) {
+            return r.json().then(function (data) {
+                if (!r.ok || !data || !data.url || !data.accessToken) {
+                    throw new Error((data && data.error) || "negotiate failed");
+                }
+                return data;
+            });
+        }).then(function (data) {
+            var connection = new signalR.HubConnectionBuilder()
+                .withUrl(data.url, {
+                    skipNegotiation: true,
+                    transport: signalR.HttpTransportType.WebSockets,
+                    accessTokenFactory: function () {
+                        return fetch("/api/firewall/jobs/negotiate", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                            body: "{}"
+                        }).then(function (r) { return r.json(); })
+                            .then(function (fresh) { return (fresh && fresh.accessToken) || data.accessToken; });
+                    }
+                })
+                .withAutomaticReconnect()
+                .build();
+            connection.on(data.target || "jobUpdated", function () {
+                loadJobs(true);
+            });
+            connection.onreconnected(function () {
+                signalrConnected = true;
+                loadJobs(true);
+            });
+            connection.onclose(function () {
+                signalrConnected = false;
+                if (hasActiveJobs()) schedulePoll();
+            });
+            return connection.start().then(function () {
+                signalrConnected = true;
+            });
+        }).catch(function () {
+            signalrConnected = false;
+            if (hasActiveJobs()) schedulePoll();
+        });
     }
 
     function loadJobs(silent) {
@@ -696,6 +746,7 @@
         if (data && data.error) throw new Error(data.error);
         allJobs = data.jobs || [];
         render(filteredJobs());
+        connectJobEvents();
         if (hasActiveJobs()) schedulePoll();
     }).catch(function (err) {
         countEl.textContent = "0 jobs";

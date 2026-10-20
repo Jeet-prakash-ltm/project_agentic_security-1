@@ -1469,6 +1469,19 @@ def api_firewall_jobs_create():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/firewall/jobs/negotiate", methods=["POST"])
+@login_required
+def api_firewall_jobs_negotiate():
+    from services import firewall_jobs_service
+
+    try:
+        return jsonify(firewall_jobs_service.negotiate(current_user_id()))
+    except firewall_jobs_service.FirewallJobsError as e:
+        return jsonify({"error": str(e)}), e.status_code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/firewall/jobs/<task_id>", methods=["GET"])
 @login_required
 def api_firewall_jobs_get(task_id):

@@ -115,3 +115,13 @@ def approve_job(user_id, task_id, approve=True):
     return _request(
         "POST", "firewall/jobs/{0}/approve".format(task_id), user_id, body
     ).get("job")
+
+
+def negotiate(user_id):
+    data = _request("POST", "firewall/signalr/negotiate", user_id, body={}) or {}
+    return {
+        "url": data.get("url") or "",
+        "accessToken": data.get("accessToken") or "",
+        "hub": data.get("hub") or "",
+        "target": data.get("target") or "jobUpdated",
+    }

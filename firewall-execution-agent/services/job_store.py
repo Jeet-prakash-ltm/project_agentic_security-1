@@ -116,6 +116,15 @@ def ensure_schema():
     _schema_ready = True
 
 
+def _publish(job):
+    try:
+        from services import job_events
+
+        job_events.publish(job)
+    except Exception:
+        logger.warning("SignalR publish skipped for job update", exc_info=True)
+
+
 def _serialize(row):
     if row is None:
         return None
@@ -156,7 +165,9 @@ def create_job(job):
                 values,
             )
             row = cur.fetchone()
-    return _serialize(row)
+    job = _serialize(row)
+    _publish(job)
+    return job
 
 
 def get_job(task_id):
@@ -222,4 +233,6 @@ def update_job(task_id, **fields):
                 values,
             )
             row = cur.fetchone()
-    return _serialize(row)
+    job = _serialize(row)
+    _publish(job)
+    return job

@@ -454,6 +454,18 @@ def firewall_jobs_get(req):
         return _job_response(ex)
 
 
+@app.route(route="firewall/signalr/negotiate", methods=["POST"])
+def firewall_jobs_negotiate(req):
+    from services import job_events
+
+    if not job_events.is_configured():
+        return error("SIGNALR_CONNECTION is not configured.", 503)
+    try:
+        return success(job_events.negotiate(_user_id(req)))
+    except Exception as ex:
+        return _job_response(ex)
+
+
 @app.route(route="firewall/jobs/{task_id}/approve", methods=["POST"])
 def firewall_jobs_approve(req):
     from services.firewall_jobs import approve_job

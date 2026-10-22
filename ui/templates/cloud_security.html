@@ -6,21 +6,112 @@
 
 {% block hero_eyebrow %}Dashboard / Cloud Security{% endblock %}
 
+{% block navbar_actions %}
+<span class="hero-chip" id="ztLastUpdated" aria-live="polite">No assessment yet</span>
+<button class="hero-chip-btn" id="ztRefreshBtn" type="button" aria-label="Refresh assessment">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.5 15a9 9 0 102.6-8L1 10"/></svg>
+    Refresh
+</button>
+{% endblock %}
+
 {% block content %}
 
-<div class="page-head">
-    <h1>Cloud Security</h1>
-    <p>Azure cloud security posture, investigations and agent-driven containment.</p>
+<div class="zt-app" id="ztApp" data-view="{{ zt_view }}" data-configured="{{ '1' if zt_configured else '0' }}" data-admin="{{ '1' if is_admin else '0' }}" data-user="{{ current_user.name if current_user else '' }}">
+    <div class="zt-shell">
+        <header class="zt-topnav" id="ztTopNav">
+            <div class="zt-brand">
+                <span class="zt-brand-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>
+                </span>
+                <div>
+                    <strong>Zero Trust Assessment</strong>
+                    <span class="zt-brand-sub">Powered by Maestro AI</span>
+                </div>
+            </div>
+            <nav class="zt-tabs" aria-label="Zero Trust pages">
+                <a href="{{ url_for('cloud_security') }}" class="zt-tab" data-view="overview">Overview</a>
+                <a href="{{ url_for('cloud_security') }}/identity" class="zt-tab" data-view="identity">Identity</a>
+                <a href="{{ url_for('cloud_security') }}/devices" class="zt-tab" data-view="devices">Devices</a>
+            </nav>
+            <div class="zt-top-actions">
+                <span class="zt-org" id="ztOrgName">Organization</span>
+                <button class="icon-btn" id="ztThemeBtn" type="button" aria-label="Toggle theme">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+                </button>
+                <button class="icon-btn" id="ztHelpBtn" type="button" aria-label="About Zero Trust assessment">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 015.8 1c0 2-3 2.5-3 4"/><path d="M12 17h.01"/></svg>
+                </button>
+                <div class="zt-export">
+                    <button class="btn btn-ghost" id="ztExportBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="ztExportMenu">Export</button>
+                    <div class="zt-export-menu" id="ztExportMenu" hidden>
+                        <button type="button" data-export="csv">Filtered results CSV</button>
+                        <button type="button" data-export="json">Full results JSON</button>
+                        <button type="button" data-export="print">Printable summary</button>
+                        <button type="button" data-export="exec">Executive summary</button>
+                    </div>
+                </div>
+                <button class="btn btn-primary" id="ztRunBtn" type="button">Run assessment</button>
+            </div>
+        </header>
+
+        <div class="zt-banner" id="ztBanner" hidden></div>
+        <div class="zt-progress" id="ztProgress" hidden role="status" aria-live="polite"></div>
+        <div id="ztView" class="zt-view"></div>
+    </div>
 </div>
 
-<section class="card page-placeholder">
-    <div class="placeholder-inner">
-        <span class="placeholder-mark">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 010-8 5.5 5.5 0 0110.5 1.5A3.5 3.5 0 0117 18H7z"/><path d="M12 11v3"/><path d="M10 12l2 2 2-2"/></svg>
-        </span>
-        <h3>Cloud Security workspace</h3>
-        <p>This page is intentionally empty for now and will host the cloud security workspace in a future update.</p>
+<div class="modal-backdrop" id="ztConfirmModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ztConfirmTitle">
+        <div class="modal-head">
+            <div>
+                <h3 id="ztConfirmTitle">Run Zero Trust assessment</h3>
+                <p>This collects Entra ID and Intune configuration for the current tenant. Cached results newer than 30 minutes are reused unless you force a refresh.</p>
+            </div>
+        </div>
+        <div class="modal-body">
+            <label class="zt-check">
+                <input type="checkbox" id="ztForceRefresh">
+                <span>Force a fresh collection</span>
+            </label>
+            <div class="modal-foot">
+                <button class="btn btn-ghost" id="ztConfirmCancel" type="button">Cancel</button>
+                <button class="btn btn-primary" id="ztConfirmRun" type="button">Start assessment</button>
+            </div>
+        </div>
     </div>
-</section>
+</div>
 
+<div class="modal-backdrop" id="ztHelpModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ztHelpTitle">
+        <div class="modal-head">
+            <div>
+                <h3 id="ztHelpTitle">Zero Trust assessment</h3>
+                <p>Identity and device posture checks based on Microsoft Zero Trust guidance.</p>
+            </div>
+        </div>
+        <div class="modal-body">
+            <p>Overview summarizes tenant posture. Identity and Devices list configuration tests with evidence and remediation. Visual flow diagrams appear only when the assessment returns inventory telemetry.</p>
+            <div class="modal-foot">
+                <a class="btn btn-ghost" href="https://learn.microsoft.com/en-us/security/zero-trust/assessment/" target="_blank" rel="noopener noreferrer">Microsoft documentation</a>
+                <button class="btn btn-primary" id="ztHelpClose" type="button">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="fw-drawer-backdrop" id="ztDrawerBackdrop" hidden></div>
+<aside class="fw-drawer zt-drawer" id="ztDrawer" hidden aria-label="Assessment result details">
+    <div class="fw-drawer-head">
+        <h3 id="ztDrawerTitle">Control details</h3>
+        <button type="button" class="fw-drawer-close" id="ztDrawerClose" aria-label="Close details">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+    </div>
+    <div class="fw-drawer-body" id="ztDrawerBody"></div>
+</aside>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=1"></script>
 {% endblock %}

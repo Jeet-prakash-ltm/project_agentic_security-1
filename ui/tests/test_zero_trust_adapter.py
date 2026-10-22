@@ -1,0 +1,252 @@
+import os
+import sys
+import unittest
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
+
+from services.zero_trust_adapter import (
+    adapt_assessment,
+    csv_rows,
+    deduplicate_tests,
+    filter_tests,
+    mask_tenant_id,
+    priority_remediation,
+    sanitize_text,
+    sort_tests,
+    summarize_tests,
+    trusted_url,
+    weighted_score,
+)
+
+
+def _test(area, name, risk, status, category="Conditional Access", test_id=None, platform=None):
+    return {
+        "id": test_id or "{0}:{1}".format(area, name),
+        "area": area,
+        "name": name,
+        "category": category,
+        "risk": risk,
+        "status": status,
+        "sfiPillars": [area],
+        "platform": platform,
+        "recommendation": "Fix {0}".format(name),
+        "evidence": ["sample"],
+    }
+
+
+class ZeroTrustAdapterTests(unittest.TestCase):
+    def test_sort_risk_and_status(self):
+        tests = [
+            _test("Identity", "Passed high", "High", "Passed"),
+            _test("Identity", "Failed low", "Low", "Failed"),
+            _test("Identity", "Failed high", "High", "Failed"),
+            _test("Identity", "Investigate high", "High", "Investigate"),
+            _test("Identity", "Skipped", "Medium", "Skipped"),
+        ]
+        ordered = [t["name"] for t in sort_tests(tests)]
+        self.assertEqual(
+            ordered,
+            ["Failed high", "Investigate high", "Failed low", "Passed high", "Skipped"],
+        )
+
+    def test_identity_filter_combinations(self):
+        tests = [
+            _test("Identity", "CA MFA", "High", "Failed", "Conditional Access"),
+            _test("Identity", "Guest access", "Medium", "Passed", "External identities"),
+            _test("Identity", "PIM", "High", "Investigate", "Privileged accounts"),
+        ]
+        filtered = filter_tests(tests, query="mfa", risks=["High"], statuses=["Failed"])
+        self.assertEqual([t["name"] for t in filtered], ["CA MFA"])
+        filtered = filter_tests(tests, categories=["Privileged accounts"], pillars=["Identity"])
+        self.assertEqual([t["name"] for t in filtered], ["PIM"])
+
+    def test_device_platform_filtering(self):
+        tests = [
+            _test("Devices", "Windows encryption", "High", "Failed", "Encryption", platform="Windows"),
+            _test("Devices", "macOS firewall", "Medium", "Passed", "Firewall", platform="macOS"),
+            _test("Devices", "Tenant compliance", "High", "Failed", "Compliance", platform="Tenant-wide"),
+        ]
+        filtered = filter_tests(tests, platforms=["Windows"])
+        self.assertEqual([t["name"] for t in filtered], ["Windows encryption"])
+        scoped = filter_tests(tests, scopes=["Device"])
+        self.assertEqual(
+            sorted(t["name"] for t in scoped),
+            ["Tenant compliance", "Windows encryption", "macOS firewall"],
+        )
+
+    def test_deduplicate_device_tests(self):
+        tests = [
+            _test("Devices", "Compliance policy", "High", "Failed", test_id="ZT-DEV-1"),
+            _test("Devices", "Compliance policy copy", "High", "Failed", test_id="ZT-DEV-1"),
+            _test("Devices", "Encryption", "Medium", "Passed", test_id="ZT-DEV-2"),
+        ]
+        unique = deduplicate_tests(tests)
+        self.assertEqual([t["id"] for t in unique], ["ZT-DEV-1", "ZT-DEV-2"])
+
+    def test_summary_calculation(self):
+        tests = [
+            _test("Identity", "a", "High", "Failed"),
+            _test("Identity", "b", "Medium", "Failed"),
+            _test("Identity", "c", "Low", "Failed"),
+            _test("Identity", "d", "High", "Passed"),
+            _test("Identity", "e", "High", "Investigate"),
+            _test("Identity", "f", "Low", "Skipped"),
+            _test("Identity", "g", "Medium", "Planned"),
+        ]
+        summary = summarize_tests(tests)
+        self.assertEqual(summary["total"], 7)
+        self.assertEqual(summary["passed"], 1)
+        self.assertEqual(summary["failed"], 3)
+        self.assertEqual(summary["investigate"], 1)
+        self.assertEqual(summary["planned"], 1)
+        self.assertEqual(summary["skipped"], 1)
+        self.assertEqual(summary["highRiskFailed"], 1)
+        self.assertEqual(summary["mediumRiskFailed"], 1)
+        self.assertEqual(summary["lowRiskFailed"], 1)
+
+    def test_weighted_score_skips_not_applicable(self):
+        tests = [
+            _test("Identity", "high pass", "High", "Passed"),
+            _test("Identity", "high fail", "High", "Failed"),
+            _test("Identity", "skip", "High", "Skipped"),
+        ]
+        score = weighted_score(tests, skipped_not_applicable=True)
+        self.assertEqual(score, 50)
+        included = weighted_score(tests, skipped_not_applicable=False)
+        self.assertEqual(included, 33)
+
+    def test_missing_values_and_partial_payload(self):
+        adapted = adapt_assessment({
+            "assessment_id": "abc",
+            "status": "completed",
+            "score": 40,
+            "findings": [
+                {
+                    "id": "ZT-ID-CA-ENABLED",
+                    "pillar": "Identity",
+                    "title": "Conditional Access policies are enabled",
+                    "status": "Error",
+                    "severity": "High",
+                    "detail": "Graph permission missing. bearer abc.def",
+                    "remediation": "Grant Policy.Read.All",
+                }
+            ],
+            "evidence": {
+                "tenant_id": "0817c655-1111-2222-3333-3a333b5b9235",
+                "conditional_access": {"available": False, "error": "Graph permission missing."},
+                "managed_devices": {"available": False, "error": "Intune unread"},
+            },
+        })
+        self.assertEqual(adapted["tenant"]["devices"], None)
+        self.assertEqual(adapted["tenant"]["users"], None)
+        self.assertTrue(adapted["partial"])
+        self.assertEqual(adapted["identity"]["tests"][0]["status"], "Investigate")
+        self.assertNotIn("bearer", adapted["identity"]["tests"][0]["error"]["message"].lower())
+        self.assertIsNone(adapted["visualizations"]["deviceFlow"])
+        self.assertEqual(
+            mask_tenant_id(adapted["tenant"]["tenantId"]),
+            "0817c655-****-****-****-3a333b5b9235",
+        )
+
+    def test_sankey_never_invented_from_tests(self):
+        adapted = adapt_assessment({
+            "assessment_id": "xyz",
+            "status": "completed",
+            "findings": [
+                {
+                    "id": "ZT-DEV-COMPLIANCE-POLICY",
+                    "pillar": "Devices",
+                    "title": "Intune device compliance policies exist",
+                    "status": "Fail",
+                    "severity": "High",
+                    "detail": "0 policies",
+                    "remediation": "Create policies",
+                }
+            ],
+            "evidence": {"managed_devices": {"available": False}},
+        })
+        self.assertIsNone(adapted["visualizations"]["deviceFlow"])
+        self.assertIsNone(adapted["visualizations"]["privilegedAuth"])
+
+    def test_csv_export_fields(self):
+        adapted = adapt_assessment({
+            "assessment_id": "csv-1",
+            "completed_at": "2026-10-22T05:00:00+00:00",
+            "status": "completed",
+            "findings": [
+                {
+                    "id": "ZT-ID-CA-MFA",
+                    "pillar": "Identity",
+                    "title": "MFA is enforced",
+                    "status": "Pass",
+                    "severity": "High",
+                    "detail": "1 policy",
+                    "remediation": "Keep MFA",
+                }
+            ],
+        })
+        rows = csv_rows(adapted)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["assessmentId"], "csv-1")
+        self.assertEqual(rows[0]["area"], "Identity")
+        self.assertEqual(rows[0]["status"], "Passed")
+        self.assertEqual(rows[0]["evidenceAvailable"], "yes")
+        self.assertIn("recommendation", rows[0])
+
+    def test_priority_order(self):
+        tests = [
+            _test("Identity", "low fail", "Low", "Failed"),
+            _test("Identity", "high investigate", "High", "Investigate"),
+            _test("Identity", "high fail", "High", "Failed"),
+            _test("Identity", "medium fail", "Medium", "Failed"),
+            _test("Identity", "passed", "High", "Passed"),
+        ]
+        names = [t["name"] for t in priority_remediation(tests)]
+        self.assertEqual(names, ["high fail", "high investigate", "medium fail", "low fail"])
+
+    def test_sanitize_and_trusted_url(self):
+        self.assertIn("[redacted]", sanitize_text("token bearer abc.def.ghi"))
+        self.assertTrue(trusted_url("https://learn.microsoft.com/en-us/security/zero-trust/assessment/"))
+        self.assertIsNone(trusted_url("https://evil.example/docs"))
+        self.assertIsNone(trusted_url("javascript:alert(1)"))
+
+
+class ZeroTrustPollHelpersTests(unittest.TestCase):
+    def test_poll_completion_and_cancel_contract(self):
+        statuses = ["queued", "running", "completed"]
+        seen = []
+        cancelled = []
+
+        def poll(status_list):
+            for status in status_list:
+                if cancelled:
+                    return "cancelled"
+                seen.append(status)
+                if status in ("completed", "failed"):
+                    return status
+            return "running"
+
+        self.assertEqual(poll(statuses), "completed")
+        self.assertEqual(seen, ["queued", "running", "completed"])
+        cancelled.append(True)
+        self.assertEqual(poll(["running"]), "cancelled")
+
+    def test_429_retry_delay(self):
+        def retry_delay(retry_after):
+            try:
+                n = int(retry_after)
+            except (TypeError, ValueError):
+                return 2500
+            if n > 0:
+                return min(n, 30) * 1000
+            return 2500
+
+        self.assertEqual(retry_delay("5"), 5000)
+        self.assertEqual(retry_delay("90"), 30000)
+        self.assertEqual(retry_delay(None), 2500)
+
+
+if __name__ == "__main__":
+    unittest.main()

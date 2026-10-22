@@ -24,6 +24,8 @@ Expected environment variables:
 * ``NETSEC_FW_DRY_RUN`` - ``1`` previews playbook changes, ``0`` applies them
 * ``NETSEC_WORKBOOK_DIR`` - where uploaded playbook workbooks are stored
 * ``NETSEC_MAX_ROWS`` - cap on data rows executed per playbook run
+* ``ZERO_TRUST_FUNCTION_URL`` / ``ZERO_TRUST_FUNCTION_KEY`` - Zero Trust
+  Assessment Function App (server-side proxy only; never sent to the browser)
 """
 
 import os
@@ -122,3 +124,12 @@ MAIL_FROM = env(
 MAIL_APPROVAL_RECIPIENTS = env("MAIL_APPROVAL_RECIPIENTS")
 
 APP_BASE_URL = env("APP_BASE_URL", "")
+
+ZERO_TRUST_FUNCTION_URL = env(
+    "ZERO_TRUST_FUNCTION_URL",
+    "https://zero-trust-assessment.azurewebsites.net/api",
+)
+
+ZERO_TRUST_FUNCTION_KEY = env("ZERO_TRUST_FUNCTION_KEY")
+
+ZERO_TRUST_FUNCTION_TIMEOUT = int(env("ZERO_TRUST_FUNCTION_TIMEOUT", "120"))

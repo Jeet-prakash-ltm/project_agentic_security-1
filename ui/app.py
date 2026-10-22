@@ -30,6 +30,7 @@ from services import firewall_bulk_service
 from services import foundry_incidents
 from services import timeutil
 from services import users_service
+from services import zero_trust_service
 from gateway.agent_gateway import gateway
 from gateway import session_manager
 
@@ -491,12 +492,25 @@ def dashboard():
 
 
 @app.route("/dashboard/cloud-security")
+@app.route("/dashboard/cloud-security/identity")
+@app.route("/dashboard/cloud-security/devices")
 @login_required
 def cloud_security():
-    """Cloud Security view under Dashboard (placeholder for now)."""
+    """Zero Trust assessment workspace under Dashboard / Cloud Security."""
+
+    path = request.path.rstrip("/")
+    if path.endswith("/identity"):
+        initial_view = "identity"
+    elif path.endswith("/devices"):
+        initial_view = "devices"
+    else:
+        initial_view = "overview"
 
     return render_with_css(
-        "cloud_security.html"
+        "cloud_security.html",
+        zt_view=initial_view,
+        zt_configured=zero_trust_service.configured(),
+        is_admin=_is_admin(current_user()),
     )
 
 
@@ -1619,6 +1633,53 @@ def api_insights_conversation(conversation_id):
         user_id=current_user_id(),
     )
     return jsonify({"conversation": summary})
+
+
+@app.route("/api/zero-trust/start", methods=["POST"])
+@login_required
+def api_zero_trust_start():
+    body = request.get_json(silent=True) or {}
+    force = bool(body.get("force") or body.get("refresh"))
+    try:
+        return jsonify(zero_trust_service.start_assessment(force=force))
+    except zero_trust_service.ZeroTrustError as exc:
+        payload = {"error": str(exc)}
+        if exc.retry_after:
+            payload["retryAfter"] = exc.retry_after
+        return jsonify(payload), exc.status_code
+
+
+@app.route("/api/zero-trust/status", methods=["POST"])
+@login_required
+def api_zero_trust_status():
+    body = request.get_json(silent=True) or {}
+    assessment_id = (
+        body.get("assessmentId")
+        or body.get("assessment_id")
+        or request.args.get("assessmentId")
+    )
+    full = bool(body.get("full"))
+    try:
+        return jsonify(zero_trust_service.get_status(assessment_id, full=full))
+    except zero_trust_service.ZeroTrustError as exc:
+        payload = {"error": str(exc)}
+        if exc.retry_after:
+            payload["retryAfter"] = exc.retry_after
+        return jsonify(payload), exc.status_code
+
+
+@app.route("/api/zero-trust/results", methods=["POST"])
+@login_required
+def api_zero_trust_results():
+    body = request.get_json(silent=True) or {}
+    assessment_id = body.get("assessmentId") or body.get("assessment_id")
+    try:
+        return jsonify(zero_trust_service.get_results(assessment_id))
+    except zero_trust_service.ZeroTrustError as extra:
+        payload = {"error": str(extra)}
+        if extra.retry_after:
+            payload["retryAfter"] = extra.retry_after
+        return jsonify(payload), extra.status_code
 
 
 @app.route("/api/dashboard")

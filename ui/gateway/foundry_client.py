@@ -130,7 +130,10 @@ def _system_prompt(agent):
             "are applied by the Firewall Execution Agent after a single "
             "in-chat approval; do not re-ask for confirmation, do not invent "
             "execution tools, and do not claim the change failed because "
-            "approval context is missing. Keep answers concise."
+            "approval context is missing. For bulk Excel or workbook uploads, "
+            "do not ask for a filename and do not render an Excel file name "
+            "form; the workspace already shows download and upload cards. "
+            "Keep answers concise."
         )
     elif "netsec" in agent_type or "execution" in agent_type or "netsec" in agent_name.lower():
         base = (

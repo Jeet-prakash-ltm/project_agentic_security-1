@@ -19,6 +19,17 @@ logger = logging.getLogger("maestro.firewall.jobs")
 FIREWALL_DOWN_MESSAGE = "cannot proceed firewall is down"
 JOBS_NOTICE = "Change is registered in Jobs section"
 
+_BULK_REQUEST_RE = re.compile(
+    r"\b("
+    r"bulk\s+(change|changes|operation|operations|ops|update|updates|create|delete|upload)|"
+    r"upload(ing)?\s+(an?\s+)?(excel|xlsx|workbook|spreadsheet|file)|"
+    r"(excel|xlsx)\s+(file|workbook|template|upload)|"
+    r"upload\s+details|"
+    r"filled\s+workbook"
+    r")\b",
+    re.IGNORECASE,
+)
+
 APPROVE_WORDS = frozenset(
     (
         "approve",
@@ -296,6 +307,37 @@ def is_approval(text):
 
 def is_rejection(text):
     return _folded(text).rstrip(".!") in REJECT_WORDS
+
+
+def is_bulk_upload_request(text):
+    low = _folded(text)
+    if not low:
+        return False
+    if _BULK_REQUEST_RE.search(low):
+        return True
+    if "bulk" in low and any(
+        word in low for word in ("excel", "xlsx", "workbook", "upload", "file", "spreadsheet")
+    ):
+        return True
+    return False
+
+
+def _bulk_upload_result(started=None):
+    return _result(
+        "I can apply this as a bulk firewall change. "
+        "Download the Excel template, fill one row per change, then upload the workbook here.",
+        [
+            {
+                "type": "bulk_upload",
+                "title": "Bulk operation",
+                "description": (
+                    "Download the Excel workbook template, fill in one row per "
+                    "firewall change, then upload it to run a sheet against the firewall."
+                ),
+            }
+        ],
+        started=started,
+    )
 
 
 def _detect_action(text):
@@ -788,6 +830,9 @@ def try_handle(agent, user_id, message, messages=None):
             started=started,
         )
 
+    if is_bulk_upload_request(text):
+        return _bulk_upload_result(started=started)
+
     if is_approval(text):
         change = pending_change_from_history(history[:-1] if history else [])
         if change is None:
@@ -876,5 +921,6 @@ def try_handle(agent, user_id, message, messages=None):
     return _result(lead, _confirm_blocks(change), started=started)
 
 
-# Keep interactive_blocks imported so confirm cards stay on the allow-list.
+# Keep interactive_blocks imported so confirm and bulk-upload cards stay on the allow-list.
 assert "confirm" in interactive_blocks.BLOCK_TYPES
+assert "bulk_upload" in interactive_blocks.BLOCK_TYPES

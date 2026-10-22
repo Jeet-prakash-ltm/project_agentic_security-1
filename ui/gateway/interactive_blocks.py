@@ -34,6 +34,7 @@ MAX_VALUE = 600
 BLOCK_TYPES = {
     "text", "note", "callout", "card", "kv", "table",
     "options", "buttons", "form", "confirm", "steps", "divider",
+    "bulk_upload",
 }
 
 FIELD_TYPES = {
@@ -215,6 +216,16 @@ def _normalize_block(raw):
 
     if block_type == "divider":
         return {"type": "divider"}
+
+    if block_type == "bulk_upload":
+        return {
+            "type": "bulk_upload",
+            "title": _as_str(raw.get("title"), MAX_LABEL) or "Bulk operation",
+            "description": _as_str(
+                raw.get("description") or raw.get("text") or raw.get("subtitle"),
+                MAX_TEXT,
+            ),
+        }
 
     if block_type == "card":
         block = {

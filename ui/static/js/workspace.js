@@ -636,6 +636,22 @@
         return html + "</div></div>";
     }
 
+    function renderUiBulkUpload(block) {
+        var title = block.title || "Bulk operation";
+        var desc = block.description || "Download the Excel workbook template, fill in one row per firewall change, then upload it to run a sheet against the firewall.";
+        var iconDl = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>';
+        var iconUp = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>';
+        return '<div class="ws-mcq-card ns-card">' +
+            '<div class="ws-mcq-head"><strong>' + uiEsc(title) + "</strong><span>" + uiEsc(desc) + "</span></div>" +
+            '<div class="ns-file-grid">' +
+            '<button type="button" class="ns-file-card" data-ns-action="bulk-download">' +
+            iconDl + "<strong>Bulk Ops File</strong><span>.xlsx template with every sheet</span></button>" +
+            '<label class="ns-file-card">' +
+            iconUp + "<strong>Upload Bulk Ops File</strong><span>filled workbook from the template</span>" +
+            '<input type="file" class="ns-file-input" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" data-ns-file>' +
+            "</label></div></div>";
+    }
+
     function renderUiConfirm(block) {
         var html = '<div class="ws-ui-card ws-ui-confirm">';
         if (block.title) html += '<div class="ws-ui-card-head"><strong>' + uiEsc(block.title) + "</strong></div>";
@@ -710,6 +726,7 @@
                 formatAgentReply(block.text || "") + "</div>";
             else if (block.type === "text") inner = '<div class="ws-ui-textblock">' + formatAgentReply(block.text || "") + "</div>";
             else if (block.type === "divider") inner = '<div class="ws-ui-divider"></div>';
+            else if (block.type === "bulk_upload") inner = renderUiBulkUpload(block);
             if (inner) html += '<div class="ws-ui-el">' + inner + "</div>";
         });
         return html + "</div>";

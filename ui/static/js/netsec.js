@@ -102,12 +102,18 @@
         return isNetsecId(agent.id) || /netsec|execution/i.test(text);
     }
 
+    function isMaestroAgent(agent) {
+        if (!agent) return false;
+        var text = String(agent.id || "") + " " + String(agent.name || "") + " " + String(agent.type || "") + " " + String(agent.agent_id || "");
+        return /orchestrat|maestro/i.test(text) || String(agent.id || "") === "master-orchestrator-agent";
+    }
+
     function nsSession() {
         var bridge = chat();
         if (!bridge) return false;
         var agent = bridge.activeAgent();
         if (!agent) return true;
-        return isNetsecAgent(agent);
+        return isNetsecAgent(agent) || isMaestroAgent(agent);
     }
 
     function cardHead(title, subtitle) {
@@ -856,6 +862,7 @@
         agentId: NETSEC_AGENT_ID,
         isNetsecId: isNetsecId,
         isNetsecAgent: isNetsecAgent,
+        isMaestroAgent: isMaestroAgent,
         onAgentActivated: onActivated,
         startChat: function (action) {
             if (action === "ns-manual") { openManualTypes(); return; }

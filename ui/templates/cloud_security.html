@@ -20,12 +20,15 @@
     <div class="zt-shell">
         <header class="zt-topnav" id="ztTopNav">
             <div class="zt-brand">
-                <span class="zt-brand-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>
+                <span class="zt-squares" aria-hidden="true">
+                    <span class="zt-sq zt-sq-orange"></span>
+                    <span class="zt-sq zt-sq-green"></span>
+                    <span class="zt-sq zt-sq-blue"></span>
+                    <span class="zt-sq zt-sq-yellow"></span>
                 </span>
                 <div>
-                    <strong>Zero Trust Assessment</strong>
-                    <span class="zt-brand-sub">Powered by Maestro AI</span>
+                    <strong>Zero Trust</strong>
+                    <span class="zt-brand-sub">Assessment</span>
                 </div>
             </div>
             <nav class="zt-tabs" aria-label="Zero Trust pages">
@@ -113,5 +116,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=2"></script>
+<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=4"></script>
 {% endblock %}

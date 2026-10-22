@@ -70,10 +70,13 @@
     function icon(name) {
         var paths = {
             users: '<path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>',
+            user: '<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>',
             guests: '<path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>',
             groups: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>',
             apps: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
             devices: '<rect x="5" y="3" width="14" height="12" rx="2"/><path d="M8 21h8M12 15v6"/>',
+            laptop: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M2 20h20M8 16h8"/>',
+            building: '<path d="M4 21V5a2 2 0 012-2h8a2 2 0 012 2v16"/><path d="M20 21V11a2 2 0 00-2-2h-2"/><path d="M9 7h.01M13 7h.01M9 11h.01M13 11h.01M9 15h.01M13 15h.01M8 21h8"/>',
             shield: '<path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"/>',
             pass: '<path d="M20 6L9 17l-5-5"/>',
             fail: '<path d="M18 6L6 18M6 6l12 12"/>',
@@ -93,6 +96,21 @@
     function metric(value) {
         if (value === null || value === undefined || value === "") return "Unavailable";
         return String(value);
+    }
+
+    function compactNumber(value) {
+        if (value === null || value === undefined || value === "") return "Unavailable";
+        var n = Number(value);
+        if (isNaN(n)) return String(value);
+        if (Math.abs(n) >= 1000000) {
+            var m = n / 1000000;
+            return (m % 1 === 0 ? m.toFixed(0) : m.toFixed(1)) + "M";
+        }
+        if (Math.abs(n) >= 1000) {
+            var k = n / 1000;
+            return (k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)) + "K";
+        }
+        return String(n);
     }
 
     function maskTenant(id) {
@@ -359,43 +377,93 @@
         }).join("") + "</div>";
     }
 
+    function inventoryStat(tone, ic, label, value) {
+        return '<div class="zt-inv-stat">' +
+            '<span class="zt-inv-icon zt-tone-' + tone + '">' + icon(ic) + "</span>" +
+            '<div><span class="zt-inv-label">' + esc(label) + '</span><strong>' + esc(compactNumber(value)) + "</strong></div></div>";
+    }
+
+    function inventoryCard(title, ic, tone, statsHtml) {
+        return '<article class="zt-inv-card">' +
+            '<h3><span class="zt-inv-icon zt-tone-' + tone + '">' + icon(ic) + "</span>" + esc(title) + "</h3>" +
+            '<div class="zt-inv-stats">' + statsHtml + "</div></article>";
+    }
+
+    function pillarBar(name, summary, view) {
+        var passed = (summary && summary.passed) || 0;
+        var total = (summary && summary.total) || 0;
+        var pct = total ? Math.round((passed / total) * 100) : 0;
+        var clickable = view ? ' type="button" class="zt-pillar" data-view="' + esc(view) + '"' : ' class="zt-pillar is-static"';
+        var tag = view ? "button" : "div";
+        return "<" + tag + clickable + ">" +
+            '<span class="zt-pillar-name">' + esc(name) + "</span>" +
+            '<span class="zt-pillar-count"><strong>' + passed + "</strong>/" + total + " tests</span>" +
+            '<span class="zt-pillar-track" aria-hidden="true"><span class="zt-pillar-fill" style="width:' + pct + '%"></span></span>' +
+            "</" + tag + ">";
+    }
+
+    function otherSummary(a, area) {
+        var tests = ((a.other && a.other.tests) || []).filter(function (t) { return t.area === area; });
+        return summarizeLocal(tests);
+    }
+
+    function summarizeLocal(tests) {
+        var summary = { total: tests.length, passed: 0, failed: 0, planned: 0, investigate: 0, skipped: 0 };
+        tests.forEach(function (t) {
+            if (t.status === "Passed") summary.passed += 1;
+            else if (t.status === "Failed") summary.failed += 1;
+            else if (t.status === "Planned") summary.planned += 1;
+            else if (t.status === "Investigate") summary.investigate += 1;
+            else if (t.status === "Skipped") summary.skipped += 1;
+        });
+        return summary;
+    }
+
     function renderOverview() {
         var a = state.assessment;
         if (!a) return emptyState("No assessment results are available.", "Run a Zero Trust assessment to populate this dashboard.");
         var t = a.tenant || {};
         var idSum = (a.identity && a.identity.summary) || {};
         var devSum = (a.devices && a.devices.summary) || {};
-        var score = a.score != null ? a.score : a.weightedScore;
-        var scoreLabel = a.scoreSource === "backend" ? "Assessment score from backend" : "Weighted posture score";
-        var html = '<div class="zt-grid">';
-        html += '<section class="zt-card"><h2>Tenant summary</h2><dl class="zt-kvs">' +
-            "<dt>Tenant</dt><dd>" + esc(t.tenantName || t.primaryDomain || "Unavailable") + "</dd>" +
-            "<dt>Primary domain</dt><dd>" + esc(t.primaryDomain || "Unavailable") + "</dd>" +
-            "<dt>Tenant ID</dt><dd>" + esc(maskTenant(t.tenantId)) +
-            (state.isAdmin && t.tenantId ? ' <button type="button" class="zt-copy" data-copy="' + esc(t.tenantId) + '">Copy</button>' : "") + "</dd>" +
-            "<dt>Assessment ID</dt><dd>" + esc(a.assessmentId || "Unavailable") + "</dd>" +
-            "<dt>Last assessment</dt><dd>" + esc(formatTime(a.completedAt)) + "</dd>" +
-            "<dt>State</dt><dd>" + esc(a.status || "completed") + "</dd></dl></section>";
-        html += '<section class="zt-card"><h2>Assessment summary</h2>' + donutHtml("ztDonut", idSum, devSum) + "</section>";
-        html += '<section class="zt-card"><h2>Posture score</h2><div class="zt-metric-value">' + esc(metric(score)) + (score != null ? "%" : "") + '</div><p class="zt-muted">' + esc(scoreLabel) + "</p></section>";
-        html += "</div>";
-        html += '<div class="zt-grid-6" style="margin-top:14px">' +
-            metricCard("Users", t.users, "users") +
-            metricCard("Guests", t.guests, "guests") +
-            metricCard("Groups", t.groups, "groups") +
-            metricCard("Applications", t.applications, "apps") +
-            metricCard("Devices", t.devices, "devices") +
-            metricCard("Managed devices", t.managedDevices, "devices") +
+        var dataSum = otherSummary(a, "Data");
+        var netSum = otherSummary(a, "Network");
+        var infSum = otherSummary(a, "Infrastructure");
+        var html = '<section class="zt-tenant-strip">' +
+            '<h2>' + icon("building") + " Tenant info</h2>" +
+            '<div class="zt-tenant-meta">' +
+            '<div><span class="zt-inv-label">Name</span><strong>' + esc(t.tenantName || t.primaryDomain || "Unavailable") + "</strong>" +
+            (t.primaryDomain ? '<span class="zt-muted"> ' + esc(t.primaryDomain) + "</span>" : "") + "</div>" +
+            '<div><span class="zt-inv-label">Tenant ID</span><strong>' + esc(maskTenant(t.tenantId)) + "</strong>" +
+            (state.isAdmin && t.tenantId ? ' <button type="button" class="zt-copy" data-copy="' + esc(t.tenantId) + '">Copy</button>' : "") + "</div>" +
+            "</div></section>";
+        html += '<div class="zt-inv-grid">' +
+            inventoryCard("Users", "users", "blue", inventoryStat("blue", "user", "Total users", t.users) + inventoryStat("blue", "guests", "Guest users", t.guests)) +
+            inventoryCard("Devices", "devices", "purple", inventoryStat("purple", "laptop", "Total devices", t.devices) + inventoryStat("purple", "devices", "Managed", t.managedDevices)) +
+            inventoryCard("Groups & apps", "groups", "teal", inventoryStat("teal", "groups", "Groups", t.groups) + inventoryStat("teal", "apps", "Apps", t.applications)) +
             "</div>";
-        html += '<div class="zt-risk-grid" style="margin-top:14px">' +
-            riskNav("Critical attention", idSum.highRiskFailed + devSum.highRiskFailed, "High", "Failed") +
-            riskNav("Medium-risk failures", idSum.mediumRiskFailed + devSum.mediumRiskFailed, "Medium", "Failed") +
-            riskNav("Passed tests", idSum.passed + devSum.passed, "all", "Passed") +
-            riskNav("Investigate", idSum.investigate + devSum.investigate, "all", "Investigate") +
-            riskNav("Skipped", idSum.skipped + devSum.skipped, "all", "Skipped") +
+        html += '<section class="zt-assess-strip">' +
+            "<h2>" + icon("shield") + " Assessment</h2>" +
+            '<div class="zt-pillar-row">' +
+            pillarBar("Identity", idSum, "identity") +
+            pillarBar("Devices", devSum, "devices") +
+            pillarBar("Data", dataSum) +
+            pillarBar("Network", netSum) +
+            pillarBar("Infrastructure", infSum) +
+            "</div></section>";
+        html += '<div class="zt-risk-grid">' +
+            riskNav("Critical attention", (idSum.highRiskFailed || 0) + (devSum.highRiskFailed || 0), "High", "Failed") +
+            riskNav("Medium-risk failures", (idSum.mediumRiskFailed || 0) + (devSum.mediumRiskFailed || 0), "Medium", "Failed") +
+            riskNav("Passed tests", (idSum.passed || 0) + (devSum.passed || 0), "all", "Passed") +
+            riskNav("Investigate", (idSum.investigate || 0) + (devSum.investigate || 0), "all", "Investigate") +
+            riskNav("Skipped", (idSum.skipped || 0) + (devSum.skipped || 0), "all", "Skipped") +
             "</div>";
-        html += '<section class="zt-card" style="margin-top:14px"><h2>Priority remediation</h2>' + renderPriority(a.priority || []) + "</section>";
-        html += '<div class="zt-grid-2" style="margin-top:14px">' + vizCard("Privileged users authentication methods", a.visualizations && a.visualizations.privilegedAuth) + vizCard("User authentication coverage", a.visualizations && a.visualizations.userAuthCoverage) + vizCard("Conditional Access coverage", a.visualizations && a.visualizations.conditionalAccessCoverage) + vizCard("Device sign-in state", a.visualizations && a.visualizations.deviceSignIn) + "</div>";
+        html += '<section class="zt-card"><h2>Priority remediation</h2>' + renderPriority(a.priority || []) + "</section>";
+        html += '<div class="zt-viz-grid">' +
+            vizCard("Privileged users authentication methods", a.visualizations && a.visualizations.privilegedAuth) +
+            vizCard("User authentication coverage", a.visualizations && a.visualizations.userAuthCoverage) +
+            vizCard("Conditional Access coverage", a.visualizations && a.visualizations.conditionalAccessCoverage) +
+            vizCard("Device sign-in state", a.visualizations && a.visualizations.deviceSignIn) +
+            "</div>";
         return html;
     }
 
@@ -411,10 +479,24 @@
     }
 
     function vizCard(title, data) {
-        var body = data
-            ? '<p class="zt-muted">Telemetry visualization is available for this assessment.</p>'
-            : '<div class="zt-viz-empty"><div><strong>Visualization unavailable</strong><p>The assessment returned configuration test results but did not return the telemetry required for this flow diagram.</p></div></div>';
-        return '<section class="zt-card"><h3>' + esc(title) + "</h3>" + body + "</section>";
+        var body;
+        if (!data) {
+            body = '<div class="zt-viz-empty"><div><strong>Visualization unavailable</strong><p>The assessment returned configuration test results but did not return the telemetry required for this flow diagram.</p></div></div>';
+        } else {
+            var rows = Object.keys(data).map(function (key) {
+                var value = data[key];
+                if (value == null) return "";
+                if (Array.isArray(value)) value = value.length ? value.join(", ") : "none";
+                else if (typeof value === "object") value = Object.keys(value).map(function (k) { return k + ": " + data[key][k]; }).join(", ");
+                return "<dt>" + esc(prettyKey(key)) + "</dt><dd>" + esc(value) + "</dd>";
+            }).join("");
+            body = '<dl class="zt-kvs">' + rows + "</dl>";
+        }
+        return '<section class="zt-card zt-viz-card"><h3>' + esc(title) + "</h3>" + body + "</section>";
+    }
+
+    function prettyKey(key) {
+        return String(key || "").replace(/([A-Z])/g, " $1").replace(/^./, function (c) { return c.toUpperCase(); }).trim();
     }
 
     function countsRow(summary) {
@@ -428,10 +510,12 @@
     }
 
     function categoryCards(tests, labels) {
-        return '<div class="zt-grid" style="margin:14px 0">' + labels.map(function (label) {
+        return '<div class="zt-cat-grid">' + labels.map(function (label) {
             var subset = tests.filter(function (t) { return (t.category || "") === label; });
             var passed = subset.filter(function (t) { return t.status === "Passed"; }).length;
-            return '<article class="zt-card"><h3>' + esc(label) + "</h3><div class=\"zt-metric-value\">" + subset.length + '</div><p class="zt-muted">' + passed + " passed</p></article>";
+            var total = subset.length;
+            var pct = total ? Math.round((passed / total) * 100) : 0;
+            return '<article class="zt-cat-card"><h3>' + esc(label) + "</h3><div class=\"zt-pillar-count\"><strong>" + passed + "</strong>/" + total + '</div><span class="zt-pillar-track" aria-hidden="true"><span class="zt-pillar-fill" style="width:' + pct + '%"></span></span></article>';
         }).join("") + "</div>";
     }
 
@@ -499,7 +583,7 @@
         var tests = (a.identity && a.identity.tests) || [];
         var summary = (a.identity && a.identity.summary) || {};
         var filtered = sortTests(applyFilters(tests));
-        var html = '<div class="page-head"><h1>Identity Assessment</h1><p>' + tests.length + " checks · high-risk failed " + (summary.highRiskFailed || 0) + " · last evaluated " + formatTime(a.completedAt) + "</p>" + countsRow(summary) + "</div>";
+        var html = '<div class="zt-page-head"><div><h1>Identity</h1><p>' + tests.length + " checks · high-risk failed " + (summary.highRiskFailed || 0) + " · last evaluated " + formatTime(a.completedAt) + "</p></div>" + countsRow(summary) + "</div>";
         html += categoryCards(tests, ["Privileged accounts", "Authentication methods", "Conditional Access", "Application identity security", "External identities", "Monitoring and diagnostics", "Tenant administration"]);
         html += toolbar(tests);
         html += tableFor(filtered, tests.length, "identity tests");
@@ -514,7 +598,7 @@
         var inv = a.deviceInventory || {};
         var filtered = sortTests(applyFilters(tests));
         var platforms = ["All", "Windows", "macOS", "iOS/iPadOS", "Android", "Tenant-wide"];
-        var html = '<div class="page-head"><h1>Device Assessment</h1><p>' + tests.length + " tests · high-risk failed " + (summary.highRiskFailed || 0) + " · devices " + metric(inv.count) + " · managed " + metric(inv.count) + " · last evaluated " + formatTime(a.completedAt) + "</p>" + countsRow(summary) + "</div>";
+        var html = '<div class="zt-page-head"><div><h1>Devices</h1><p>' + tests.length + " tests · high-risk failed " + (summary.highRiskFailed || 0) + " · devices " + metric(inv.count) + " · managed " + metric(inv.count) + " · last evaluated " + formatTime(a.completedAt) + "</p></div>" + countsRow(summary) + "</div>";
         html += categoryCards(tests, ["Compliance", "Enrollment", "Endpoint protection", "Encryption", "Firewall", "Secure configuration", "Updates", "Platform authentication", "Tenant administration"]);
         html += '<div class="zt-platform-tabs" role="tablist">' + platforms.map(function (p) {
             var subset = p === "All" ? tests : tests.filter(function (t) { return (t.platform || "Tenant-wide") === p; });
@@ -578,10 +662,6 @@
         if (state.view === "identity") viewEl.innerHTML = renderIdentity();
         else if (state.view === "devices") viewEl.innerHTML = renderDevices();
         else viewEl.innerHTML = renderOverview();
-        var canvas = document.getElementById("ztDonut");
-        if (canvas && state.assessment) {
-            paintDonut(canvas, (state.assessment.identity || {}).summary || {}, (state.assessment.devices || {}).summary || {});
-        }
         bindFilters();
         bindViewEvents();
     }
@@ -598,6 +678,12 @@
                 state.filters.risk = btn.getAttribute("data-risk") === "all" ? "all" : btn.getAttribute("data-risk");
                 state.filters.status = btn.getAttribute("data-status") || "all";
                 setView("identity");
+            });
+        });
+        viewEl.querySelectorAll("[data-view]").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                var view = btn.getAttribute("data-view");
+                if (view) setView(view);
             });
         });
         viewEl.querySelectorAll("[data-platform]").forEach(function (btn) {

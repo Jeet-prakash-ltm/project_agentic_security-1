@@ -150,6 +150,58 @@ class ZeroTrustAdapterTests(unittest.TestCase):
             "0817c655-****-****-****-3a333b5b9235",
         )
 
+    def test_tenant_profile_and_visualizations(self):
+        adapted = adapt_assessment({
+            "assessment_id": "tenant-1",
+            "status": "completed",
+            "score": 70,
+            "findings": [
+                {
+                    "id": "ZT-ID-CA-ENABLED",
+                    "pillar": "Identity",
+                    "title": "Conditional Access policies are enabled",
+                    "status": "Pass",
+                    "severity": "High",
+                    "detail": "8 of 16 policies are enabled.",
+                    "remediation": "Keep CA enabled.",
+                }
+            ],
+            "evidence": {
+                "tenant_profile": {
+                    "available": True,
+                    "tenant_name": "LTIM SecCOE",
+                    "tenant_id": "28f91c7c-d50f-4c19-9a26-0504aca35c52",
+                    "primary_domain": "ltimsec.com",
+                    "users": 42,
+                    "guests": 3,
+                    "groups": 18,
+                    "applications": 9,
+                },
+                "conditional_access": {
+                    "available": True,
+                    "count": 16,
+                    "enabled_count": 8,
+                    "mfa_policy_count": 4,
+                    "legacy_block_count": 1,
+                    "all_users_mfa_count": 1,
+                },
+                "authentication_methods": {
+                    "available": True,
+                    "method_count": 5,
+                    "enabled_method_count": 2,
+                    "enabled_methods": [{"id": "fido2"}],
+                },
+                "managed_devices": {"available": True, "count": 0, "compliant_count": 0, "encrypted_count": 0, "devices": []},
+            },
+        })
+        self.assertEqual(adapted["tenant"]["tenantName"], "LTIM SecCOE")
+        self.assertEqual(adapted["tenant"]["primaryDomain"], "ltimsec.com")
+        self.assertEqual(adapted["tenant"]["users"], 42)
+        self.assertEqual(adapted["tenant"]["guests"], 3)
+        self.assertEqual(adapted["visualizations"]["conditionalAccessCoverage"]["enabled"], 8)
+        self.assertEqual(adapted["visualizations"]["privilegedAuth"]["enabledMethodCount"], 2)
+        self.assertIsNone(adapted["visualizations"]["deviceFlow"])
+
     def test_sankey_never_invented_from_tests(self):
         adapted = adapt_assessment({
             "assessment_id": "xyz",
@@ -265,6 +317,15 @@ class ZeroTrustConfigTests(unittest.TestCase):
             clear=False,
         ):
             self.assertEqual(zts._base_url(), "https://example.azurewebsites.net/api")
+        with patch.dict(
+            os.environ,
+            dict(empty, ZERO_TRUST_FUNCTION_URL="zero-trust-assessment.azurewebsites.net"),
+            clear=False,
+        ):
+            self.assertEqual(
+                zts._base_url(),
+                "https://zero-trust-assessment.azurewebsites.net/api",
+            )
 
 
 if __name__ == "__main__":

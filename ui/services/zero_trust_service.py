@@ -51,9 +51,15 @@ def _normalize_base_url(url):
     url = (url or "").strip().rstrip("/")
     if not url:
         return DEFAULT_FUNCTION_URL
-    if url.endswith("/api"):
-        return url
-    return url + "/api"
+    if url.startswith("//"):
+        url = "https:" + url
+    elif "://" not in url:
+        url = "https://" + url
+    if url.startswith("http://"):
+        url = "https://" + url[len("http://"):]
+    if not url.endswith("/api"):
+        url = url + "/api"
+    return url
 
 
 def _base_url():

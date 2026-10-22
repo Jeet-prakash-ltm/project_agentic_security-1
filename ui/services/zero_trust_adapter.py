@@ -466,16 +466,28 @@ def _device_inventory(evidence):
     }
 
 
+def _short_error(message):
+    text = sanitize_text(message, 240) or ""
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    if not text:
+        return "Collector could not retrieve data."
+    if "403" in text:
+        return "Graph 403: this API is blocked or the managed identity lacks permission."
+    return text[:240]
+
+
 def _partial_errors(evidence, findings):
     domains = []
     seen = set()
+    skip = {"tenant_id", "subscription_id", "tenant_name", "primary_domain"}
     for name, payload in (evidence or {}).items():
-        if name in ("tenant_id", "subscription_id"):
+        if name in skip:
             continue
         if not isinstance(payload, dict):
             continue
         if payload.get("available") is False:
-            message = sanitize_text(payload.get("error") or "Collector could not retrieve data.")
+            message = _short_error(payload.get("error") or "Collector could not retrieve data.")
             if name not in seen:
                 domains.append({"domain": name, "message": message})
                 seen.add(name)
@@ -483,7 +495,7 @@ def _partial_errors(evidence, findings):
         if finding.get("status") != "Investigate":
             continue
         err = finding.get("error") or {}
-        message = err.get("message")
+        message = _short_error(err.get("message"))
         if message and finding.get("id") not in seen:
             domains.append({"domain": finding.get("name") or finding.get("id"), "message": message})
             seen.add(finding.get("id"))
@@ -491,20 +503,93 @@ def _partial_errors(evidence, findings):
 
 
 def _sankey_from_inventory(inventory):
-    return None
+    if not inventory or not inventory.get("available"):
+        return None
+    by_os = inventory.get("byOs") or {}
+    by_compliance = inventory.get("byCompliance") or {}
+    if not by_os and not by_compliance:
+        return None
+    return {
+        "count": inventory.get("count") or 0,
+        "compliant": inventory.get("compliant") or 0,
+        "encrypted": inventory.get("encrypted") or 0,
+        "byOs": by_os,
+        "byCompliance": by_compliance,
+    }
+
+
+def _visualizations_from_evidence(evidence, inventory):
+    methods = evidence.get("authentication_methods") or {}
+    registration = evidence.get("auth_registration") or {}
+    ca = evidence.get("conditional_access") or {}
+    sign_ins = evidence.get("sign_ins") or {}
+    privileged = None
+    if methods.get("available"):
+        privileged = {
+            "enabledMethodCount": methods.get("enabled_method_count") or 0,
+            "methodCount": methods.get("method_count") or 0,
+            "enabledMethods": [
+                item.get("id") for item in (methods.get("enabled_methods") or []) if item.get("id")
+            ][:12],
+        }
+    user_auth = None
+    if registration.get("available"):
+        user_auth = {
+            "sampled": registration.get("count") or 0,
+            "mfaRegistered": registration.get("mfa_registered_count") or 0,
+            "passwordless": registration.get("passwordless_count") or 0,
+            "ssprRegistered": registration.get("sspr_registered_count") or 0,
+        }
+    ca_coverage = None
+    if ca.get("available"):
+        ca_coverage = {
+            "policies": ca.get("count") or 0,
+            "enabled": ca.get("enabled_count") or 0,
+            "mfaPolicies": ca.get("mfa_policy_count") or 0,
+            "legacyBlock": ca.get("legacy_block_count") or 0,
+            "allUsersMfa": ca.get("all_users_mfa_count") or 0,
+        }
+    device_sign_in = None
+    if sign_ins.get("available"):
+        device_sign_in = {
+            "sampled": sign_ins.get("count") or 0,
+            "success": sign_ins.get("success_count") or 0,
+            "failure": sign_ins.get("failure_count") or 0,
+            "conditionalAccessSuccess": sign_ins.get("conditional_access_success_count") or 0,
+            "managedDevice": sign_ins.get("managed_device_count") or 0,
+        }
+    return {
+        "deviceFlow": _sankey_from_inventory(inventory),
+        "privilegedAuth": privileged,
+        "userAuthCoverage": user_auth,
+        "conditionalAccessCoverage": ca_coverage,
+        "deviceSignIn": device_sign_in,
+    }
 
 
 def _tenant_from_evidence(payload, evidence):
+    profile = evidence.get("tenant_profile") or {}
+    profile_ok = bool(profile.get("available"))
     managed = evidence.get("managed_devices") or {}
     managed_available = bool(managed.get("available"))
     return {
-        "tenantName": sanitize_text(payload.get("tenant_name") or payload.get("tenantName"), 120),
-        "tenantId": payload.get("tenant_id") or evidence.get("tenant_id"),
-        "primaryDomain": sanitize_text(payload.get("primary_domain") or payload.get("primaryDomain"), 120),
-        "users": _metric(payload.get("users")),
-        "guests": _metric(payload.get("guests")),
-        "groups": _metric(payload.get("groups")),
-        "applications": _metric(payload.get("applications")),
+        "tenantName": sanitize_text(
+            payload.get("tenant_name")
+            or payload.get("tenantName")
+            or profile.get("tenant_name"),
+            120,
+        ),
+        "tenantId": payload.get("tenant_id") or profile.get("tenant_id") or evidence.get("tenant_id"),
+        "primaryDomain": sanitize_text(
+            payload.get("primary_domain")
+            or payload.get("primaryDomain")
+            or profile.get("primary_domain"),
+            120,
+        ),
+        "users": _metric(payload.get("users") if payload.get("users") is not None else profile.get("users"), profile_ok or payload.get("users") is not None),
+        "guests": _metric(payload.get("guests") if payload.get("guests") is not None else profile.get("guests"), profile_ok or payload.get("guests") is not None),
+        "groups": _metric(payload.get("groups") if payload.get("groups") is not None else profile.get("groups"), profile_ok or payload.get("groups") is not None),
+        "applications": _metric(payload.get("applications") if payload.get("applications") is not None else profile.get("applications"), profile_ok or payload.get("applications") is not None),
         "devices": _metric(managed.get("count"), managed_available),
         "managedDevices": _metric(managed.get("count"), managed_available),
     }
@@ -562,13 +647,7 @@ def adapt_assessment(payload):
         "partial": partial,
         "error": sanitize_text(payload.get("error") or payload.get("message") if status == "failed" else None),
         "deviceInventory": inventory,
-        "visualizations": {
-            "deviceFlow": _sankey_from_inventory(inventory),
-            "privilegedAuth": None,
-            "userAuthCoverage": None,
-            "conditionalAccessCoverage": None,
-            "deviceSignIn": None,
-        },
+        "visualizations": _visualizations_from_evidence(evidence, inventory),
         "priority": priority_remediation(identity_tests + device_tests),
     }
 

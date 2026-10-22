@@ -1635,6 +1635,12 @@ def api_insights_conversation(conversation_id):
     return jsonify({"conversation": summary})
 
 
+@app.route("/api/zero-trust/config")
+@login_required
+def api_zero_trust_config():
+    return jsonify({"configured": zero_trust_service.configured()})
+
+
 @app.route("/api/zero-trust/start", methods=["POST"])
 @login_required
 def api_zero_trust_start():

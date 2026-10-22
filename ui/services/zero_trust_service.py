@@ -7,6 +7,7 @@ go through authenticated Flask routes.
 from __future__ import annotations
 
 import logging
+import os
 
 import requests
 
@@ -16,6 +17,19 @@ from services.zero_trust_adapter import adapt_assessment, sanitize_text
 logger = logging.getLogger("zero_trust.service")
 
 DEFAULT_FUNCTION_URL = "https://zero-trust-assessment.azurewebsites.net/api"
+_KEY_NAMES = (
+    "ZERO_TRUST_FUNCTION_KEY",
+    "ZERO_TRUST_KEY",
+    "ZT_FUNCTION_KEY",
+    "ZERO_TRUST_ASSESSMENT_KEY",
+    "ZERO_TRUST_HOST_KEY",
+)
+_URL_NAMES = (
+    "ZERO_TRUST_FUNCTION_URL",
+    "ZERO_TRUST_URL",
+    "ZT_FUNCTION_URL",
+    "ZERO_TRUST_ASSESSMENT_URL",
+)
 
 
 class ZeroTrustError(RuntimeError):
@@ -25,23 +39,48 @@ class ZeroTrustError(RuntimeError):
         self.retry_after = retry_after
 
 
+def _env_first(names, fallback=""):
+    for name in names:
+        value = (os.environ.get(name) or "").strip()
+        if value:
+            return value
+    return (fallback or "").strip()
+
+
+def _normalize_base_url(url):
+    url = (url or "").strip().rstrip("/")
+    if not url:
+        return DEFAULT_FUNCTION_URL
+    if url.endswith("/api"):
+        return url
+    return url + "/api"
+
+
 def _base_url():
-    url = (settings.ZERO_TRUST_FUNCTION_URL or DEFAULT_FUNCTION_URL).strip()
-    return url.rstrip("/")
+    fallback = getattr(settings, "ZERO_TRUST_FUNCTION_URL", "") or DEFAULT_FUNCTION_URL
+    return _normalize_base_url(_env_first(_URL_NAMES, fallback))
 
 
 def _function_key():
-    return (settings.ZERO_TRUST_FUNCTION_KEY or "").strip()
+    fallback = getattr(settings, "ZERO_TRUST_FUNCTION_KEY", "")
+    return _env_first(_KEY_NAMES, fallback)
+
+
+def _key_usable(key):
+    key = (key or "").strip()
+    return bool(key) and not key.upper().startswith("PLACEHOLDER")
 
 
 def configured():
-    key = _function_key()
-    return bool(_base_url()) and bool(key) and not key.startswith("PLACEHOLDER")
+    return bool(_base_url()) and _key_usable(_function_key())
 
 
 def _timeout():
+    raw = os.environ.get("ZERO_TRUST_FUNCTION_TIMEOUT")
+    if raw is None or not str(raw).strip():
+        raw = getattr(settings, "ZERO_TRUST_FUNCTION_TIMEOUT", 120)
     try:
-        return max(5, int(settings.ZERO_TRUST_FUNCTION_TIMEOUT or 120))
+        return max(5, int(raw))
     except (TypeError, ValueError):
         return 120
 

@@ -667,13 +667,10 @@
     }
 
     function openConfirm() {
-        if (!state.configured) {
-            toast("Zero Trust Assessment is not configured on the server.", "error");
-            return;
-        }
         if (state.running) return;
         confirmModal.hidden = false;
-        document.getElementById("ztConfirmRun").focus();
+        var run = document.getElementById("ztConfirmRun");
+        if (run) run.focus();
     }
 
     function closeConfirm() {
@@ -760,13 +757,27 @@
     }
 
     function restore() {
-        if (!state.configured || !state.assessmentId) {
+        fetch("/api/zero-trust/config", {
+            credentials: "same-origin",
+            headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" }
+        }).then(function (res) { return res.json().catch(function () { return {}; }); }).then(function (data) {
+            if (data && typeof data.configured === "boolean") state.configured = data.configured;
+            if (!state.configured || !state.assessmentId) {
+                render();
+                return;
+            }
+            state.loading = true;
             render();
-            return;
-        }
-        state.loading = true;
-        render();
-        loadResults(state.assessmentId);
+            loadResults(state.assessmentId);
+        }).catch(function () {
+            if (!state.assessmentId) {
+                render();
+                return;
+            }
+            state.loading = true;
+            render();
+            loadResults(state.assessmentId);
+        });
     }
 
     function download(filename, text, type) {

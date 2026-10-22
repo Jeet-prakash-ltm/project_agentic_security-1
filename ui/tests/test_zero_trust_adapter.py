@@ -248,5 +248,24 @@ class ZeroTrustPollHelpersTests(unittest.TestCase):
         self.assertEqual(retry_delay(None), 2500)
 
 
+class ZeroTrustConfigTests(unittest.TestCase):
+    def test_reads_key_from_process_env_aliases(self):
+        from unittest.mock import patch
+        from services import zero_trust_service as zts
+
+        empty = {name: "" for name in zts._KEY_NAMES + zts._URL_NAMES}
+        with patch.dict(os.environ, empty, clear=False):
+            self.assertFalse(zts._key_usable(zts._function_key()))
+        with patch.dict(os.environ, dict(empty, ZT_FUNCTION_KEY="host-key-value"), clear=False):
+            self.assertTrue(zts.configured())
+            self.assertEqual(zts._function_key(), "host-key-value")
+        with patch.dict(
+            os.environ,
+            dict(empty, ZERO_TRUST_FUNCTION_URL="https://example.azurewebsites.net"),
+            clear=False,
+        ):
+            self.assertEqual(zts._base_url(), "https://example.azurewebsites.net/api")
+
+
 if __name__ == "__main__":
     unittest.main()

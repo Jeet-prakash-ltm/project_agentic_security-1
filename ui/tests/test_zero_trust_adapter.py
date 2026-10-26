@@ -246,6 +246,49 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         areas = {row["area"] for row in csv_rows(adapted)}
         self.assertEqual(areas, {"Network", "Data", "Infrastructure"})
 
+    def test_network_na_findings_preserve_assessment_layer(self):
+        adapted = adapt_assessment({
+            "assessment_id": "na-1",
+            "status": "completed",
+            "findings": [
+                {
+                    "id": "ZT-NET-NA02-NSG",
+                    "pillar": "Network",
+                    "title": "NA-02 NSGs are associated and do not expose management ports",
+                    "status": "Pass",
+                    "severity": "High",
+                    "detail": "3 NSGs associated, 0 SSH/RDP from the internet.",
+                    "remediation": "Keep management ports closed.",
+                    "assessmentLayer": {
+                        "configured": "Yes",
+                        "assigned": "Yes",
+                        "observed": "Yes",
+                        "validation": "Required: NT-01 segmentation test",
+                    },
+                },
+                {
+                    "id": "ZT-NET-NA05-FIREWALL",
+                    "pillar": "Network",
+                    "title": "NA-05 Azure Firewall is deployed with policy and inspection",
+                    "status": "Fail",
+                    "severity": "High",
+                    "detail": "0 Azure Firewalls.",
+                    "remediation": "Deploy Azure Firewall.",
+                    "assessmentLayer": {
+                        "configured": "No",
+                        "assigned": "No",
+                        "observed": "No",
+                        "validation": "Required: NT-03 firewall enforcement test",
+                    },
+                },
+            ],
+        })
+        tests = {t["id"]: t for t in adapted["network"]["tests"]}
+        self.assertEqual(tests["ZT-NET-NA02-NSG"]["category"], "NSG security")
+        self.assertEqual(tests["ZT-NET-NA02-NSG"]["assessmentLayer"]["validation"], "Required: NT-01 segmentation test")
+        self.assertEqual(tests["ZT-NET-NA05-FIREWALL"]["category"], "Firewall")
+        self.assertEqual(tests["ZT-NET-NA05-FIREWALL"]["status"], "Failed")
+
     def test_device_da_findings_preserve_assessment_layer(self):
         adapted = adapt_assessment({
             "assessment_id": "da-1",

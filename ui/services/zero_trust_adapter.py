@@ -74,8 +74,19 @@ DEVICE_PLATFORM_RULES = (
 )
 
 NETWORK_CATEGORY_RULES = (
-    (re.compile(r"OPEN-MGMT|NSG|MANAGEMENT"), "Network segmentation"),
-    (re.compile(r"FIREWALL"), "Firewall"),
+    (re.compile(r"NA01|INVENTORY"), "Inventory"),
+    (re.compile(r"OPEN-MGMT|MANAGEMENT"), "Network segmentation"),
+    (re.compile(r"NA02|NSG"), "NSG security"),
+    (re.compile(r"NA03|PUBLIC"), "Public exposure"),
+    (re.compile(r"NA04|PRIVATE"), "Private connectivity"),
+    (re.compile(r"NA05|FIREWALL"), "Firewall"),
+    (re.compile(r"NA06|WAF"), "WAF"),
+    (re.compile(r"NA07|DDOS"), "DDoS"),
+    (re.compile(r"NA08|REMOTE|BASTION|VPN"), "Remote connectivity"),
+    (re.compile(r"NA09|ENCRYPT"), "Encryption"),
+    (re.compile(r"NA10|MONITOR|WATCHER"), "Monitoring"),
+    (re.compile(r"NA11|SEGMENT"), "Segmentation"),
+    (re.compile(r"NA12|ROUT"), "Routing"),
     (re.compile(r"NET"), "Network security"),
 )
 

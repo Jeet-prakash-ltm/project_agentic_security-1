@@ -730,7 +730,7 @@
         network: {
             title: "Network",
             caption: "network tests",
-            categories: ["Network segmentation", "Firewall", "Network security"]
+            categories: ["Inventory", "NSG security", "Public exposure", "Private connectivity", "Firewall", "WAF", "DDoS", "Remote connectivity", "Encryption", "Monitoring", "Segmentation", "Routing"]
         },
         data: {
             title: "Data",

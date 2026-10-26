@@ -196,19 +196,42 @@
         }
         if (push !== false) {
             var path = "/dashboard/cloud-security";
-            if (view === "identity") path += "/identity";
-            if (view === "devices") path += "/devices";
+            if (view && view !== "overview") path += "/" + view;
             if (window.history && history.pushState) history.pushState({ ztView: view }, "", path);
         }
         render();
     }
 
+    function pillarKey(view) {
+        if (view === "identity") return "identity";
+        if (view === "devices") return "devices";
+        if (view === "network") return "network";
+        if (view === "data") return "data";
+        if (view === "infrastructure") return "infrastructure";
+        return "";
+    }
+
+    function pillarBucket(a, view) {
+        var key = pillarKey(view);
+        if (!a || !key) return { summary: {}, tests: [] };
+        return a[key] || { summary: {}, tests: [] };
+    }
+
+    function allTests(a) {
+        if (!a) return [];
+        return ((a.identity && a.identity.tests) || [])
+            .concat((a.devices && a.devices.tests) || [])
+            .concat((a.network && a.network.tests) || [])
+            .concat((a.data && a.data.tests) || [])
+            .concat((a.infrastructure && a.infrastructure.tests) || [])
+            .concat((a.other && a.other.tests) || []);
+    }
+
     function currentTests() {
         var a = state.assessment;
         if (!a) return [];
-        if (state.view === "identity") return (a.identity && a.identity.tests) || [];
-        if (state.view === "devices") return (a.devices && a.devices.tests) || [];
-        return ((a.identity && a.identity.tests) || []).concat((a.devices && a.devices.tests) || []);
+        if (state.view === "overview") return allTests(a);
+        return pillarBucket(a, state.view).tests || [];
     }
 
     function applyFilters(tests) {
@@ -402,32 +425,15 @@
             "</" + tag + ">";
     }
 
-    function otherSummary(a, area) {
-        var tests = ((a.other && a.other.tests) || []).filter(function (t) { return t.area === area; });
-        return summarizeLocal(tests);
-    }
-
-    function summarizeLocal(tests) {
-        var summary = { total: tests.length, passed: 0, failed: 0, planned: 0, investigate: 0, skipped: 0 };
-        tests.forEach(function (t) {
-            if (t.status === "Passed") summary.passed += 1;
-            else if (t.status === "Failed") summary.failed += 1;
-            else if (t.status === "Planned") summary.planned += 1;
-            else if (t.status === "Investigate") summary.investigate += 1;
-            else if (t.status === "Skipped") summary.skipped += 1;
-        });
-        return summary;
-    }
-
     function renderOverview() {
         var a = state.assessment;
         if (!a) return emptyState("No assessment results are available.", "Run a Zero Trust assessment to populate this dashboard.");
         var t = a.tenant || {};
         var idSum = (a.identity && a.identity.summary) || {};
         var devSum = (a.devices && a.devices.summary) || {};
-        var dataSum = otherSummary(a, "Data");
-        var netSum = otherSummary(a, "Network");
-        var infSum = otherSummary(a, "Infrastructure");
+        var netSum = (a.network && a.network.summary) || {};
+        var dataSum = (a.data && a.data.summary) || {};
+        var infSum = (a.infrastructure && a.infrastructure.summary) || {};
         var html = '<section class="zt-tenant-strip">' +
             '<h2>' + icon("building") + " Tenant info</h2>" +
             '<div class="zt-tenant-meta">' +
@@ -446,16 +452,19 @@
             '<div class="zt-pillar-row">' +
             pillarBar("Identity", idSum, "identity") +
             pillarBar("Devices", devSum, "devices") +
-            pillarBar("Data", dataSum) +
-            pillarBar("Network", netSum) +
-            pillarBar("Infrastructure", infSum) +
+            pillarBar("Network", netSum, "network") +
+            pillarBar("Data", dataSum, "data") +
+            pillarBar("Infrastructure", infSum, "infrastructure") +
             "</div></section>";
+        function riskTotal(key) {
+            return (idSum[key] || 0) + (devSum[key] || 0) + (netSum[key] || 0) + (dataSum[key] || 0) + (infSum[key] || 0);
+        }
         html += '<div class="zt-risk-grid">' +
-            riskNav("Critical attention", (idSum.highRiskFailed || 0) + (devSum.highRiskFailed || 0), "High", "Failed") +
-            riskNav("Medium-risk failures", (idSum.mediumRiskFailed || 0) + (devSum.mediumRiskFailed || 0), "Medium", "Failed") +
-            riskNav("Passed tests", (idSum.passed || 0) + (devSum.passed || 0), "all", "Passed") +
-            riskNav("Investigate", (idSum.investigate || 0) + (devSum.investigate || 0), "all", "Investigate") +
-            riskNav("Skipped", (idSum.skipped || 0) + (devSum.skipped || 0), "all", "Skipped") +
+            riskNav("Critical attention", riskTotal("highRiskFailed"), "High", "Failed") +
+            riskNav("Medium-risk failures", riskTotal("mediumRiskFailed"), "Medium", "Failed") +
+            riskNav("Passed tests", riskTotal("passed"), "all", "Passed") +
+            riskNav("Investigate", riskTotal("investigate"), "all", "Investigate") +
+            riskNav("Skipped", riskTotal("skipped"), "all", "Skipped") +
             "</div>";
         html += '<section class="zt-card"><h2>Priority remediation</h2>' + renderPriority(a.priority || []) + "</section>";
         html += '<div class="zt-viz-grid">' +
@@ -464,7 +473,20 @@
             vizCard("Conditional Access coverage", a.visualizations && a.visualizations.conditionalAccessCoverage) +
             vizCard("Device sign-in state", a.visualizations && a.visualizations.deviceSignIn) +
             "</div>";
+        if (hasActiveFilters()) {
+            var tests = allTests(a);
+            var filtered = sortTests(applyFilters(tests));
+            html += '<section class="zt-card" style="margin-top:16px"><h2>Matching tests</h2>';
+            html += toolbar(tests);
+            html += tableFor(filtered, tests.length, "matching tests");
+            html += "</section>";
+        }
         return html;
+    }
+
+    function hasActiveFilters() {
+        var f = state.filters;
+        return Boolean((f.query || "").trim()) || f.risk !== "all" || f.status !== "all" || f.pillar !== "all" || f.category !== "all" || f.scope !== "all";
     }
 
     function riskNav(label, value, risk, status) {
@@ -559,11 +581,15 @@
         }
         var head = state.view === "devices"
             ? "<th>Test name</th><th>Category</th><th>Platform</th><th>Risk</th><th>Status</th><th>SFI pillar</th><th>Action</th>"
-            : "<th>Test name</th><th>Risk</th><th>Status</th><th>SFI pillar</th><th>Category</th><th>Last evaluated</th><th>Action</th>";
+            : (state.view === "overview"
+                ? "<th>Test name</th><th>Area</th><th>Risk</th><th>Status</th><th>Category</th><th>Last evaluated</th><th>Action</th>"
+                : "<th>Test name</th><th>Risk</th><th>Status</th><th>SFI pillar</th><th>Category</th><th>Last evaluated</th><th>Action</th>");
         var rows = page.map(function (t) {
             var cols = state.view === "devices"
                 ? "<td>" + esc(t.name) + "</td><td>" + esc(t.category || "") + "</td><td>" + esc(t.platform || "Tenant-wide") + "</td><td>" + riskBadge(t.risk) + "</td><td>" + statusBadge(t.status) + "</td><td>" + esc((t.sfiPillars || []).join(", ")) + "</td>"
-                : "<td>" + esc(t.name) + "</td><td>" + riskBadge(t.risk) + "</td><td>" + statusBadge(t.status) + "</td><td>" + esc((t.sfiPillars || []).join(", ")) + "</td><td>" + esc(t.category || "") + "</td><td>" + esc(formatTime(t.lastEvaluatedAt)) + "</td>";
+                : (state.view === "overview"
+                    ? "<td>" + esc(t.name) + "</td><td>" + esc(t.area || "") + "</td><td>" + riskBadge(t.risk) + "</td><td>" + statusBadge(t.status) + "</td><td>" + esc(t.category || "") + "</td><td>" + esc(formatTime(t.lastEvaluatedAt)) + "</td>"
+                    : "<td>" + esc(t.name) + "</td><td>" + riskBadge(t.risk) + "</td><td>" + statusBadge(t.status) + "</td><td>" + esc((t.sfiPillars || []).join(", ")) + "</td><td>" + esc(t.category || "") + "</td><td>" + esc(formatTime(t.lastEvaluatedAt)) + "</td>");
             return '<tr><td colspan="0" hidden></td>' + cols + '<td><button class="btn btn-ghost" type="button" data-open="' + esc(t.id) + '">Details</button></td></tr>';
         }).join("");
         var pages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -614,6 +640,39 @@
         return html;
     }
 
+    var PILLAR_META = {
+        network: {
+            title: "Network",
+            caption: "network tests",
+            categories: ["Network segmentation", "Firewall", "Network security"]
+        },
+        data: {
+            title: "Data",
+            caption: "data tests",
+            categories: ["Information protection", "Data loss prevention", "Data protection"]
+        },
+        infrastructure: {
+            title: "Infrastructure",
+            caption: "infrastructure tests",
+            categories: ["Secure score", "Cloud security posture", "Infrastructure security"]
+        }
+    };
+
+    function renderPillar(view) {
+        var a = state.assessment;
+        if (!a) return emptyState("No assessment results are available.", "Run a Zero Trust assessment to populate this dashboard.");
+        var meta = PILLAR_META[view] || { title: view, caption: "tests", categories: [] };
+        var bucket = pillarBucket(a, view);
+        var tests = bucket.tests || [];
+        var summary = bucket.summary || {};
+        var filtered = sortTests(applyFilters(tests));
+        var html = '<div class="zt-page-head"><div><h1>' + esc(meta.title) + "</h1><p>" + tests.length + " checks · high-risk failed " + (summary.highRiskFailed || 0) + " · last evaluated " + formatTime(a.completedAt) + "</p></div>" + countsRow(summary) + "</div>";
+        html += categoryCards(tests, meta.categories);
+        html += toolbar(tests);
+        html += tableFor(filtered, tests.length, meta.caption);
+        return html;
+    }
+
     function bindFilters() {
         function set(id, key) {
             var el = document.getElementById(id);
@@ -661,6 +720,7 @@
         }
         if (state.view === "identity") viewEl.innerHTML = renderIdentity();
         else if (state.view === "devices") viewEl.innerHTML = renderDevices();
+        else if (PILLAR_META[state.view]) viewEl.innerHTML = renderPillar(state.view);
         else viewEl.innerHTML = renderOverview();
         bindFilters();
         bindViewEvents();
@@ -677,7 +737,8 @@
             btn.addEventListener("click", function () {
                 state.filters.risk = btn.getAttribute("data-risk") === "all" ? "all" : btn.getAttribute("data-risk");
                 state.filters.status = btn.getAttribute("data-status") || "all";
-                setView("identity");
+                state.page = 1;
+                render();
             });
         });
         viewEl.querySelectorAll("[data-view]").forEach(function (btn) {
@@ -706,7 +767,7 @@
         for (var i = 0; i < tests.length; i++) if (tests[i].id === id) return tests[i];
         var a = state.assessment;
         if (!a) return null;
-        var all = ((a.identity && a.identity.tests) || []).concat((a.devices && a.devices.tests) || []).concat((a.other && a.other.tests) || []);
+        var all = allTests(a);
         for (var j = 0; j < all.length; j++) if (all[j].id === id) return all[j];
         return null;
     }
@@ -905,12 +966,19 @@
         if (!a) return toast("No assessment to export.", "error");
         var w = window.open("", "_blank");
         if (!w) return;
-        var idSum = (a.identity && a.identity.summary) || {};
-        var devSum = (a.devices && a.devices.summary) || {};
+        function line(label, bucket) {
+            var s = (bucket && bucket.summary) || {};
+            return label + " passed " + (s.passed || 0) + " of " + (s.total || 0);
+        }
         w.document.write("<html><head><title>Zero Trust Assessment</title></head><body>");
         w.document.write("<h1>" + (exec ? "Executive summary" : "Zero Trust assessment") + "</h1>");
         w.document.write("<p>Assessment ID " + esc(a.assessmentId) + " · " + esc(formatTime(a.completedAt)) + "</p>");
-        w.document.write("<p>Identity passed " + (idSum.passed || 0) + " of " + (idSum.total || 0) + ". Devices passed " + (devSum.passed || 0) + " of " + (devSum.total || 0) + ".</p>");
+        w.document.write("<p>" +
+            line("Identity", a.identity) + ". " +
+            line("Devices", a.devices) + ". " +
+            line("Network", a.network) + ". " +
+            line("Data", a.data) + ". " +
+            line("Infrastructure", a.infrastructure) + ".</p>");
         if (exec) {
             w.document.write("<h2>Priority remediation</h2><ol>");
             (a.priority || []).forEach(function (t) {
@@ -939,6 +1007,9 @@
         var path = location.pathname;
         if (path.indexOf("/identity") !== -1) setView("identity", false);
         else if (path.indexOf("/devices") !== -1) setView("devices", false);
+        else if (path.indexOf("/network") !== -1) setView("network", false);
+        else if (path.indexOf("/data") !== -1) setView("data", false);
+        else if (path.indexOf("/infrastructure") !== -1) setView("infrastructure", false);
         else setView("overview", false);
     });
     if (runBtn) runBtn.addEventListener("click", openConfirm);

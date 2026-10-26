@@ -202,6 +202,50 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         self.assertEqual(adapted["visualizations"]["privilegedAuth"]["enabledMethodCount"], 2)
         self.assertIsNone(adapted["visualizations"]["deviceFlow"])
 
+    def test_network_data_infrastructure_pillars(self):
+        adapted = adapt_assessment({
+            "assessment_id": "pillars-1",
+            "status": "completed",
+            "findings": [
+                {
+                    "id": "ZT-NET-OPEN-MGMT",
+                    "pillar": "Network",
+                    "title": "Management ports are not open to the internet",
+                    "status": "Fail",
+                    "severity": "High",
+                    "detail": "2 NSG rules allow SSH/RDP from the internet.",
+                    "remediation": "Restrict NSG inbound rules.",
+                },
+                {
+                    "id": "ZT-DATA-SENSITIVITY-LABELS",
+                    "pillar": "Data",
+                    "title": "Sensitivity labels are published in Purview",
+                    "status": "Pass",
+                    "severity": "High",
+                    "detail": "4 sensitivity labels.",
+                    "remediation": "Keep labels published.",
+                },
+                {
+                    "id": "ZT-INFRA-SECURE-SCORE",
+                    "pillar": "Infrastructure",
+                    "title": "Defender for Cloud secure score is healthy",
+                    "status": "Fail",
+                    "severity": "Medium",
+                    "detail": "Secure score 40%.",
+                    "remediation": "Implement recommendations.",
+                },
+            ],
+        })
+        self.assertEqual(len(adapted["network"]["tests"]), 1)
+        self.assertEqual(adapted["network"]["tests"][0]["category"], "Network segmentation")
+        self.assertEqual(len(adapted["data"]["tests"]), 1)
+        self.assertEqual(adapted["data"]["tests"][0]["status"], "Passed")
+        self.assertEqual(len(adapted["infrastructure"]["tests"]), 1)
+        self.assertEqual(adapted["infrastructure"]["summary"]["failed"], 1)
+        self.assertEqual(adapted["other"]["tests"], [])
+        areas = {row["area"] for row in csv_rows(adapted)}
+        self.assertEqual(areas, {"Network", "Data", "Infrastructure"})
+
     def test_sankey_never_invented_from_tests(self):
         adapted = adapt_assessment({
             "assessment_id": "xyz",

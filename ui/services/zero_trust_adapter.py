@@ -6,7 +6,7 @@ import re
 
 RISK_LEVELS = ("High", "Medium", "Low")
 ASSESSMENT_STATUSES = ("Passed", "Failed", "Planned", "Investigate", "Skipped")
-ASSESSMENT_AREAS = ("Identity", "Devices")
+ASSESSMENT_AREAS = ("Identity", "Devices", "Network", "Data", "Infrastructure")
 
 RISK_WEIGHT = {"High": 5, "Medium": 3, "Low": 1}
 STATUS_FACTOR = {
@@ -67,6 +67,40 @@ DEVICE_PLATFORM_RULES = (
     (re.compile(r"ios|ipad", re.I), "iOS/iPadOS"),
     (re.compile(r"android", re.I), "Android"),
 )
+
+NETWORK_CATEGORY_RULES = (
+    (re.compile(r"OPEN-MGMT|NSG|MANAGEMENT"), "Network segmentation"),
+    (re.compile(r"FIREWALL"), "Firewall"),
+    (re.compile(r"NET"), "Network security"),
+)
+
+DATA_CATEGORY_RULES = (
+    (re.compile(r"SENSITIVITY|LABEL"), "Information protection"),
+    (re.compile(r"DLP"), "Data loss prevention"),
+    (re.compile(r"DATA"), "Data protection"),
+)
+
+INFRASTRUCTURE_CATEGORY_RULES = (
+    (re.compile(r"SECURE-SCORE"), "Secure score"),
+    (re.compile(r"ASSESSMENT|DEFENDER"), "Cloud security posture"),
+    (re.compile(r"INFRA"), "Infrastructure security"),
+)
+
+PILLAR_CATEGORY_RULES = {
+    "Identity": IDENTITY_CATEGORY_RULES,
+    "Devices": DEVICE_CATEGORY_RULES,
+    "Network": NETWORK_CATEGORY_RULES,
+    "Data": DATA_CATEGORY_RULES,
+    "Infrastructure": INFRASTRUCTURE_CATEGORY_RULES,
+}
+
+DEFAULT_CATEGORY = {
+    "Identity": "Tenant administration",
+    "Devices": "Secure configuration",
+    "Network": "Network security",
+    "Data": "Data protection",
+    "Infrastructure": "Infrastructure security",
+}
 
 SECRET_RE = re.compile(
     r"(bearer\s+[a-z0-9._\-]+|eyJ[a-zA-Z0-9_\-]+=*|code=[^&\s]+|function.?key[^\s]*)",
@@ -146,16 +180,22 @@ def map_area(pillar, check_id=""):
         return "Devices"
     if any(word in lowered for word in ("identity", "entra", "ca-", "privileged", "auth")):
         return "Identity"
+    if "network" in lowered or check_id.upper().startswith("ZT-NET"):
+        return "Network"
+    if "data" in lowered or "purview" in lowered or check_id.upper().startswith("ZT-DATA"):
+        return "Data"
+    if "infra" in lowered or "defender" in lowered or check_id.upper().startswith("ZT-INFRA"):
+        return "Infrastructure"
     return token or "Identity"
 
 
 def category_for(area, check_id, title=""):
     haystack = "{0} {1}".format(check_id or "", title or "")
-    rules = DEVICE_CATEGORY_RULES if area == "Devices" else IDENTITY_CATEGORY_RULES
+    rules = PILLAR_CATEGORY_RULES.get(area) or IDENTITY_CATEGORY_RULES
     for pattern, label in rules:
         if pattern.search(haystack):
             return label
-    return "Tenant administration" if area == "Identity" else "Secure configuration"
+    return DEFAULT_CATEGORY.get(area, "Tenant administration")
 
 
 def platform_for(test_name, evidence_os=None):
@@ -374,6 +414,12 @@ def _documentation_for(area, category):
         return "https://learn.microsoft.com/en-us/entra/fundamentals/configure-security"
     if area == "Devices":
         return "https://learn.microsoft.com/en-us/intune/intune-service/protect/zero-trust-configure-security"
+    if area == "Network":
+        return "https://learn.microsoft.com/en-us/security/zero-trust/deploy/networks"
+    if area == "Data":
+        return "https://learn.microsoft.com/en-us/security/zero-trust/deploy/data"
+    if area == "Infrastructure":
+        return "https://learn.microsoft.com/en-us/security/zero-trust/deploy/infrastructure"
     return "https://learn.microsoft.com/en-us/security/zero-trust/assessment/"
 
 
@@ -386,6 +432,12 @@ def _portal_for(area, category):
         return "https://entra.microsoft.com/"
     if area == "Devices":
         return "https://intune.microsoft.com/"
+    if area == "Network":
+        return "https://portal.azure.com/#view/Microsoft_Azure_Network/NetworkMenuBlade"
+    if area == "Data":
+        return "https://purview.microsoft.com/"
+    if area == "Infrastructure":
+        return "https://portal.azure.com/#view/Microsoft_Azure_Security/SecurityMenuBlade"
     return None
 
 
@@ -603,7 +655,11 @@ def adapt_assessment(payload):
     tests = deduplicate_tests([adapt_finding(item, evaluated_at) for item in findings])
     identity_tests = [t for t in tests if t.get("area") == "Identity"]
     device_tests = [t for t in tests if t.get("area") == "Devices"]
+    network_tests = [t for t in tests if t.get("area") == "Network"]
+    data_tests = [t for t in tests if t.get("area") == "Data"]
+    infrastructure_tests = [t for t in tests if t.get("area") == "Infrastructure"]
     other_tests = [t for t in tests if t.get("area") not in ASSESSMENT_AREAS]
+    all_pillar_tests = identity_tests + device_tests + network_tests + data_tests + infrastructure_tests
     identity_summary = summarize_tests(identity_tests)
     device_summary = summarize_tests(device_tests)
     backend_score = payload.get("score")
@@ -611,12 +667,12 @@ def adapt_assessment(payload):
         backend_score = int(backend_score) if backend_score is not None else None
     except (TypeError, ValueError):
         backend_score = None
-    computed = weighted_score(identity_tests + device_tests)
+    computed = weighted_score(all_pillar_tests)
     inventory = _device_inventory(evidence)
     status = str(payload.get("status") or "").strip().lower() or "queued"
     if status not in ("queued", "running", "completed", "failed"):
         status = "failed" if payload.get("error") else "completed"
-    partial = _partial_errors(evidence, identity_tests + device_tests + other_tests)
+    partial = _partial_errors(evidence, all_pillar_tests + other_tests)
     cache_ttl = payload.get("cache_ttl_minutes")
     cache_age = payload.get("cache_age_minutes")
     stale = False
@@ -643,12 +699,15 @@ def adapt_assessment(payload):
         "tenant": tenant,
         "identity": {"summary": identity_summary, "tests": identity_tests},
         "devices": {"summary": device_summary, "tests": device_tests},
+        "network": {"summary": summarize_tests(network_tests), "tests": network_tests},
+        "data": {"summary": summarize_tests(data_tests), "tests": data_tests},
+        "infrastructure": {"summary": summarize_tests(infrastructure_tests), "tests": infrastructure_tests},
         "other": {"summary": summarize_tests(other_tests), "tests": other_tests},
         "partial": partial,
         "error": sanitize_text(payload.get("error") or payload.get("message") if status == "failed" else None),
         "deviceInventory": inventory,
         "visualizations": _visualizations_from_evidence(evidence, inventory),
-        "priority": priority_remediation(identity_tests + device_tests),
+        "priority": priority_remediation(all_pillar_tests),
     }
 
 
@@ -656,9 +715,13 @@ def csv_rows(assessment, tests=None):
     rows = []
     selected = tests if tests is not None else []
     if tests is None:
-        selected = (assessment.get("identity") or {}).get("tests", []) + (
-            assessment.get("devices") or {}
-        ).get("tests", [])
+        selected = (
+            (assessment.get("identity") or {}).get("tests", [])
+            + (assessment.get("devices") or {}).get("tests", [])
+            + (assessment.get("network") or {}).get("tests", [])
+            + (assessment.get("data") or {}).get("tests", [])
+            + (assessment.get("infrastructure") or {}).get("tests", [])
+        )
     for test in selected:
         rows.append(
             {

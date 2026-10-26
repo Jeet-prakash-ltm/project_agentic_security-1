@@ -494,6 +494,9 @@ def dashboard():
 @app.route("/dashboard/cloud-security")
 @app.route("/dashboard/cloud-security/identity")
 @app.route("/dashboard/cloud-security/devices")
+@app.route("/dashboard/cloud-security/network")
+@app.route("/dashboard/cloud-security/data")
+@app.route("/dashboard/cloud-security/infrastructure")
 @login_required
 def cloud_security():
     """Zero Trust assessment workspace under Dashboard / Cloud Security."""
@@ -503,6 +506,12 @@ def cloud_security():
         initial_view = "identity"
     elif path.endswith("/devices"):
         initial_view = "devices"
+    elif path.endswith("/network"):
+        initial_view = "network"
+    elif path.endswith("/data"):
+        initial_view = "data"
+    elif path.endswith("/infrastructure"):
+        initial_view = "infrastructure"
     else:
         initial_view = "overview"
 

@@ -29,6 +29,9 @@
                 <a href="{{ url_for('cloud_security') }}" class="zt-tab" data-view="overview">Overview</a>
                 <a href="{{ url_for('cloud_security') }}/identity" class="zt-tab" data-view="identity">Identity</a>
                 <a href="{{ url_for('cloud_security') }}/devices" class="zt-tab" data-view="devices">Devices</a>
+                <a href="{{ url_for('cloud_security') }}/network" class="zt-tab" data-view="network">Network</a>
+                <a href="{{ url_for('cloud_security') }}/data" class="zt-tab" data-view="data">Data</a>
+                <a href="{{ url_for('cloud_security') }}/infrastructure" class="zt-tab" data-view="infrastructure">Infrastructure</a>
             </nav>
             <div class="zt-top-actions">
                 <span class="zt-org" id="ztOrgName">Organization</span>
@@ -83,11 +86,11 @@
         <div class="modal-head">
             <div>
                 <h3 id="ztHelpTitle">Zero Trust assessment</h3>
-                <p>Identity and device posture checks based on Microsoft Zero Trust guidance.</p>
+                <p>Identity, Devices, Network, Data, and Infrastructure posture checks based on Microsoft Zero Trust guidance.</p>
             </div>
         </div>
         <div class="modal-body">
-            <p>Overview summarizes tenant posture. Identity and Devices list configuration tests with evidence and remediation. Visual flow diagrams appear only when the assessment returns inventory telemetry.</p>
+            <p>Overview summarizes tenant posture. Each pillar lists configuration tests with evidence and remediation. Visual flow diagrams appear only when the assessment returns inventory telemetry.</p>
             <div class="modal-foot">
                 <a class="btn btn-ghost" href="https://learn.microsoft.com/en-us/security/zero-trust/assessment/" target="_blank" rel="noopener noreferrer">Microsoft documentation</a>
                 <button class="btn btn-primary" id="ztHelpClose" type="button">Close</button>
@@ -110,5 +113,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=4"></script>
+<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=6"></script>
 {% endblock %}

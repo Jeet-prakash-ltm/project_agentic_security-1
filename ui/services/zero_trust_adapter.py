@@ -51,9 +51,14 @@ IDENTITY_CATEGORY_RULES = (
 )
 
 DEVICE_CATEGORY_RULES = (
-    (re.compile(r"COMPLIANT-DEVICE|COMPLIANCE"), "Compliance"),
-    (re.compile(r"ENROLL"), "Enrollment"),
-    (re.compile(r"ENCRYPT"), "Encryption"),
+    (re.compile(r"DA01|ENROLL"), "Enrollment"),
+    (re.compile(r"DA02-ENCRYPT|ENCRYPT"), "Encryption"),
+    (re.compile(r"DA02|INVENTORY"), "Inventory"),
+    (re.compile(r"DA03|COMPLIANT-DEVICE|COMPLIANCE"), "Compliance"),
+    (re.compile(r"DA04-SESSION|SESSION"), "Session controls"),
+    (re.compile(r"DA04|CONDITIONAL"), "Conditional Access"),
+    (re.compile(r"DA05|SIGNIN"), "Sign-in evidence"),
+    (re.compile(r"DA06|RECONCILE"), "Inventory reconcile"),
     (re.compile(r"FIREWALL"), "Firewall"),
     (re.compile(r"UPDATE"), "Updates"),
     (re.compile(r"ENDPOINT|DEFENDER"), "Endpoint protection"),
@@ -482,6 +487,7 @@ def adapt_finding(finding, evaluated_at=None):
         "lastEvaluatedAt": finding.get("lastEvaluatedAt") or evaluated_at,
         "platform": platform_for(title) if area == "Devices" else None,
         "error": _finding_error(finding),
+        "assessmentLayer": finding.get("assessmentLayer") or finding.get("assessment_layer"),
     }
     return test
 

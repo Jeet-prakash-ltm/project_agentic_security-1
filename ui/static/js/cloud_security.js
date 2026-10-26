@@ -712,7 +712,7 @@
         var filtered = sortTests(applyFilters(tests));
         var platforms = ["All", "Windows", "macOS", "iOS/iPadOS", "Android", "Tenant-wide"];
         var html = '<div class="zt-page-head"><div><h1>Devices</h1><p>' + tests.length + " tests · high-risk failed " + (summary.highRiskFailed || 0) + " · devices " + metric(inv.count) + " · managed " + metric(inv.count) + " · last evaluated " + formatTime(a.completedAt) + "</p></div>" + countsRow(summary) + "</div>";
-        html += categoryCards(tests, ["Compliance", "Enrollment", "Endpoint protection", "Encryption", "Firewall", "Secure configuration", "Updates", "Platform authentication", "Tenant administration"]);
+        html += categoryCards(tests, ["Enrollment", "Inventory", "Encryption", "Compliance", "Conditional Access", "Session controls", "Sign-in evidence", "Inventory reconcile"]);
         html += '<div class="zt-platform-tabs" role="tablist">' + platforms.map(function (p) {
             var subset = p === "All" ? tests : tests.filter(function (t) { return (t.platform || "Tenant-wide") === p; });
             var failedHigh = subset.filter(function (t) { return t.status === "Failed" && t.risk === "High"; }).length;
@@ -832,6 +832,7 @@
             "<dt>Risk</dt><dd>" + riskBadge(test.risk) + "</dd>" +
             "<dt>Status</dt><dd>" + statusBadge(test.status) + "</dd>" +
             "<dt>Category</dt><dd>" + esc(test.category || "Unavailable") + "</dd>" +
+            (test.assessmentLayer ? "<dt>Assessment layer</dt><dd>Configured " + esc(test.assessmentLayer.configured || "Not assessed") + " · Assigned " + esc(test.assessmentLayer.assigned || "Not assessed") + " · Observed " + esc(test.assessmentLayer.observed || "Not assessed") + " · Validation " + esc(test.assessmentLayer.validation || "Required") + "</dd>" : "") +
             "<dt>SFI pillar</dt><dd>" + esc((test.sfiPillars || []).join(", ") || "Unavailable") + "</dd>" +
             (test.platform ? "<dt>Platform</dt><dd>" + esc(test.platform) + "</dd>" : "") +
             "<dt>What it validates</dt><dd>" + esc(test.description || "Not returned") + "</dd>" +

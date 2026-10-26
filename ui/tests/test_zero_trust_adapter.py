@@ -246,6 +246,49 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         areas = {row["area"] for row in csv_rows(adapted)}
         self.assertEqual(areas, {"Network", "Data", "Infrastructure"})
 
+    def test_device_da_findings_preserve_assessment_layer(self):
+        adapted = adapt_assessment({
+            "assessment_id": "da-1",
+            "status": "completed",
+            "findings": [
+                {
+                    "id": "ZT-DEV-DA01-ENROLLMENT",
+                    "pillar": "Devices",
+                    "title": "DA-01 Enrollment and ownership controls are configured",
+                    "status": "Pass",
+                    "severity": "High",
+                    "detail": "2 enrollment configurations, 1 restriction objects.",
+                    "remediation": "Keep enrollment restrictions.",
+                    "assessmentLayer": {
+                        "configured": "Yes",
+                        "assigned": "Yes",
+                        "observed": "Yes",
+                        "validation": "Required: rogue enrollment test",
+                    },
+                },
+                {
+                    "id": "ZT-DEV-DA04-CONDITIONAL-ACCESS",
+                    "pillar": "Devices",
+                    "title": "DA-04 Conditional Access requires device trust",
+                    "status": "Fail",
+                    "severity": "High",
+                    "detail": "0 device grants.",
+                    "remediation": "Require compliant devices.",
+                    "assessmentLayer": {
+                        "configured": "Yes",
+                        "assigned": "No",
+                        "observed": "No",
+                        "validation": "Required: off-network access test",
+                    },
+                },
+            ],
+        })
+        tests = {t["id"]: t for t in adapted["devices"]["tests"]}
+        self.assertEqual(tests["ZT-DEV-DA01-ENROLLMENT"]["category"], "Enrollment")
+        self.assertEqual(tests["ZT-DEV-DA01-ENROLLMENT"]["assessmentLayer"]["configured"], "Yes")
+        self.assertEqual(tests["ZT-DEV-DA04-CONDITIONAL-ACCESS"]["category"], "Conditional Access")
+        self.assertEqual(tests["ZT-DEV-DA04-CONDITIONAL-ACCESS"]["status"], "Failed")
+
     def test_sankey_never_invented_from_tests(self):
         adapted = adapt_assessment({
             "assessment_id": "xyz",

@@ -64,25 +64,6 @@
     padding: 8px 0;
 }
 
-.zt-squares {
-    display: grid;
-    grid-template-columns: 8px 8px;
-    gap: 2px;
-    width: 18px;
-    height: 18px;
-}
-
-.zt-sq {
-    width: 8px;
-    height: 8px;
-    border-radius: 1px;
-}
-
-.zt-sq-orange { background: #F25022; }
-.zt-sq-green { background: #7FBA00; }
-.zt-sq-blue { background: #00A4EF; }
-.zt-sq-yellow { background: #FFB900; }
-
 .zt-brand strong {
     display: block;
     font-size: 14px;

@@ -32,10 +32,23 @@
             category: "all",
             platform: "All",
             scope: "all",
-            sort: "priority"
+            sort: "priority",
+            area: "all"
         },
         page: 1,
         selectedId: null
+    };
+
+    var draft = {
+        query: "",
+        risk: "all",
+        status: "all",
+        pillar: "all",
+        category: "all",
+        platform: "All",
+        scope: "all",
+        sort: "priority",
+        area: "all"
     };
 
     var viewEl = document.getElementById("ztView");
@@ -53,6 +66,22 @@
     var drawerTitle = document.getElementById("ztDrawerTitle");
     var exportMenu = document.getElementById("ztExportMenu");
     var exportBtn = document.getElementById("ztExportBtn");
+    var filterBtn = document.getElementById("ztFilterBtn");
+    var filterPanel = document.getElementById("ztFilterPanel");
+    var filterClose = document.getElementById("ztFilterClose");
+    var filterApply = document.getElementById("ztFilterApply");
+    var filterReset = document.getElementById("ztFilterReset");
+    var filterSearch = document.getElementById("ztFilterSearch");
+    var filterCategory = document.getElementById("ztFilterCategory");
+    var filterSort = document.getElementById("ztFilterSort");
+    var filterAreaPills = document.getElementById("ztFilterAreaPills");
+    var filterRiskPills = document.getElementById("ztFilterRiskPills");
+    var filterStatusPills = document.getElementById("ztFilterStatusPills");
+    var filterPlatformPills = document.getElementById("ztFilterPlatformPills");
+    var filterScopePills = document.getElementById("ztFilterScopePills");
+    var filterAreaSection = document.getElementById("ztFilterAreaSection");
+    var filterPlatformSection = document.getElementById("ztFilterPlatformSection");
+    var filterScopeSection = document.getElementById("ztFilterScopeSection");
 
     function esc(value) {
         return String(value == null ? "" : value)
@@ -187,6 +216,8 @@
     function setView(view, push) {
         state.view = view;
         state.page = 1;
+        if (view !== "overview") state.filters.area = "all";
+        closeFilter();
         var tabs = app.querySelectorAll(".zt-tab");
         for (var i = 0; i < tabs.length; i++) {
             var active = tabs[i].getAttribute("data-view") === view;
@@ -242,12 +273,13 @@
                 var hay = [t.name, t.category, t.description, t.recommendation].join(" ").toLowerCase();
                 if (hay.indexOf(q) === -1) return false;
             }
+            if (f.area !== "all" && t.area !== f.area) return false;
             if (f.risk !== "all" && t.risk !== f.risk) return false;
             if (f.status !== "all" && t.status !== f.status) return false;
             if (f.pillar !== "all" && (t.sfiPillars || []).indexOf(f.pillar) === -1) return false;
             if (f.category !== "all" && t.category !== f.category) return false;
-            if (state.view === "devices" && f.platform && f.platform !== "All" && (t.platform || "Tenant-wide") !== f.platform) return false;
-            if (state.view === "devices" && f.scope !== "all") {
+            if ((state.view === "devices" || f.area === "Devices") && f.platform && f.platform !== "All" && (t.platform || "Tenant-wide") !== f.platform) return false;
+            if ((state.view === "devices" || f.area === "Devices") && f.scope !== "all") {
                 var scope = t.area === "Devices" && ["Compliance", "Enrollment", "Encryption", "Endpoint protection", "Firewall", "Updates", "Secure configuration"].indexOf(t.category) !== -1 ? "Device" : "Tenant";
                 if (scope !== f.scope) return false;
             }
@@ -477,16 +509,103 @@
             var tests = allTests(a);
             var filtered = sortTests(applyFilters(tests));
             html += '<section class="zt-card" style="margin-top:16px"><h2>Matching tests</h2>';
-            html += toolbar(tests);
             html += tableFor(filtered, tests.length, "matching tests");
             html += "</section>";
         }
         return html;
     }
 
+    function defaultFilters() {
+        return { query: "", risk: "all", status: "all", pillar: "all", category: "all", platform: "All", scope: "all", sort: "priority", area: "all" };
+    }
+
+    function copyFilters(src) {
+        return {
+            query: src.query || "",
+            risk: src.risk || "all",
+            status: src.status || "all",
+            pillar: src.pillar || "all",
+            category: src.category || "all",
+            platform: src.platform || "All",
+            scope: src.scope || "all",
+            sort: src.sort || "priority",
+            area: src.area || "all"
+        };
+    }
+
     function hasActiveFilters() {
         var f = state.filters;
-        return Boolean((f.query || "").trim()) || f.risk !== "all" || f.status !== "all" || f.pillar !== "all" || f.category !== "all" || f.scope !== "all";
+        return Boolean((f.query || "").trim()) || f.risk !== "all" || f.status !== "all" || f.pillar !== "all" || f.category !== "all" || f.scope !== "all" || f.area !== "all" || (f.platform && f.platform !== "All");
+    }
+
+    function syncPills(container, attr, value) {
+        if (!container) return;
+        container.querySelectorAll(".rep-pill").forEach(function (p) {
+            var on = p.getAttribute(attr) === value;
+            p.classList.toggle("is-active", on);
+            p.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+    }
+
+    function refreshFilterOptions() {
+        var tests = currentTests();
+        var cats = unique(tests.map(function (t) { return t.category; }));
+        if (!filterCategory) return;
+        var current = draft.category || "all";
+        filterCategory.innerHTML = '<option value="all">All</option>' + cats.map(function (c) {
+            return '<option value="' + esc(c) + '"' + (c === current ? " selected" : "") + ">" + esc(c) + "</option>";
+        }).join("");
+        if (current !== "all" && cats.indexOf(current) === -1) {
+            draft.category = "all";
+            filterCategory.value = "all";
+        }
+    }
+
+    function syncFilterSections() {
+        var devices = state.view === "devices";
+        var overview = state.view === "overview";
+        if (filterAreaSection) filterAreaSection.hidden = !overview;
+        if (filterPlatformSection) filterPlatformSection.hidden = !(devices || draft.area === "Devices");
+        if (filterScopeSection) filterScopeSection.hidden = !(devices || draft.area === "Devices");
+    }
+
+    function syncDraftFromState() {
+        draft = copyFilters(state.filters);
+        if (filterSearch) filterSearch.value = draft.query || "";
+        if (filterCategory) filterCategory.value = draft.category || "all";
+        if (filterSort) filterSort.value = draft.sort || "priority";
+        syncPills(filterAreaPills, "data-area", draft.area || "all");
+        syncPills(filterRiskPills, "data-risk", draft.risk || "all");
+        syncPills(filterStatusPills, "data-status", draft.status || "all");
+        syncPills(filterPlatformPills, "data-platform", draft.platform || "All");
+        syncPills(filterScopePills, "data-scope", draft.scope || "all");
+        syncFilterSections();
+        refreshFilterOptions();
+        if (filterBtn) filterBtn.classList.toggle("has-filters", hasActiveFilters());
+    }
+
+    function openFilter() {
+        if (!filterPanel) return;
+        syncDraftFromState();
+        filterPanel.hidden = false;
+        if (filterBtn) {
+            filterBtn.classList.add("is-active");
+            filterBtn.setAttribute("aria-expanded", "true");
+        }
+    }
+
+    function closeFilter() {
+        if (!filterPanel) return;
+        filterPanel.hidden = true;
+        if (filterBtn) {
+            filterBtn.classList.remove("is-active");
+            filterBtn.setAttribute("aria-expanded", "false");
+            filterBtn.classList.toggle("has-filters", hasActiveFilters());
+        }
+    }
+
+    function toggleFilter() {
+        if (filterPanel && filterPanel.hidden) openFilter(); else closeFilter();
     }
 
     function riskNav(label, value, risk, status) {
@@ -541,37 +660,6 @@
         }).join("") + "</div>";
     }
 
-    function toolbar(tests) {
-        var cats = unique(tests.map(function (t) { return t.category; }));
-        var pillars = unique(tests.reduce(function (acc, t) { return acc.concat(t.sfiPillars || []); }, []));
-        var html = '<div class="zt-toolbar" id="ztFilters">';
-        html += field("Search", '<input type="search" id="ztQuery" value="' + esc(state.filters.query) + '" placeholder="Search by test name" aria-label="Search by test name">');
-        html += selectField("Risk", "ztRisk", ["all", "High", "Medium", "Low"], state.filters.risk);
-        html += selectField("Status", "ztStatus", ["all", "Passed", "Failed", "Planned", "Investigate", "Skipped"], state.filters.status);
-        html += selectField("SFI pillar", "ztPillar", ["all"].concat(pillars), state.filters.pillar);
-        html += selectField("Category", "ztCategory", ["all"].concat(cats), state.filters.category);
-        if (state.view === "devices") {
-            html += selectField("Scope", "ztScope", ["all", "Device", "Tenant", "Data"], state.filters.scope);
-            html += selectField("Sort", "ztSort", ["priority", "name", "status"], state.filters.sort);
-        } else {
-            html += selectField("Sort", "ztSort", ["priority", "name", "status"], state.filters.sort);
-        }
-        html += '<div class="zt-field"><label>&nbsp;</label><button class="btn btn-ghost" type="button" id="ztClearFilters">Clear all filters</button></div>';
-        html += "</div>";
-        return html;
-    }
-
-    function field(label, control) {
-        return '<div class="zt-field"><label>' + esc(label) + "</label>" + control + "</div>";
-    }
-
-    function selectField(label, id, options, value) {
-        var opts = options.map(function (o) {
-            return '<option value="' + esc(o) + '"' + (String(o) === String(value) ? " selected" : "") + ">" + esc(o === "all" ? "All" : o) + "</option>";
-        }).join("");
-        return field(label, '<select id="' + id + '" aria-label="' + esc(label) + '">' + opts + "</select>");
-    }
-
     function tableFor(filtered, allCount, caption) {
         var start = (state.page - 1) * PAGE_SIZE;
         var page = filtered.slice(start, start + PAGE_SIZE);
@@ -611,7 +699,6 @@
         var filtered = sortTests(applyFilters(tests));
         var html = '<div class="zt-page-head"><div><h1>Identity</h1><p>' + tests.length + " checks · high-risk failed " + (summary.highRiskFailed || 0) + " · last evaluated " + formatTime(a.completedAt) + "</p></div>" + countsRow(summary) + "</div>";
         html += categoryCards(tests, ["Privileged accounts", "Authentication methods", "Conditional Access", "Application identity security", "External identities", "Monitoring and diagnostics", "Tenant administration"]);
-        html += toolbar(tests);
         html += tableFor(filtered, tests.length, "identity tests");
         return html;
     }
@@ -635,7 +722,6 @@
         html += '<section class="zt-card" style="margin-bottom:14px"><h2>Device join and compliance flow</h2>' + (a.visualizations && a.visualizations.deviceFlow
             ? '<p class="zt-muted">Device inventory flow is available.</p>'
             : '<div class="zt-viz-empty"><div><strong>Visualization unavailable</strong><p>The assessment returned configuration test results but did not return the telemetry required for this flow diagram.</p></div></div>') + "</section>";
-        html += toolbar(tests);
         html += tableFor(filtered, tests.length, "device tests");
         return html;
     }
@@ -668,45 +754,8 @@
         var filtered = sortTests(applyFilters(tests));
         var html = '<div class="zt-page-head"><div><h1>' + esc(meta.title) + "</h1><p>" + tests.length + " checks · high-risk failed " + (summary.highRiskFailed || 0) + " · last evaluated " + formatTime(a.completedAt) + "</p></div>" + countsRow(summary) + "</div>";
         html += categoryCards(tests, meta.categories);
-        html += toolbar(tests);
         html += tableFor(filtered, tests.length, meta.caption);
         return html;
-    }
-
-    function bindFilters() {
-        function set(id, key) {
-            var el = document.getElementById(id);
-            if (!el) return;
-            el.addEventListener("change", function () {
-                state.filters[key] = el.value;
-                state.page = 1;
-                render();
-            });
-            if (el.tagName === "INPUT") {
-                var t;
-                el.addEventListener("input", function () {
-                    clearTimeout(t);
-                    t = setTimeout(function () {
-                        state.filters.query = el.value;
-                        state.page = 1;
-                        render();
-                    }, 180);
-                });
-            }
-        }
-        set("ztQuery", "query");
-        set("ztRisk", "risk");
-        set("ztStatus", "status");
-        set("ztPillar", "pillar");
-        set("ztCategory", "category");
-        set("ztScope", "scope");
-        set("ztSort", "sort");
-        var clear = document.getElementById("ztClearFilters");
-        if (clear) clear.onclick = function () {
-            state.filters = { query: "", risk: "all", status: "all", pillar: "all", category: "all", platform: state.view === "devices" ? "All" : "All", scope: "all", sort: "priority" };
-            state.page = 1;
-            render();
-        };
     }
 
     function render() {
@@ -722,8 +771,8 @@
         else if (state.view === "devices") viewEl.innerHTML = renderDevices();
         else if (PILLAR_META[state.view]) viewEl.innerHTML = renderPillar(state.view);
         else viewEl.innerHTML = renderOverview();
-        bindFilters();
         bindViewEvents();
+        if (filterBtn) filterBtn.classList.toggle("has-filters", hasActiveFilters());
     }
 
     function bindViewEvents() {
@@ -997,6 +1046,66 @@
         app.classList.toggle("is-dark", dark);
     }
 
+    function bindPillGroup(container, attr, key) {
+        if (!container) return;
+        container.addEventListener("click", function (event) {
+            var pill = event.target.closest(".rep-pill");
+            if (!pill) return;
+            draft[key] = pill.getAttribute(attr) || "all";
+            syncPills(container, attr, draft[key]);
+            if (key === "area") syncFilterSections();
+        });
+    }
+
+    bindPillGroup(filterAreaPills, "data-area", "area");
+    bindPillGroup(filterRiskPills, "data-risk", "risk");
+    bindPillGroup(filterStatusPills, "data-status", "status");
+    bindPillGroup(filterPlatformPills, "data-platform", "platform");
+    bindPillGroup(filterScopePills, "data-scope", "scope");
+
+    if (filterSearch) {
+        filterSearch.addEventListener("input", function () {
+            draft.query = filterSearch.value || "";
+        });
+    }
+    if (filterCategory) {
+        filterCategory.addEventListener("change", function () {
+            draft.category = filterCategory.value || "all";
+        });
+    }
+    if (filterSort) {
+        filterSort.addEventListener("change", function () {
+            draft.sort = filterSort.value || "priority";
+        });
+    }
+    if (filterBtn) {
+        filterBtn.addEventListener("click", function (event) {
+            event.stopPropagation();
+            toggleFilter();
+        });
+    }
+    if (filterClose) filterClose.addEventListener("click", closeFilter);
+    if (filterPanel) {
+        filterPanel.addEventListener("click", function (event) { event.stopPropagation(); });
+    }
+    document.addEventListener("click", function () { closeFilter(); });
+    if (filterApply) {
+        filterApply.addEventListener("click", function () {
+            state.filters = copyFilters(draft);
+            state.page = 1;
+            render();
+            closeFilter();
+        });
+    }
+    if (filterReset) {
+        filterReset.addEventListener("click", function () {
+            state.filters = defaultFilters();
+            state.page = 1;
+            syncDraftFromState();
+            render();
+        });
+    }
+
     document.querySelectorAll(".zt-tab").forEach(function (tab) {
         tab.addEventListener("click", function (event) {
             event.preventDefault();
@@ -1044,6 +1153,7 @@
         if (event.key === "Escape") {
             closeDrawer();
             closeConfirm();
+            closeFilter();
             helpModal.hidden = true;
             exportMenu.hidden = true;
         }

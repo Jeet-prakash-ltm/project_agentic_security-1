@@ -740,7 +740,7 @@
         infrastructure: {
             title: "Infrastructure",
             caption: "infrastructure tests",
-            categories: ["Secure score", "Cloud security posture", "Infrastructure security"]
+            categories: ["Inventory", "Governance", "Administrative access", "Workload identity", "Defender for Cloud", "VM security", "Vulnerability management", "Secrets and keys", "Storage security", "Container security", "Monitoring", "Backup and recovery", "Configuration drift"]
         }
     };
 

@@ -289,6 +289,49 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         self.assertEqual(tests["ZT-NET-NA05-FIREWALL"]["category"], "Firewall")
         self.assertEqual(tests["ZT-NET-NA05-FIREWALL"]["status"], "Failed")
 
+    def test_infrastructure_ia_findings_preserve_assessment_layer(self):
+        adapted = adapt_assessment({
+            "assessment_id": "ia-1",
+            "status": "completed",
+            "findings": [
+                {
+                    "id": "ZT-INFRA-IA05-DEFENDER",
+                    "pillar": "Infrastructure",
+                    "title": "IA-05 Defender for Cloud plans and secure score are healthy",
+                    "status": "Pass",
+                    "severity": "High",
+                    "detail": "3 Standard plans, secure score 72%.",
+                    "remediation": "Keep Defender plans enabled.",
+                    "assessmentLayer": {
+                        "configured": "Yes",
+                        "assigned": "Yes",
+                        "observed": "Yes",
+                        "validation": "Required: IT-05 threat detection validation",
+                    },
+                },
+                {
+                    "id": "ZT-INFRA-IA08-SECRETS",
+                    "pillar": "Infrastructure",
+                    "title": "IA-08 Key Vaults use RBAC, soft-delete, and purge protection",
+                    "status": "Fail",
+                    "severity": "High",
+                    "detail": "2 Key Vaults, 0 purge protection.",
+                    "remediation": "Enable purge protection.",
+                    "assessmentLayer": {
+                        "configured": "Yes",
+                        "assigned": "No",
+                        "observed": "No",
+                        "validation": "Required: IT-04 Key Vault access validation",
+                    },
+                },
+            ],
+        })
+        tests = {t["id"]: t for t in adapted["infrastructure"]["tests"]}
+        self.assertEqual(tests["ZT-INFRA-IA05-DEFENDER"]["category"], "Defender for Cloud")
+        self.assertEqual(tests["ZT-INFRA-IA05-DEFENDER"]["assessmentLayer"]["validation"], "Required: IT-05 threat detection validation")
+        self.assertEqual(tests["ZT-INFRA-IA08-SECRETS"]["category"], "Secrets and keys")
+        self.assertEqual(tests["ZT-INFRA-IA08-SECRETS"]["status"], "Failed")
+
     def test_device_da_findings_preserve_assessment_layer(self):
         adapted = adapt_assessment({
             "assessment_id": "da-1",

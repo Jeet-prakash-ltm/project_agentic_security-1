@@ -97,7 +97,20 @@ DATA_CATEGORY_RULES = (
 )
 
 INFRASTRUCTURE_CATEGORY_RULES = (
-    (re.compile(r"SECURE-SCORE"), "Secure score"),
+    (re.compile(r"IA-?01|IA01"), "Inventory"),
+    (re.compile(r"IA-?02|IA02"), "Governance"),
+    (re.compile(r"IA-?03|IA03"), "Administrative access"),
+    (re.compile(r"IA-?04|IA04"), "Workload identity"),
+    (re.compile(r"IA-?05|IA05"), "Defender for Cloud"),
+    (re.compile(r"IA-?06|IA06"), "VM security"),
+    (re.compile(r"IA-?07|IA07"), "Vulnerability management"),
+    (re.compile(r"IA-?08|IA08"), "Secrets and keys"),
+    (re.compile(r"IA-?09|IA09"), "Storage security"),
+    (re.compile(r"IA-?10|IA10"), "Container security"),
+    (re.compile(r"IA-?11|IA11"), "Monitoring"),
+    (re.compile(r"IA-?12|IA12"), "Backup and recovery"),
+    (re.compile(r"IA-?13|IA13"), "Configuration drift"),
+    (re.compile(r"SECURE-SCORE"), "Defender for Cloud"),
     (re.compile(r"ASSESSMENT|DEFENDER"), "Cloud security posture"),
     (re.compile(r"INFRA"), "Infrastructure security"),
 )

@@ -332,6 +332,92 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         self.assertEqual(tests["ZT-INFRA-IA08-SECRETS"]["category"], "Secrets and keys")
         self.assertEqual(tests["ZT-INFRA-IA08-SECRETS"]["status"], "Failed")
 
+    def test_identity_id_findings_preserve_assessment_layer(self):
+        adapted = adapt_assessment({
+            "assessment_id": "id-1",
+            "status": "completed",
+            "findings": [
+                {
+                    "id": "ZT-ID-ID02-MFA",
+                    "pillar": "Identity",
+                    "title": "ID-02 MFA policy coverage and registration are in place",
+                    "status": "Pass",
+                    "severity": "High",
+                    "detail": "2 MFA CA policies.",
+                    "remediation": "Keep MFA required.",
+                    "assessmentLayer": {
+                        "configured": "Yes",
+                        "assigned": "Yes",
+                        "observed": "Yes",
+                        "validation": "Required: ID-T01 MFA enforcement test",
+                    },
+                },
+                {
+                    "id": "ZT-ID-ID10-WORKLOAD",
+                    "pillar": "Identity",
+                    "title": "ID-10 Workload identity credentials are current",
+                    "status": "Fail",
+                    "severity": "High",
+                    "detail": "3 expired secrets.",
+                    "remediation": "Rotate secrets.",
+                    "assessmentLayer": {
+                        "configured": "Yes",
+                        "assigned": "Yes",
+                        "observed": "No",
+                        "validation": "Required: ID-T06 workload identity test",
+                    },
+                },
+            ],
+        })
+        tests = {t["id"]: t for t in adapted["identity"]["tests"]}
+        self.assertEqual(tests["ZT-ID-ID02-MFA"]["category"], "Authentication methods")
+        self.assertEqual(tests["ZT-ID-ID02-MFA"]["assessmentLayer"]["validation"], "Required: ID-T01 MFA enforcement test")
+        self.assertEqual(tests["ZT-ID-ID10-WORKLOAD"]["category"], "Application identity security")
+        self.assertEqual(tests["ZT-ID-ID10-WORKLOAD"]["status"], "Failed")
+
+    def test_data_dp_findings_preserve_assessment_layer(self):
+        adapted = adapt_assessment({
+            "assessment_id": "dp-1",
+            "status": "completed",
+            "findings": [
+                {
+                    "id": "ZT-DATA-DP03-DLP",
+                    "pillar": "Data",
+                    "title": "DP-03 DLP policies are enabled across workloads",
+                    "status": "Pass",
+                    "severity": "High",
+                    "detail": "2 of 3 DLP scopes enforcing.",
+                    "remediation": "Keep DLP enabled.",
+                    "assessmentLayer": {
+                        "configured": "Yes",
+                        "assigned": "Yes",
+                        "observed": "Yes",
+                        "validation": "Required: DP-T02 DLP enforcement test",
+                    },
+                },
+                {
+                    "id": "ZT-DATA-DP05-SHARING",
+                    "pillar": "Data",
+                    "title": "DP-05 SharePoint and OneDrive external sharing is controlled",
+                    "status": "Fail",
+                    "severity": "High",
+                    "detail": "Anonymous sharing enabled.",
+                    "remediation": "Disable anonymous sharing.",
+                    "assessmentLayer": {
+                        "configured": "Yes",
+                        "assigned": "No",
+                        "observed": "No",
+                        "validation": "Required: DP-T03 external sharing test",
+                    },
+                },
+            ],
+        })
+        tests = {t["id"]: t for t in adapted["data"]["tests"]}
+        self.assertEqual(tests["ZT-DATA-DP03-DLP"]["category"], "Data loss prevention")
+        self.assertEqual(tests["ZT-DATA-DP03-DLP"]["assessmentLayer"]["validation"], "Required: DP-T02 DLP enforcement test")
+        self.assertEqual(tests["ZT-DATA-DP05-SHARING"]["category"], "External sharing")
+        self.assertEqual(tests["ZT-DATA-DP05-SHARING"]["status"], "Failed")
+
     def test_device_da_findings_preserve_assessment_layer(self):
         adapted = adapt_assessment({
             "assessment_id": "da-1",

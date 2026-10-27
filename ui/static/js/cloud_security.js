@@ -698,7 +698,7 @@
         var summary = (a.identity && a.identity.summary) || {};
         var filtered = sortTests(applyFilters(tests));
         var html = '<div class="zt-page-head"><div><h1>Identity</h1><p>' + tests.length + " checks · high-risk failed " + (summary.highRiskFailed || 0) + " · last evaluated " + formatTime(a.completedAt) + "</p></div>" + countsRow(summary) + "</div>";
-        html += categoryCards(tests, ["Privileged accounts", "Authentication methods", "Conditional Access", "Application identity security", "External identities", "Monitoring and diagnostics", "Tenant administration"]);
+        html += categoryCards(tests, ["Inventory", "Authentication methods", "Conditional Access", "Legacy authentication", "Strong authentication", "Privileged accounts", "Least privilege", "Identity protection", "External identities", "Application identity security", "Access reviews", "Monitoring and diagnostics", "Tenant administration"]);
         html += tableFor(filtered, tests.length, "identity tests");
         return html;
     }
@@ -735,7 +735,7 @@
         data: {
             title: "Data",
             caption: "data tests",
-            categories: ["Information protection", "Data loss prevention", "Data protection"]
+            categories: ["Classification", "Information protection", "Data loss prevention", "Encryption", "External sharing", "Retention", "Data risk", "Audit"]
         },
         infrastructure: {
             title: "Infrastructure",

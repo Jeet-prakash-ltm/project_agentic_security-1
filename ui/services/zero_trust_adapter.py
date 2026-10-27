@@ -38,16 +38,28 @@ TRUSTED_DOC_HOSTS = (
 )
 
 IDENTITY_CATEGORY_RULES = (
+    (re.compile(r"ID-?01|ID01"), "Inventory"),
+    (re.compile(r"ID-?02|ID02"), "Authentication methods"),
+    (re.compile(r"ID-?03|ID03"), "Conditional Access"),
+    (re.compile(r"ID-?04|ID04"), "Legacy authentication"),
+    (re.compile(r"ID-?05|ID05"), "Strong authentication"),
+    (re.compile(r"ID-?06|ID06"), "Privileged accounts"),
+    (re.compile(r"ID-?07|ID07"), "Least privilege"),
+    (re.compile(r"ID-?08|ID08"), "Identity protection"),
+    (re.compile(r"ID-?09|ID09"), "External identities"),
+    (re.compile(r"ID-?10|ID10"), "Application identity security"),
+    (re.compile(r"ID-?11|ID11"), "Access reviews"),
+    (re.compile(r"ID-?12|ID12"), "Monitoring and diagnostics"),
     (re.compile(r"CA-|CONDITIONAL"), "Conditional Access"),
     (re.compile(r"PRIVILEGED|PIM|ROLE"), "Privileged accounts"),
     (re.compile(r"AUTH-METHOD|PHISHING|FIDO|MFA"), "Authentication methods"),
-    (re.compile(r"RISKY|IDENTITY-PROTECTION"), "High-risk users and sign-ins"),
+    (re.compile(r"RISKY|IDENTITY-PROTECTION"), "Identity protection"),
     (re.compile(r"SECURITY-DEFAULT|AUTHORIZATION|TENANT"), "Tenant administration"),
     (re.compile(r"GUEST|EXTERNAL|CROSS-TENANT"), "External identities"),
     (re.compile(r"APP|WORKLOAD|CREDENTIAL|REDIRECT|CONSENT"), "Application identity security"),
     (re.compile(r"DIAGNOSTIC|MONITOR"), "Monitoring and diagnostics"),
-    (re.compile(r"ENTITLEMENT"), "Entitlement management"),
-    (re.compile(r"TOKEN|LEGACY"), "Token protection"),
+    (re.compile(r"ENTITLEMENT|ACCESS-REVIEW"), "Access reviews"),
+    (re.compile(r"TOKEN|LEGACY"), "Legacy authentication"),
 )
 
 DEVICE_CATEGORY_RULES = (
@@ -91,6 +103,14 @@ NETWORK_CATEGORY_RULES = (
 )
 
 DATA_CATEGORY_RULES = (
+    (re.compile(r"DP-?01|DP01"), "Classification"),
+    (re.compile(r"DP-?02|DP02"), "Information protection"),
+    (re.compile(r"DP-?03|DP03"), "Data loss prevention"),
+    (re.compile(r"DP-?04|DP04"), "Encryption"),
+    (re.compile(r"DP-?05|DP05"), "External sharing"),
+    (re.compile(r"DP-?06|DP06"), "Retention"),
+    (re.compile(r"DP-?07|DP07"), "Data risk"),
+    (re.compile(r"DP-?08|DP08"), "Audit"),
     (re.compile(r"SENSITIVITY|LABEL"), "Information protection"),
     (re.compile(r"DLP"), "Data loss prevention"),
     (re.compile(r"DATA"), "Data protection"),

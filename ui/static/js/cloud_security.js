@@ -83,6 +83,8 @@
     var filterScopeSection = document.getElementById("ztFilterScopeSection");
     var tenantBtn = document.getElementById("ztTenantBtn");
     var tenantPop = document.getElementById("ztTenantPop");
+    var assessBtn = document.getElementById("ztAssessBtn");
+    var assessPop = document.getElementById("ztAssessPop");
 
     function esc(value) {
         return String(value == null ? "" : value)
@@ -372,46 +374,30 @@
         if (state.error) {
             bannerEl.hidden = false;
             bannerEl.className = "zt-status-pill is-error";
-            bannerEl.innerHTML = "<strong>Failed</strong>" +
-                statusInfoButton("Assessment error", "<p>" + esc(state.error) +
-                    (state.assessmentId ? " Assessment ID: " + esc(state.assessmentId) + "." : "") +
-                    '</p><button type="button" class="zt-copy" id="ztRetryFailed">Retry</button>');
-            bindStatusInfo();
-            var retry = document.getElementById("ztRetryFailed");
-            if (retry) retry.onclick = function (ev) { ev.stopPropagation(); openConfirm(); };
+            bannerEl.innerHTML = '<span class="zt-status-dot" aria-hidden="true"></span><strong>Failed</strong>';
             return;
         }
         if (state.assessment && state.assessment.partial && state.assessment.partial.length) {
             bannerEl.hidden = false;
             bannerEl.className = "zt-status-pill is-partial";
-            var items = state.assessment.partial.map(function (p) {
-                return "<li><strong>" + esc(p.domain) + "</strong> " + esc(p.message || "unavailable") + "</li>";
-            }).join("");
-            bannerEl.innerHTML = "<strong>Partial</strong>" +
-                statusInfoButton("Collector errors",
-                    "<p>Some Microsoft Graph or Microsoft Intune information could not be retrieved. These are collector or API issues, not security control failures.</p><ul>" + items + "</ul>");
-            bindStatusInfo();
+            bannerEl.innerHTML = '<span class="zt-status-dot" aria-hidden="true"></span><strong>Partial</strong>';
             return;
         }
         if (state.assessment && (state.status === "completed" || state.assessment.completedAt)) {
             bannerEl.hidden = false;
             if (state.assessment.stale) {
                 bannerEl.className = "zt-status-pill is-stale";
-                bannerEl.innerHTML = "<strong>Stale</strong>" +
-                    statusInfoButton("Stale results", "<p>These results may no longer represent the current tenant configuration.</p>");
-                bindStatusInfo();
+                bannerEl.innerHTML = '<span class="zt-status-dot" aria-hidden="true"></span><strong>Partial</strong>';
                 return;
             }
             bannerEl.className = "zt-status-pill is-success";
-            bannerEl.innerHTML = "<strong>Completed</strong>";
+            bannerEl.innerHTML = '<span class="zt-status-dot" aria-hidden="true"></span><strong>Completed</strong>';
             return;
         }
         if (state.assessmentId || state.status) {
             bannerEl.hidden = false;
             bannerEl.className = "zt-status-pill is-error";
-            bannerEl.innerHTML = "<strong>Incomplete</strong>" +
-                statusInfoButton("Incomplete assessment", "<p>" + esc(state.message || "Assessment did not finish successfully.") + "</p>");
-            bindStatusInfo();
+            bannerEl.innerHTML = '<span class="zt-status-dot" aria-hidden="true"></span><strong>Failed</strong>';
             return;
         }
         bannerEl.hidden = true;
@@ -535,8 +521,52 @@
                 if (t.status !== "Failed") return;
                 if (row[t.risk] != null) row[t.risk] += 1;
             });
+            row.total = row.High + row.Medium + row.Low;
             return row;
         });
+    }
+
+    function pillarRiskChart(heat) {
+        var levels = [
+            { key: "High", color: "#EF4444" },
+            { key: "Medium", color: "#FBBF24" },
+            { key: "Low", color: "#22C55E" }
+        ];
+        var ranked = (heat || []).slice().sort(function (a, b) { return (b.total || 0) - (a.total || 0); });
+        var max = 1;
+        ranked.forEach(function (row) {
+            levels.forEach(function (s) { max = Math.max(max, row[s.key] || 0); });
+        });
+        var top = max <= 4 ? 4 : (max <= 8 ? 8 : Math.ceil(max / 5) * 5);
+        var highest = ranked.length && ranked[0].total > 0 ? ranked[0].name : "";
+        var html = '<section class="zt-card zt-pillar-risk"><h2>Pillar risk</h2>';
+        html += '<div class="zt-domain-legend">';
+        levels.forEach(function (s) {
+            html += '<span class="zt-domain-legend-item"><i style="background:' + s.color + '"></i>' + s.key + "</span>";
+        });
+        html += "</div>";
+        html += '<div class="zt-domain-plot"><div class="zt-domain-yaxis">';
+        [top, Math.round(top * 0.75), Math.round(top * 0.5), Math.round(top * 0.25), 0].forEach(function (n) {
+            html += "<span>" + n + "</span>";
+        });
+        html += '</div><div class="zt-domain-stage"><div class="zt-domain-grid" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>';
+        html += '<div class="zt-domain-axis">';
+        ranked.forEach(function (row) {
+            html += '<button type="button" class="zt-domain-group' + (row.name === highest ? " is-highest" : "") + '" data-area="' + esc(row.name) + '" data-risk="all" data-status="Failed">';
+            html += '<div class="zt-domain-summary"><strong>' + esc(row.name) + "</strong><span>Total Risk: " + (row.total || 0) + "</span>";
+            if (row.name === highest) html += '<em class="zt-domain-badge">Highest Risk Pillar</em>';
+            html += '</div><div class="zt-domain-cols">';
+            levels.forEach(function (s) {
+                var n = row[s.key] || 0;
+                var h = top ? Math.round(n / top * 100) : 0;
+                html += '<span class="zt-domain-col">';
+                if (n > 0) html += '<span class="zt-domain-value">' + n + '</span><span class="zt-domain-fill" style="height:' + h + "%;background:" + s.color + '"></span>';
+                html += "</span>";
+            });
+            html += '</div><span class="zt-domain-label">' + esc(row.name) + "</span></button>";
+        });
+        html += "</div></div></div></section>";
+        return html;
     }
 
     function progressRow(label, num, den, tone) {
@@ -598,7 +628,13 @@
 
     function paintOverviewCharts() {
         var scoreEl = document.getElementById("ztScoreRing");
-        if (scoreEl) paintRing(scoreEl, Number(scoreEl.getAttribute("data-value")), scoreEl.getAttribute("data-tone"));
+        if (scoreEl) {
+            paintSegments(scoreEl, [
+                { value: Number(scoreEl.getAttribute("data-passed") || 0), color: "#16A34A" },
+                { value: Number(scoreEl.getAttribute("data-failed") || 0), color: "#DC2626" },
+                { value: Number(scoreEl.getAttribute("data-investigate") || 0), color: "#F59E0B" }
+            ]);
+        }
         var statusEl = document.getElementById("ztStatusDonut");
         if (statusEl) {
             paintSegments(statusEl, [
@@ -677,21 +713,24 @@
         var cover = coverageModel(tests);
         var pillars = pillarModels(a);
         var score = scoreModel(a);
-        var sev = severityCounts(tests);
         var heat = heatmapCounts(a);
         var viz = a.visualizations || {};
         var html = "";
 
-        var tone = scoreTone(score.value);
+        var passedPct = pct(cover.passed, cover.total);
+        var failedPct = pct(cover.failed, cover.total);
+        var investPct = pct(cover.investigate, cover.total);
         html += '<section class="zt-exec">' +
             '<article class="zt-score-card">' +
             '<div class="zt-score-ring-wrap">' +
-            '<canvas id="ztScoreRing" width="180" height="180" data-value="' + (score.value == null ? "" : score.value) + '" data-tone="' + tone + '" role="img" aria-label="' + esc(score.label) + " " + (score.value == null ? "unavailable" : score.value + " of 100") + '"></canvas>' +
-            '<div class="zt-score-center"><strong>' + (score.value == null ? "—" : esc(String(score.value))) + "</strong><span>/100</span></div>" +
+            '<canvas id="ztScoreRing" width="180" height="180" data-passed="' + cover.passed + '" data-failed="' + cover.failed + '" data-investigate="' + cover.investigate + '" role="img" aria-label="' + esc(score.label) + " " + (score.value == null ? "unavailable" : score.value + " of 100") + '"></canvas>' +
+            '<div class="zt-score-center"><strong>' + (score.value == null ? "—" : esc(String(score.value))) + "%</strong><span>Zero Trust score</span></div>" +
             "</div>" +
-            "<div><h2>" + esc(score.label) + "</h2>" +
-            '<p class="zt-muted">' + (a.scoreSource === "backend" ? "Official assessment score." : (score.value == null ? "Score unavailable." : "Weighted from assessed controls.")) + "</p></div>" +
-            "</article>" +
+            '<div class="zt-donut-pills">' +
+            '<button type="button" class="zt-donut-pill" data-risk="all" data-status="Passed"><i class="zt-donut-dot is-passed"></i><span>Passed</span><strong>' + cover.passed + "</strong><em>" + (passedPct == null ? "—" : passedPct + "%") + "</em></button>" +
+            '<button type="button" class="zt-donut-pill" data-risk="all" data-status="Failed"><i class="zt-donut-dot is-failed"></i><span>Failed</span><strong>' + cover.failed + "</strong><em>" + (failedPct == null ? "—" : failedPct + "%") + "</em></button>" +
+            '<button type="button" class="zt-donut-pill" data-risk="all" data-status="Investigate"><i class="zt-donut-dot is-investigate"></i><span>Investigate</span><strong>' + cover.investigate + "</strong><em>" + (investPct == null ? "—" : investPct + "%") + "</em></button>" +
+            "</div></article>" +
             '<section class="zt-inventory-card">' +
             "<h2>Tenant inventory</h2>" +
             '<div class="zt-inv-stats">' +
@@ -724,15 +763,7 @@
             statusLegend("Skipped", cover.skipped, cover.total, "all", "Skipped") +
             "</div></div></section></div>";
 
-        html += '<section class="zt-card"><h2>Pillar risk heatmap</h2>' +
-            '<table class="zt-heat"><thead><tr><th>Pillar</th><th>High</th><th>Medium</th><th>Low</th></tr></thead><tbody>' +
-            heat.map(function (row) {
-                return "<tr><th>" + esc(row.name) + "</th>" +
-                    heatCell(row.name, "High", row.High) +
-                    heatCell(row.name, "Medium", row.Medium) +
-                    heatCell(row.name, "Low", row.Low) + "</tr>";
-            }).join("") +
-            "</tbody></table></section>";
+        html += pillarRiskChart(heat);
 
         html += '<div class="zt-viz-grid">' +
             authCoverageCard(viz.userAuthCoverage, viz.privilegedAuth) +
@@ -1004,9 +1035,27 @@
         if (filterScopeSection) filterScopeSection.hidden = !(devices || draft.area === "Devices");
     }
 
+    function placePop(pop, anchor) {
+        if (!pop || !anchor) return;
+        var rect = anchor.getBoundingClientRect();
+        var popRect = pop.getBoundingClientRect();
+        var left = Math.min(Math.max(12, rect.left), window.innerWidth - popRect.width - 12);
+        var top = rect.bottom + 8;
+        if (top + popRect.height > window.innerHeight - 12) {
+            top = Math.max(12, rect.top - popRect.height - 8);
+        }
+        pop.style.left = left + "px";
+        pop.style.top = top + "px";
+    }
+
     function closeTenantPop() {
         if (tenantPop) tenantPop.hidden = true;
         if (tenantBtn) tenantBtn.setAttribute("aria-expanded", "false");
+    }
+
+    function closeAssessPop() {
+        if (assessPop) assessPop.hidden = true;
+        if (assessBtn) assessBtn.setAttribute("aria-expanded", "false");
     }
 
     function tenantValue(value) {
@@ -1036,17 +1085,34 @@
             }).join("");
         tenantPop.hidden = false;
         if (tenantBtn) tenantBtn.setAttribute("aria-expanded", "true");
-        var rect = (anchor || tenantBtn).getBoundingClientRect();
-        var popRect = tenantPop.getBoundingClientRect();
-        var left = Math.min(Math.max(12, rect.left), window.innerWidth - popRect.width - 12);
-        var top = rect.bottom + 8;
-        if (top + popRect.height > window.innerHeight - 12) {
-            top = Math.max(12, rect.top - popRect.height - 8);
-        }
-        tenantPop.style.left = left + "px";
-        tenantPop.style.top = top + "px";
+        placePop(tenantPop, anchor || tenantBtn);
         var closeBtn = tenantPop.querySelector(".rep-device-pop-close");
         if (closeBtn) closeBtn.addEventListener("click", closeTenantPop);
+    }
+
+    function openAssessPop(anchor) {
+        if (!assessPop) return;
+        var a = state.assessment || {};
+        var rows = [
+            ["Assessment ID", tenantValue(a.assessmentId || state.assessmentId)],
+            ["Assessment date", tenantValue(formatTime(a.completedAt || a.startedAt))]
+        ];
+        assessPop.innerHTML =
+            '<div class="rep-device-pop-head">' +
+            '<span class="rep-device-pop-name">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h8a2 2 0 012 2v16l-6-3-6 3V5a2 2 0 012-2z"/><path d="M9 8h6M9 12h6"/></svg>' +
+            "Assessment details</span>" +
+            '<button type="button" class="rep-device-pop-close" aria-label="Close">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>' +
+            "</button></div>" +
+            rows.map(function (row) {
+                return '<div class="rep-device-pop-row"><span>' + esc(row[0]) + "</span><span>" + esc(row[1]) + "</span></div>";
+            }).join("");
+        assessPop.hidden = false;
+        if (assessBtn) assessBtn.setAttribute("aria-expanded", "true");
+        placePop(assessPop, anchor || assessBtn);
+        var closeBtn = assessPop.querySelector(".rep-device-pop-close");
+        if (closeBtn) closeBtn.addEventListener("click", closeAssessPop);
     }
 
     function syncDraftFromState() {
@@ -1618,14 +1684,26 @@
     if (tenantBtn) {
         tenantBtn.addEventListener("click", function (event) {
             event.stopPropagation();
+            closeAssessPop();
             if (tenantPop && !tenantPop.hidden) closeTenantPop();
             else openTenantPop(tenantBtn);
+        });
+    }
+    if (assessBtn) {
+        assessBtn.addEventListener("click", function (event) {
+            event.stopPropagation();
+            closeTenantPop();
+            if (assessPop && !assessPop.hidden) closeAssessPop();
+            else openAssessPop(assessBtn);
         });
     }
     document.addEventListener("click", function (event) {
         if (tenantPop && !tenantPop.hidden && tenantPop.contains(event.target)) return;
         if (tenantBtn && tenantBtn.contains(event.target)) return;
         closeTenantPop();
+        if (assessPop && !assessPop.hidden && assessPop.contains(event.target)) return;
+        if (assessBtn && assessBtn.contains(event.target)) return;
+        closeAssessPop();
     });
     document.getElementById("ztDrawerClose").addEventListener("click", closeDrawer);
     if (drawerBackdrop) drawerBackdrop.addEventListener("click", closeDrawer);
@@ -1655,6 +1733,7 @@
             closeConfirm();
             closeFilter();
             closeTenantPop();
+            closeAssessPop();
             exportMenu.hidden = true;
         }
     });

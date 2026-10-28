@@ -28,17 +28,16 @@
 <div class="zt-app" id="ztApp" data-view="{{ zt_view }}" data-configured="{{ '1' if zt_configured else '0' }}" data-admin="{{ '1' if is_admin else '0' }}" data-user="{{ current_user.name if current_user else '' }}">
     <div class="zt-shell">
         <header class="zt-topnav{% if zt_view != 'overview' %} is-compact{% endif %}" id="ztTopNav"{% if zt_view != 'overview' %} hidden{% endif %}>
-            <div class="zt-brand"{% if zt_view != 'overview' %} hidden{% endif %}>
-                <div>
-                    <strong>Zero Trust</strong>
-                    <span class="zt-brand-sub">Assessment</span>
-                </div>
-            </div>
-            <div class="zt-status-pill" id="ztStatusPill" hidden></div>
-            <div class="zt-top-actions">
+            <div class="zt-top-lead">
                 <button type="button" class="reports-filter-btn" id="ztTenantBtn" aria-label="Tenant information" aria-haspopup="dialog" aria-expanded="false" aria-controls="ztTenantPop">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-8h6v8"/><path d="M9 9h.01M15 9h.01M9 13h.01M15 13h.01"/></svg>
                 </button>
+                <button type="button" class="reports-filter-btn" id="ztAssessBtn" aria-label="Assessment details" aria-haspopup="dialog" aria-expanded="false" aria-controls="ztAssessPop">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3h8a2 2 0 012 2v16l-6-3-6 3V5a2 2 0 012-2z"/><path d="M9 8h6M9 12h6"/></svg>
+                </button>
+                <div class="zt-status-pill" id="ztStatusPill" hidden></div>
+            </div>
+            <div class="zt-top-actions">
                 <div class="reports-filter" id="ztFilterWrap"{% if zt_view == 'overview' %} hidden{% endif %}>
                     <button type="button" class="reports-filter-btn" id="ztFilterBtn" aria-label="Filters" aria-haspopup="true" aria-expanded="false" aria-controls="ztFilterPanel">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/></svg>
@@ -153,6 +152,7 @@
             </div>
         </header>
         <div class="rep-device-pop zt-tenant-pop" id="ztTenantPop" hidden role="dialog" aria-label="Tenant information"></div>
+        <div class="rep-device-pop zt-tenant-pop" id="ztAssessPop" hidden role="dialog" aria-label="Assessment details"></div>
 
         <div class="zt-progress" id="ztProgress" hidden role="status" aria-live="polite"></div>
         <div id="ztView" class="zt-view"></div>
@@ -194,5 +194,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=22"></script>
+<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=24"></script>
 {% endblock %}

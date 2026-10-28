@@ -1,10 +1,20 @@
 {% extends "base.html" %}
 
-{% block title %}Cloud Security — LTM Security Platform{% endblock %}
+{% set zt_page_labels = {
+    'overview': 'Dashboard',
+    'identity': 'Identity',
+    'devices': 'Devices',
+    'network': 'Network',
+    'data': 'Data',
+    'infrastructure': 'Infrastructure'
+} %}
+{% set zt_page_label = zt_page_labels.get(zt_view, 'Dashboard') %}
 
-{% block page_title %}Cloud Security{% endblock %}
+{% block title %}{{ zt_page_label }} — LTM Security Platform{% endblock %}
 
-{% block hero_eyebrow %}Zero Trust / Cloud Security{% endblock %}
+{% block page_title %}{{ zt_page_label }}{% endblock %}
+
+{% block hero_eyebrow %}Zero Trust / {{ zt_page_label }}{% endblock %}
 
 {% block navbar_actions %}
 <button class="hero-chip-btn" id="ztRefreshBtn" type="button" aria-label="Refresh assessment">
@@ -25,14 +35,6 @@
                 </div>
                 <div class="zt-status-pill" id="ztStatusPill" hidden></div>
             </div>
-            <nav class="zt-tabs" aria-label="Zero Trust pages">
-                <a href="{{ url_for('cloud_security') }}" class="zt-tab" data-view="overview">Overview</a>
-                <a href="{{ url_for('cloud_security_view', view='identity') }}" class="zt-tab" data-view="identity">Identity</a>
-                <a href="{{ url_for('cloud_security_view', view='devices') }}" class="zt-tab" data-view="devices">Devices</a>
-                <a href="{{ url_for('cloud_security_view', view='network') }}" class="zt-tab" data-view="network">Network</a>
-                <a href="{{ url_for('cloud_security_view', view='data') }}" class="zt-tab" data-view="data">Data</a>
-                <a href="{{ url_for('cloud_security_view', view='infrastructure') }}" class="zt-tab" data-view="infrastructure">Infrastructure</a>
-            </nav>
             <div class="zt-top-actions">
                 <button type="button" class="reports-filter-btn" id="ztTenantBtn" aria-label="Tenant information" aria-haspopup="dialog" aria-expanded="false" aria-controls="ztTenantPop">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/></svg>
@@ -192,5 +194,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=18"></script>
+<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=19"></script>
 {% endblock %}

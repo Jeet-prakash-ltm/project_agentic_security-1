@@ -511,23 +511,12 @@ def dashboard_cloud_security():
 @app.route("/dashboard/cloud-security/infrastructure")
 @login_required
 def dashboard_cloud_security_redirect():
-    """Keep previous Zero Trust pillar URLs working after the move."""
+    """Keep previous Dashboard Cloud Security pillar URLs working."""
 
-    suffix = request.path[len("/dashboard/cloud-security"):]
-    return redirect("/zero-trust/cloud-security" + suffix)
-
-
-@app.route("/zero-trust/network-security")
-@login_required
-def zero_trust_network_security():
-    """Placeholder Network Security page under Zero Trust."""
-
-    return render_with_css(
-        "under_construction.html",
-        browser_title="Network Security",
-        page_heading="Network Security",
-        hero_text="Zero Trust / Network Security",
-    )
+    view = request.path[len("/dashboard/cloud-security"):].strip("/")
+    if view in {"identity", "devices", "network", "data", "infrastructure"}:
+        return redirect(url_for("cloud_security_view", view=view))
+    return redirect(url_for("cloud_security"))
 
 
 def _cloud_security_page(initial_view):
@@ -539,21 +528,49 @@ def _cloud_security_page(initial_view):
     )
 
 
-@app.route("/zero-trust/cloud-security")
+ZT_PILLAR_VIEWS = ("identity", "devices", "network", "data", "infrastructure")
+
+
+@app.route("/zero-trust/dashboard")
 @login_required
 def cloud_security():
-    """Zero Trust assessment workspace under Zero Trust / Cloud Security."""
+    """Zero Trust Dashboard (assessment overview)."""
 
     return _cloud_security_page("overview")
 
 
+@app.route("/zero-trust/cloud-security")
+@login_required
+def cloud_security_legacy():
+    """Keep previous Cloud Security overview URL working."""
+
+    return redirect(url_for("cloud_security"))
+
+
 @app.route("/zero-trust/cloud-security/<view>")
 @login_required
-def cloud_security_view(view):
-    """Zero Trust pillar pages. Sidebar Cloud Security always opens overview."""
+def cloud_security_view_legacy(view):
+    """Keep previous Cloud Security pillar URLs working."""
 
-    allowed = {"identity", "devices", "network", "data", "infrastructure"}
-    if view not in allowed:
+    if view in ZT_PILLAR_VIEWS:
+        return redirect(url_for("cloud_security_view", view=view))
+    return redirect(url_for("cloud_security"))
+
+
+@app.route("/zero-trust/network-security")
+@login_required
+def zero_trust_network_security():
+    """Keep previous Zero Trust Network Security URL working."""
+
+    return redirect(url_for("cloud_security_view", view="network"))
+
+
+@app.route("/zero-trust/<view>")
+@login_required
+def cloud_security_view(view):
+    """Zero Trust pillar pages: Identity, Devices, Network, Data, Infrastructure."""
+
+    if view not in ZT_PILLAR_VIEWS:
         return redirect(url_for("cloud_security"))
     return _cloud_security_page(view)
 

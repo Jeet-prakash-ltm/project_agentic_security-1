@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='LTM_LOGO.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=30">
     {% if page_css %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=91">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=92">
     {% endif %}
     {% block head_extra %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v=9">
@@ -15,7 +15,8 @@
 <body class="{% block body_class %}{% endblock %}" data-logout-url="{{ url_for('logout') }}" data-user-name="{{ current_user.name if current_user else '' }}">
     {% set dash_endpoints = ['dashboard', 'dashboard_cloud_security'] %}
     {% set workspace_endpoints = ['workspace', 'system_info'] %}
-    {% set zt_endpoints = ['zero_trust_network_security', 'cloud_security', 'cloud_security_view'] %}
+    {% set zt_endpoints = ['cloud_security', 'cloud_security_view', 'cloud_security_legacy', 'cloud_security_view_legacy', 'zero_trust_network_security'] %}
+    {% set current_zt = zt_view|default('') %}
     {% set automation_endpoints = ['automation', 'automation_network_security', 'automation_cloud_security', 'automation_jobs'] %}
     {% set settings_endpoints = ['settings', 'settings_accounts', 'settings_roles', 'settings_inventory', 'settings_agents'] %}
 
@@ -82,11 +83,23 @@
                     <svg class="nav-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
                 </button>
                 <div class="nav-submenu" id="navZeroTrustSub">
-                    <a href="{{ url_for('zero_trust_network_security') }}" class="nav-sublink {{ 'active' if request.endpoint == 'zero_trust_network_security' else '' }}">
-                        <span class="nav-subdot"></span><span>Network Security</span>
+                    <a href="{{ url_for('cloud_security') }}" class="nav-sublink {{ 'active' if current_zt == 'overview' else '' }}">
+                        <span class="nav-subdot"></span><span>Dashboard</span>
                     </a>
-                    <a href="{{ url_for('cloud_security') }}" class="nav-sublink {{ 'active' if request.endpoint in ['cloud_security', 'cloud_security_view'] else '' }}">
-                        <span class="nav-subdot"></span><span>Cloud Security</span>
+                    <a href="{{ url_for('cloud_security_view', view='identity') }}" class="nav-sublink {{ 'active' if current_zt == 'identity' else '' }}">
+                        <span class="nav-subdot"></span><span>Identity</span>
+                    </a>
+                    <a href="{{ url_for('cloud_security_view', view='devices') }}" class="nav-sublink {{ 'active' if current_zt == 'devices' else '' }}">
+                        <span class="nav-subdot"></span><span>Devices</span>
+                    </a>
+                    <a href="{{ url_for('cloud_security_view', view='network') }}" class="nav-sublink {{ 'active' if current_zt == 'network' else '' }}">
+                        <span class="nav-subdot"></span><span>Network</span>
+                    </a>
+                    <a href="{{ url_for('cloud_security_view', view='data') }}" class="nav-sublink {{ 'active' if current_zt == 'data' else '' }}">
+                        <span class="nav-subdot"></span><span>Data</span>
+                    </a>
+                    <a href="{{ url_for('cloud_security_view', view='infrastructure') }}" class="nav-sublink {{ 'active' if current_zt == 'infrastructure' else '' }}">
+                        <span class="nav-subdot"></span><span>Infrastructure</span>
                     </a>
                 </div>
             </div>

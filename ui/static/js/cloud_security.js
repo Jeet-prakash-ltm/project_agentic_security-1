@@ -214,23 +214,33 @@
         if (runBtn) runBtn.disabled = false;
     }
 
+    function viewPath(view) {
+        if (!view || view === "overview") return "/zero-trust/dashboard";
+        return "/zero-trust/" + view;
+    }
+
+    function pathToView(path) {
+        var parts = String(path || "").replace(/\/+$/, "").split("/");
+        var last = parts[parts.length - 1] || "";
+        if (last === "identity" || last === "devices" || last === "network" || last === "data" || last === "infrastructure") {
+            return last;
+        }
+        return "overview";
+    }
+
     function setView(view, push) {
+        if (push !== false) {
+            var path = viewPath(view);
+            var current = location.pathname.replace(/\/+$/, "");
+            if (current !== path) {
+                window.location.href = path;
+                return;
+            }
+        }
         state.view = view;
         state.page = 1;
         if (view !== "overview") state.filters.area = "all";
         closeFilter();
-        var tabs = app.querySelectorAll(".zt-tab");
-        for (var i = 0; i < tabs.length; i++) {
-            var active = tabs[i].getAttribute("data-view") === view;
-            tabs[i].classList.toggle("is-active", active);
-            if (active) tabs[i].setAttribute("aria-current", "page");
-            else tabs[i].removeAttribute("aria-current");
-        }
-        if (push !== false) {
-            var path = "/zero-trust/cloud-security";
-            if (view && view !== "overview") path += "/" + view;
-            if (window.history && history.pushState) history.pushState({ ztView: view }, "", path);
-        }
         render();
     }
 
@@ -1621,20 +1631,8 @@
         });
     }
 
-    document.querySelectorAll(".zt-tab").forEach(function (tab) {
-        tab.addEventListener("click", function (event) {
-            event.preventDefault();
-            setView(tab.getAttribute("data-view"));
-        });
-    });
     window.addEventListener("popstate", function () {
-        var path = location.pathname.replace(/\/+$/, "");
-        if (path.indexOf("/cloud-security/identity") !== -1) setView("identity", false);
-        else if (path.indexOf("/cloud-security/devices") !== -1) setView("devices", false);
-        else if (path.indexOf("/cloud-security/network") !== -1) setView("network", false);
-        else if (path.indexOf("/cloud-security/data") !== -1) setView("data", false);
-        else if (path.indexOf("/cloud-security/infrastructure") !== -1) setView("infrastructure", false);
-        else setView("overview", false);
+        setView(pathToView(location.pathname), false);
     });
     if (runBtn) runBtn.addEventListener("click", openConfirm);
     if (refreshBtn) refreshBtn.addEventListener("click", openConfirm);

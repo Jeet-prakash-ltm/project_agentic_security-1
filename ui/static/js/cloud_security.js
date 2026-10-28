@@ -734,7 +734,7 @@
             '<article class="zt-score-card">' +
             "<h2>Zero Trust Score</h2>" +
             '<div class="zt-score-ring-wrap">' +
-            '<canvas id="ztScoreRing" width="180" height="180" data-passed="' + cover.passed + '" data-failed="' + cover.failed + '" data-investigate="' + cover.investigate + '" role="img" aria-label="' + esc(score.label) + " " + (score.value == null ? "unavailable" : score.value + " of 100") + '"></canvas>' +
+            '<canvas id="ztScoreRing" width="220" height="220" data-passed="' + cover.passed + '" data-failed="' + cover.failed + '" data-investigate="' + cover.investigate + '" role="img" aria-label="' + esc(score.label) + " " + (score.value == null ? "unavailable" : score.value + " of 100") + '"></canvas>' +
             '<div class="zt-score-center"><strong>' + (score.value == null ? "—" : esc(String(score.value))) + "%</strong></div>" +
             "</div>" +
             '<div class="zt-donut-pills">' +
@@ -761,19 +761,7 @@
 
         html += pillarTelemetrySection(viz);
 
-        html += '<div class="zt-grid-2">' +
-            '<section class="zt-card"><h2>Top security gaps</h2>' + renderGaps(a.priority || []) + "</section>" +
-            '<section class="zt-card"><h2>Priority remediation</h2>' + renderPriority(a.priority || []) + "</section>" +
-            "</div>";
-
-        html += '<div class="zt-grid-2">' +
-            '<section class="zt-card"><h2>Assessment coverage</h2>' +
-            progressRow("Assessed", cover.assessed, cover.total, "strong") +
-            progressRow("Unable to assess", cover.investigate, cover.total, "moderate") +
-            progressRow("Skipped", cover.skipped, cover.total, "unknown") +
-            "</section>" +
-            collectorHealthCard(a) +
-            "</div>";
+        html += collectorHealthCard(a);
 
         var ranked = sortTests(tests);
         var top = ranked.slice(0, OVERVIEW_FINDINGS);

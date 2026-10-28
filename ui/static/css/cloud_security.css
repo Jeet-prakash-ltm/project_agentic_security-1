@@ -1456,7 +1456,8 @@
 .zt-exec {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    gap: 20px;
+    margin-bottom: 6px;
     align-items: stretch;
 }
 
@@ -1465,9 +1466,9 @@
 .zt-kpi {
     position: relative;
     background: var(--zt-surface);
-    border: 1px solid var(--zt-border);
-    border-radius: var(--zt-radius);
-    padding: 22px 24px;
+    border: 1px solid rgba(11, 27, 43, 0.06);
+    border-radius: 22px;
+    padding: 24px 24px 22px;
     color: inherit;
     text-align: left;
     box-shadow: var(--zt-shadow);
@@ -1480,19 +1481,19 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 14px;
-    aspect-ratio: 1 / 1;
+    gap: 12px;
     min-height: 0;
     width: 100%;
     text-align: center;
 }
 
 .zt-score-card h2 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    align-self: flex-start;
+    margin: 0 0 4px;
+    font-size: 16.5px;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    align-self: stretch;
+    text-align: left;
 }
 
 .zt-donut-pills {
@@ -1543,16 +1544,15 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-    aspect-ratio: 1 / 1;
     min-height: 0;
     width: 100%;
 }
 
 .zt-inventory-card h2 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 700;
-    letter-spacing: -0.03em;
+    margin: 0 0 4px;
+    font-size: 16.5px;
+    font-weight: 800;
+    letter-spacing: -0.015em;
 }
 
 .zt-inventory-card .zt-inv-stats {
@@ -1563,8 +1563,9 @@
 
 .zt-score-ring-wrap {
     position: relative;
-    width: 180px;
-    height: 180px;
+    width: 220px;
+    height: 220px;
+    margin: 12px auto 16px;
     flex-shrink: 0;
 }
 
@@ -1579,9 +1580,11 @@
 }
 
 .zt-score-center strong {
-    font-size: 36px;
+    font-size: 34px;
+    font-weight: 800;
     line-height: 1;
     letter-spacing: -0.04em;
+    font-family: var(--font-display, inherit);
 }
 
 .zt-score-center span {
@@ -2175,12 +2178,6 @@
     .zt-tenant-compact .zt-tenant-meta,
     .zt-inventory-card .zt-inv-stats {
         grid-template-columns: 1fr;
-    }
-
-    .zt-score-card,
-    .zt-inventory-card {
-        aspect-ratio: auto;
-        min-height: 220px;
     }
 
     .zt-topnav {

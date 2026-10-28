@@ -530,36 +530,32 @@ def zero_trust_network_security():
     )
 
 
-@app.route("/zero-trust/cloud-security")
-@app.route("/zero-trust/cloud-security/identity")
-@app.route("/zero-trust/cloud-security/devices")
-@app.route("/zero-trust/cloud-security/network")
-@app.route("/zero-trust/cloud-security/data")
-@app.route("/zero-trust/cloud-security/infrastructure")
-@login_required
-def cloud_security():
-    """Zero Trust assessment workspace under Zero Trust / Cloud Security."""
-
-    path = request.path.rstrip("/")
-    if path.endswith("/identity"):
-        initial_view = "identity"
-    elif path.endswith("/devices"):
-        initial_view = "devices"
-    elif path.endswith("/network"):
-        initial_view = "network"
-    elif path.endswith("/data"):
-        initial_view = "data"
-    elif path.endswith("/infrastructure"):
-        initial_view = "infrastructure"
-    else:
-        initial_view = "overview"
-
+def _cloud_security_page(initial_view):
     return render_with_css(
         "cloud_security.html",
         zt_view=initial_view,
         zt_configured=zero_trust_service.configured(),
         is_admin=_is_admin(current_user()),
     )
+
+
+@app.route("/zero-trust/cloud-security")
+@login_required
+def cloud_security():
+    """Zero Trust assessment workspace under Zero Trust / Cloud Security."""
+
+    return _cloud_security_page("overview")
+
+
+@app.route("/zero-trust/cloud-security/<view>")
+@login_required
+def cloud_security_view(view):
+    """Zero Trust pillar pages. Sidebar Cloud Security always opens overview."""
+
+    allowed = {"identity", "devices", "network", "data", "infrastructure"}
+    if view not in allowed:
+        return redirect(url_for("cloud_security"))
+    return _cloud_security_page(view)
 
 
 @app.route("/dashboard/system-info")

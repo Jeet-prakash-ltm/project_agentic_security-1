@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='LTM_LOGO.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=30">
     {% if page_css %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=90">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=91">
     {% endif %}
     {% block head_extra %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v=9">
@@ -15,7 +15,7 @@
 <body class="{% block body_class %}{% endblock %}" data-logout-url="{{ url_for('logout') }}" data-user-name="{{ current_user.name if current_user else '' }}">
     {% set dash_endpoints = ['dashboard', 'dashboard_cloud_security'] %}
     {% set workspace_endpoints = ['workspace', 'system_info'] %}
-    {% set zt_endpoints = ['zero_trust_network_security', 'cloud_security'] %}
+    {% set zt_endpoints = ['zero_trust_network_security', 'cloud_security', 'cloud_security_view'] %}
     {% set automation_endpoints = ['automation', 'automation_network_security', 'automation_cloud_security', 'automation_jobs'] %}
     {% set settings_endpoints = ['settings', 'settings_accounts', 'settings_roles', 'settings_inventory', 'settings_agents'] %}
 
@@ -85,7 +85,7 @@
                     <a href="{{ url_for('zero_trust_network_security') }}" class="nav-sublink {{ 'active' if request.endpoint == 'zero_trust_network_security' else '' }}">
                         <span class="nav-subdot"></span><span>Network Security</span>
                     </a>
-                    <a href="{{ url_for('cloud_security') }}" class="nav-sublink {{ 'active' if request.endpoint == 'cloud_security' else '' }}">
+                    <a href="{{ url_for('cloud_security') }}" class="nav-sublink {{ 'active' if request.endpoint in ['cloud_security', 'cloud_security_view'] else '' }}">
                         <span class="nav-subdot"></span><span>Cloud Security</span>
                     </a>
                 </div>

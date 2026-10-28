@@ -57,9 +57,7 @@
     var progressEl = document.getElementById("ztProgress");
     var runBtn = document.getElementById("ztRunBtn");
     var refreshBtn = document.getElementById("ztRefreshBtn");
-    var orgEl = document.getElementById("ztOrgName");
     var confirmModal = document.getElementById("ztConfirmModal");
-    var helpModal = document.getElementById("ztHelpModal");
     var drawer = document.getElementById("ztDrawer");
     var drawerBackdrop = document.getElementById("ztDrawerBackdrop");
     var drawerBody = document.getElementById("ztDrawerBody");
@@ -79,9 +77,12 @@
     var filterStatusPills = document.getElementById("ztFilterStatusPills");
     var filterPlatformPills = document.getElementById("ztFilterPlatformPills");
     var filterScopePills = document.getElementById("ztFilterScopePills");
+    var filterWrap = document.getElementById("ztFilterWrap");
     var filterAreaSection = document.getElementById("ztFilterAreaSection");
     var filterPlatformSection = document.getElementById("ztFilterPlatformSection");
     var filterScopeSection = document.getElementById("ztFilterScopeSection");
+    var tenantBtn = document.getElementById("ztTenantBtn");
+    var tenantPop = document.getElementById("ztTenantPop");
 
     function esc(value) {
         return String(value == null ? "" : value)
@@ -320,11 +321,10 @@
     }
 
     function updateHeader() {
-        var a = state.assessment;
-        if (orgEl) {
-            orgEl.textContent = (a && a.tenant && (a.tenant.tenantName || a.tenant.primaryDomain)) || state.userName || "Organization";
-        }
         if (runBtn) runBtn.disabled = state.running;
+        if (filterWrap) filterWrap.hidden = state.view === "overview";
+        if (filterBtn) filterBtn.hidden = state.view === "overview";
+        if (state.view === "overview") closeFilter();
     }
 
     function statusInfoButton(label, tipHtml) {
@@ -431,10 +431,6 @@
         Medium: "#FBBF24",
         Low: "#22C55E"
     };
-
-    function tip(text) {
-        return '<span class="zt-tip" title="' + esc(text) + '" aria-label="' + esc(text) + '">?</span>';
-    }
 
     function pct(num, den) {
         if (num == null || den == null || den <= 0) return null;
@@ -693,7 +689,7 @@
             '<canvas id="ztScoreRing" width="132" height="132" data-value="' + (score.value == null ? "" : score.value) + '" data-tone="' + tone + '" role="img" aria-label="' + esc(score.label) + " " + (score.value == null ? "unavailable" : score.value + " of 100") + '"></canvas>' +
             '<div class="zt-score-center"><strong>' + (score.value == null ? "—" : esc(String(score.value))) + "</strong><span>/100</span></div>" +
             "</div>" +
-            "<div><h2>" + esc(score.label) + " " + tip(score.source) + "</h2>" +
+            "<div><h2>" + esc(score.label) + "</h2>" +
             '<p class="zt-muted">' + (a.scoreSource === "backend" ? "Official assessment score." : (score.value == null ? "Score unavailable." : "Weighted from assessed controls.")) + "</p></div>" +
             "</article>" +
             kpiFilter("Passed", cover.passed, "all", "Passed", "pass", "Controls with a Passed result.") +
@@ -701,13 +697,13 @@
             kpiFilter("High findings", sev.High, "High", "Failed", "warn", "Failed controls with High severity.") +
             kpiFilter("Unable to assess", cover.investigate, "all", "Investigate", "search", "Controls that could not be assessed, including permission or collector failures.") +
             '<article class="zt-kpi">' +
-            '<div class="zt-metric-head">' + icon("shield") + " Coverage " + tip("Share of controls that returned Passed, Failed, or Planned. Investigate and Skipped are excluded from the numerator.") + "</div>" +
+            '<div class="zt-metric-head">' + icon("shield") + " Coverage</div>" +
             '<div class="zt-metric-value">' + (cover.coveragePct == null ? "Unavailable" : cover.coveragePct + "%") + "</div>" +
             '<p class="zt-muted">' + cover.assessed + " of " + cover.total + " controls assessed</p></article>" +
             "</section>";
 
         html += '<div class="zt-grid-2">' +
-            '<section class="zt-card"><h2>Security posture by pillar ' + tip("Pass rate is passed controls divided by total controls in that pillar. It is not the official Zero Trust score unless the API returned a score.") + "</h2>" +
+            '<section class="zt-card"><h2>Security posture by pillar</h2>' +
             '<div class="zt-hbar">' + pillars.map(function (p) {
                 var width = p.passRate == null ? 0 : p.passRate;
                 var toneClass = scoreTone(p.passRate);
@@ -716,7 +712,7 @@
                     '<span class="zt-hbar-track"><span class="zt-pillar-fill is-' + toneClass + '" style="width:' + width + '%"></span></span>' +
                     '<span class="zt-hbar-meta"><strong>' + (p.passRate == null ? "—" : p.passRate + "%") + "</strong> " + p.passed + "/" + p.total + (p.high ? " · " + p.high + " high" : "") + "</span></button>";
             }).join("") + "</div></section>" +
-            '<section class="zt-card"><h2>Control status ' + tip("Investigate means the control could not be assessed. It is not a Failed security result.") + "</h2>" +
+            '<section class="zt-card"><h2>Control status</h2>' +
             '<div class="zt-donut-wrap">' +
             '<canvas id="ztStatusDonut" width="168" height="168" data-passed="' + cover.passed + '" data-failed="' + cover.failed + '" data-investigate="' + cover.investigate + '" data-planned="' + cover.planned + '" data-skipped="' + cover.skipped + '" role="img" aria-label="Control status. Passed ' + cover.passed + ", failed " + cover.failed + ", investigate " + cover.investigate + ", planned " + cover.planned + ", skipped " + cover.skipped + '."></canvas>' +
             '<div class="zt-legend">' +
@@ -728,7 +724,7 @@
             "</div></div></section></div>";
 
         html += '<div class="zt-grid-2">' +
-            '<section class="zt-card"><h2>Findings by severity ' + tip("Counts Failed controls only. High maps from backend High or Critical.") + "</h2>" +
+            '<section class="zt-card"><h2>Findings by severity</h2>' +
             '<div class="zt-sev-grid">' +
             sevCard("High", sev.High, cover.failed, "High") +
             sevCard("Medium", sev.Medium, cover.failed, "Medium") +
@@ -766,7 +762,7 @@
             "</div>";
 
         html += '<div class="zt-grid-2">' +
-            '<section class="zt-card"><h2>Assessment coverage ' + tip("Coverage is assessed controls divided by all returned controls. Investigate is unable to assess, not a failure.") + "</h2>" +
+            '<section class="zt-card"><h2>Assessment coverage</h2>' +
             progressRow("Assessed", cover.assessed, cover.total, "strong") +
             progressRow("Unable to assess", cover.investigate, cover.total, "moderate") +
             progressRow("Skipped", cover.skipped, cover.total, "unknown") +
@@ -774,11 +770,10 @@
             collectorHealthCard(a) +
             "</div>";
 
-        var filtered = sortTests(applyFilters(tests));
-        var top = filtered.slice(0, OVERVIEW_FINDINGS);
-        html += '<section class="zt-card" id="ztFindings"><div class="zt-findings-head"><h2>Top findings</h2>';
-        if (hasActiveFilters()) html += '<button type="button" class="btn btn-ghost" id="ztClearFindings">Clear filters</button>';
-        html += "</div>" + tableFor(top, tests.length, "controls", { limit: OVERVIEW_FINDINGS, totalFiltered: filtered.length }) + "</section>";
+        var ranked = sortTests(tests);
+        var top = ranked.slice(0, OVERVIEW_FINDINGS);
+        html += '<section class="zt-card" id="ztFindings"><div class="zt-findings-head"><h2>Top findings</h2></div>' +
+            tableFor(top, tests.length, "controls", { limit: OVERVIEW_FINDINGS, totalFiltered: ranked.length }) + "</section>";
         return html;
     }
 
@@ -860,14 +855,12 @@
             );
         });
         if (!cards.length) return "";
-        return '<section class="zt-card zt-metric-section"><h2>Pillar telemetry ' +
-            tip("Collector counts from this assessment. A metric is shown only when that source returned data.") +
-            "</h2><div class=\"zt-metric-pillars\">" + cards.join("") + "</div></section>";
+        return '<section class="zt-card zt-metric-section"><h2>Pillar telemetry</h2><div class="zt-metric-pillars">' + cards.join("") + "</div></section>";
     }
 
-    function kpiFilter(label, value, risk, status, ic, help) {
+    function kpiFilter(label, value, risk, status, ic) {
         return '<button type="button" class="zt-kpi" data-risk="' + esc(risk) + '" data-status="' + esc(status) + '">' +
-            '<div class="zt-metric-head">' + icon(ic) + esc(label) + " " + tip(help) + "</div>" +
+            '<div class="zt-metric-head">' + icon(ic) + esc(label) + "</div>" +
             '<div class="zt-metric-value">' + esc(metric(value)) + "</div></button>";
     }
 
@@ -953,7 +946,7 @@
                     return "<tr><td>" + esc(p.domain) + '</td><td><span class="zt-health-pill">Partial</span> ' + esc(p.message || "unavailable") + "</td></tr>";
                 }).join("") + "</tbody></table>";
         }
-        return '<section class="zt-card"><h2>Assessment data health ' + tip("Collector or API issues. These are not security control failures.") + "</h2>" + rows + "</section>";
+        return '<section class="zt-card"><h2>Assessment data health</h2>' + rows + "</section>";
     }
 
     function renderGaps(items) {
@@ -1012,10 +1005,55 @@
 
     function syncFilterSections() {
         var devices = state.view === "devices";
-        var overview = state.view === "overview";
-        if (filterAreaSection) filterAreaSection.hidden = !overview;
+        if (filterAreaSection) filterAreaSection.hidden = true;
         if (filterPlatformSection) filterPlatformSection.hidden = !(devices || draft.area === "Devices");
         if (filterScopeSection) filterScopeSection.hidden = !(devices || draft.area === "Devices");
+    }
+
+    function closeTenantPop() {
+        if (tenantPop) tenantPop.hidden = true;
+        if (tenantBtn) tenantBtn.setAttribute("aria-expanded", "false");
+    }
+
+    function tenantValue(value) {
+        return value == null || value === "" ? "Unavailable" : String(value);
+    }
+
+    function openTenantPop(anchor) {
+        if (!tenantPop) return;
+        var a = state.assessment || {};
+        var t = a.tenant || {};
+        var name = tenantValue(t.tenantName || t.primaryDomain);
+        var rows = [
+            ["Tenant name", tenantValue(t.tenantName)],
+            ["Tenant ID", tenantValue(state.isAdmin ? t.tenantId : maskTenant(t.tenantId))],
+            ["Host name", tenantValue(t.hostName || t.hostname || t.primaryDomain)],
+            ["Domain", tenantValue(t.primaryDomain)]
+        ];
+        tenantPop.innerHTML =
+            '<div class="rep-device-pop-head">' +
+            '<span class="rep-device-pop-name">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-8h6v8"/></svg>' +
+            esc(name) + "</span>" +
+            '<button type="button" class="rep-device-pop-close" aria-label="Close">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>' +
+            "</button></div>" +
+            rows.map(function (row) {
+                return '<div class="rep-device-pop-row"><span>' + esc(row[0]) + "</span><span>" + esc(row[1]) + "</span></div>";
+            }).join("");
+        tenantPop.hidden = false;
+        if (tenantBtn) tenantBtn.setAttribute("aria-expanded", "true");
+        var rect = (anchor || tenantBtn).getBoundingClientRect();
+        var popRect = tenantPop.getBoundingClientRect();
+        var left = Math.min(Math.max(12, rect.left), window.innerWidth - popRect.width - 12);
+        var top = rect.bottom + 8;
+        if (top + popRect.height > window.innerHeight - 12) {
+            top = Math.max(12, rect.top - popRect.height - 8);
+        }
+        tenantPop.style.left = left + "px";
+        tenantPop.style.top = top + "px";
+        var closeBtn = tenantPop.querySelector(".rep-device-pop-close");
+        if (closeBtn) closeBtn.addEventListener("click", closeTenantPop);
     }
 
     function syncDraftFromState() {
@@ -1034,6 +1072,7 @@
     }
 
     function openFilter() {
+        if (state.view === "overview") return;
         if (!filterPanel) return;
         syncDraftFromState();
         filterPanel.hidden = false;
@@ -1589,20 +1628,30 @@
         });
     });
     window.addEventListener("popstate", function () {
-        var path = location.pathname;
-        if (path.indexOf("/identity") !== -1) setView("identity", false);
-        else if (path.indexOf("/devices") !== -1) setView("devices", false);
-        else if (path.indexOf("/network") !== -1) setView("network", false);
-        else if (path.indexOf("/data") !== -1) setView("data", false);
-        else if (path.indexOf("/infrastructure") !== -1) setView("infrastructure", false);
+        var path = location.pathname.replace(/\/+$/, "");
+        if (path.indexOf("/cloud-security/identity") !== -1) setView("identity", false);
+        else if (path.indexOf("/cloud-security/devices") !== -1) setView("devices", false);
+        else if (path.indexOf("/cloud-security/network") !== -1) setView("network", false);
+        else if (path.indexOf("/cloud-security/data") !== -1) setView("data", false);
+        else if (path.indexOf("/cloud-security/infrastructure") !== -1) setView("infrastructure", false);
         else setView("overview", false);
     });
     if (runBtn) runBtn.addEventListener("click", openConfirm);
     if (refreshBtn) refreshBtn.addEventListener("click", openConfirm);
     document.getElementById("ztConfirmCancel").addEventListener("click", closeConfirm);
     document.getElementById("ztConfirmRun").addEventListener("click", startAssessment);
-    document.getElementById("ztHelpBtn").addEventListener("click", function () { helpModal.hidden = false; });
-    document.getElementById("ztHelpClose").addEventListener("click", function () { helpModal.hidden = true; });
+    if (tenantBtn) {
+        tenantBtn.addEventListener("click", function (event) {
+            event.stopPropagation();
+            if (tenantPop && !tenantPop.hidden) closeTenantPop();
+            else openTenantPop(tenantBtn);
+        });
+    }
+    document.addEventListener("click", function (event) {
+        if (tenantPop && !tenantPop.hidden && tenantPop.contains(event.target)) return;
+        if (tenantBtn && tenantBtn.contains(event.target)) return;
+        closeTenantPop();
+    });
     document.getElementById("ztDrawerClose").addEventListener("click", closeDrawer);
     if (drawerBackdrop) drawerBackdrop.addEventListener("click", closeDrawer);
     document.getElementById("ztThemeBtn").addEventListener("click", function () {
@@ -1630,7 +1679,7 @@
             closeDrawer();
             closeConfirm();
             closeFilter();
-            helpModal.hidden = true;
+            closeTenantPop();
             exportMenu.hidden = true;
         }
     });

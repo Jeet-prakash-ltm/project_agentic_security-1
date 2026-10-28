@@ -75,7 +75,7 @@
     display: flex;
     align-items: center;
     gap: 24px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     margin-bottom: 20px;
     padding: 16px 24px;
     min-height: 56px;
@@ -122,6 +122,7 @@
     gap: 10px;
     min-width: 168px;
     padding: 8px 0;
+    flex-shrink: 0;
 }
 
 .zt-top-actions {
@@ -214,6 +215,8 @@
     display: inline-flex;
     gap: 0;
     align-self: stretch;
+    flex: 1;
+    min-width: 0;
     background: transparent;
     border: 0;
     padding: 0;
@@ -224,6 +227,7 @@
 .zt-tab {
     display: inline-flex;
     align-items: center;
+    height: 100%;
     padding: 0 14px;
     color: var(--zt-muted);
     text-decoration: none;
@@ -251,17 +255,106 @@
     margin-left: auto;
     display: inline-flex;
     align-items: center;
+    align-self: stretch;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
 }
 
-.zt-org {
+.zt-top-actions .btn,
+.zt-top-actions .icon-btn,
+.zt-top-actions .reports-filter-btn {
+    height: 36px;
+}
+
+.zt-tenant-pop {
+    position: fixed;
+    z-index: 90;
+    width: 280px;
+    max-width: calc(100vw - 32px);
+    padding: 16px;
+    background: var(--glass, var(--zt-surface));
+    border: 1px solid var(--glass-border, var(--zt-border));
+    border-radius: 14px;
+    -webkit-backdrop-filter: blur(34px) saturate(170%);
+    backdrop-filter: blur(34px) saturate(170%);
+    box-shadow: var(--shadow-glass, var(--zt-shadow));
+}
+
+.zt-tenant-pop[hidden] {
+    display: none;
+}
+
+.zt-tenant-pop .rep-device-pop-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.zt-tenant-pop .rep-device-pop-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     font-size: 14px;
+    font-weight: 700;
     color: var(--zt-text);
-    max-width: 180px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+}
+
+.zt-tenant-pop .rep-device-pop-name svg {
+    width: 16px;
+    height: 16px;
+    color: var(--crimson, #ff5e4f);
+}
+
+.zt-tenant-pop .rep-device-pop-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--zt-muted);
+    cursor: pointer;
+}
+
+.zt-tenant-pop .rep-device-pop-close:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--zt-text);
+}
+
+.zt-tenant-pop .rep-device-pop-close svg {
+    width: 14px;
+    height: 14px;
+}
+
+.zt-tenant-pop .rep-device-pop-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 0;
+    font-size: 12.5px;
+    border-bottom: 1px solid var(--zt-border);
+}
+
+.zt-tenant-pop .rep-device-pop-row:last-child {
+    border-bottom: none;
+}
+
+.zt-tenant-pop .rep-device-pop-row span:first-child {
+    color: var(--zt-muted);
+}
+
+.zt-tenant-pop .rep-device-pop-row span:last-child {
+    color: var(--zt-text);
+    font-weight: 600;
+    text-align: right;
+    word-break: break-all;
 }
 
 .zt-export {
@@ -853,6 +946,10 @@
     overflow: visible;
 }
 
+.zt-app .reports-filter[hidden] {
+    display: none;
+}
+
 .zt-app .reports-filter-btn {
     display: inline-flex;
     align-items: center;
@@ -1436,21 +1533,6 @@
 .zt-sev-row:focus-visible {
     color: var(--zt-text);
     outline: none;
-}
-
-.zt-tip {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 14px;
-    height: 14px;
-    margin-left: 4px;
-    border-radius: 50%;
-    border: 1px solid var(--zt-border);
-    font-size: 10px;
-    color: var(--zt-muted);
-    cursor: help;
-    vertical-align: middle;
 }
 
 .zt-hbar,

@@ -620,6 +620,148 @@ def _sankey_from_inventory(inventory):
     }
 
 
+def _available_block(source):
+    if not isinstance(source, dict) or source.get("available") is not True:
+        return None
+    return source
+
+
+def _count_metric(source, key):
+    block = _available_block(source)
+    if not block:
+        return None
+    value = _as_int(block.get(key))
+    if value is None:
+        return None
+    return {"value": value}
+
+
+def _ratio_metric(source, num_key, den_key):
+    block = _available_block(source)
+    if not block:
+        return None
+    value = _as_int(block.get(num_key))
+    total = _as_int(block.get(den_key))
+    if value is None and total is None:
+        return None
+    metric = {}
+    if value is not None:
+        metric["value"] = value
+    if total is not None:
+        metric["total"] = total
+    return metric
+
+
+def _bool_metric(source, key):
+    block = _available_block(source)
+    if not block or key not in block:
+        return None
+    value = block.get(key)
+    if value is None:
+        return None
+    return {"value": bool(value)}
+
+
+def _score_metric(source, key):
+    block = _available_block(source)
+    if not block:
+        return None
+    value = block.get(key)
+    if value is None or value == "":
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if number != number:
+        return None
+    if number == int(number):
+        return {"value": int(number)}
+    return {"value": round(number, 1)}
+
+
+def _compact_metrics(mapping):
+    cleaned = {key: value for key, value in mapping.items() if value is not None}
+    return cleaned or None
+
+
+def _pillar_metrics_from_evidence(evidence):
+    evidence = evidence or {}
+    registration = evidence.get("auth_registration") or {}
+    ca = evidence.get("conditional_access") or {}
+    roles = evidence.get("privileged_roles") or {}
+    pim = evidence.get("privileged_eligibility") or {}
+    risky = evidence.get("risky_users") or {}
+    reviews = evidence.get("access_reviews") or {}
+    identity = _compact_metrics({
+        "mfaRegistered": _ratio_metric(registration, "mfa_registered_count", "count"),
+        "passwordless": _ratio_metric(registration, "passwordless_count", "count"),
+        "caEnabled": _ratio_metric(ca, "enabled_count", "count"),
+        "mfaPolicies": _count_metric(ca, "mfa_policy_count"),
+        "privilegedMembers": _count_metric(roles, "privileged_member_count"),
+        "pimEligible": _count_metric(pim, "eligible_count"),
+        "highRiskUsers": _count_metric(risky, "high_count"),
+        "accessReviews": _count_metric(reviews, "count"),
+    })
+
+    managed = evidence.get("managed_devices") or {}
+    compliance = evidence.get("device_compliance") or {}
+    entra = evidence.get("entra_devices") or {}
+    devices = _compact_metrics({
+        "managedDevices": _count_metric(managed, "count"),
+        "compliant": _ratio_metric(managed, "compliant_count", "count"),
+        "encrypted": _ratio_metric(managed, "encrypted_count", "count"),
+        "compliancePolicies": _ratio_metric(compliance, "assigned_count", "count"),
+        "entraDevices": _count_metric(entra, "count"),
+    })
+
+    network = evidence.get("network_security") or {}
+    network_metrics = _compact_metrics({
+        "nsgsAssociated": _ratio_metric(network, "nsg_associated_count", "nsg_count"),
+        "subnetsWithoutNsg": _count_metric(network, "subnets_without_nsg_count"),
+        "publicIps": _ratio_metric(network, "public_ip_attached_count", "public_ip_count"),
+        "openManagementRules": _count_metric(network, "open_management_rule_count"),
+        "internetAllowRules": _count_metric(network, "internet_allow_rule_count"),
+        "firewalls": _count_metric(network, "firewall_count"),
+        "wafPolicies": _count_metric(network, "waf_policy_count"),
+        "privateEndpoints": _count_metric(network, "private_endpoint_count"),
+    })
+
+    labels = evidence.get("sensitivity_labels") or {}
+    dlp = evidence.get("dlp_policies") or {}
+    retention = evidence.get("retention_labels") or {}
+    sharepoint = evidence.get("sharepoint_settings") or {}
+    audits = evidence.get("directory_audits") or {}
+    data = _compact_metrics({
+        "sensitivityLabels": _ratio_metric(labels, "active_count", "count"),
+        "dlpScopes": _ratio_metric(dlp, "enabled_count", "count"),
+        "retentionLabels": _count_metric(retention, "count"),
+        "anonymousSharing": _bool_metric(sharepoint, "anonymous_sharing"),
+        "directoryAudits": _count_metric(audits, "count"),
+    })
+
+    infra = evidence.get("infrastructure_security") or {}
+    score = evidence.get("defender_secure_score") or {}
+    assessments = evidence.get("defender_assessments") or {}
+    infrastructure = _compact_metrics({
+        "resourceGroups": _count_metric(infra, "resource_group_count"),
+        "vms": _ratio_metric(infra, "trusted_launch_count", "vm_count"),
+        "storageHttps": _ratio_metric(infra, "storage_https_count", "storage_account_count"),
+        "storagePublic": _count_metric(infra, "storage_public_count"),
+        "keyVaultPurge": _ratio_metric(infra, "key_vault_purge_protection_count", "key_vault_count"),
+        "defenderScore": _score_metric(score, "percentage"),
+        "unhealthyAssessments": _count_metric(assessments, "unhealthy_count"),
+        "privilegedAssignments": _count_metric(infra, "privileged_assignment_count"),
+    })
+    return {
+        "identity": identity,
+        "devices": devices,
+        "network": network_metrics,
+        "data": data,
+        "infrastructure": infrastructure,
+    }
+
+
 def _visualizations_from_evidence(evidence, inventory):
     methods = evidence.get("authentication_methods") or {}
     registration = evidence.get("auth_registration") or {}
@@ -666,6 +808,7 @@ def _visualizations_from_evidence(evidence, inventory):
         "userAuthCoverage": user_auth,
         "conditionalAccessCoverage": ca_coverage,
         "deviceSignIn": device_sign_in,
+        "pillarMetrics": _pillar_metrics_from_evidence(evidence),
     }
 
 

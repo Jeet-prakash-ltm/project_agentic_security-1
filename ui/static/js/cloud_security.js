@@ -348,9 +348,21 @@
             bannerEl.hidden = false;
             bannerEl.className = "zt-banner is-partial";
             var items = state.assessment.partial.map(function (p) {
-                return esc(p.domain) + ": " + esc(p.message || "unavailable");
-            }).join(" ");
-            bannerEl.innerHTML = "<strong>Assessment completed with partial data.</strong> Some Microsoft Graph or Microsoft Intune information could not be retrieved. " + items;
+                return "<li><strong>" + esc(p.domain) + "</strong> " + esc(p.message || "unavailable") + "</li>";
+            }).join("");
+            bannerEl.innerHTML =
+                '<div class="zt-banner-title"><strong>Assessment completed with partial data</strong>' +
+                '<button type="button" class="zt-info-btn" id="ztPartialInfo" aria-label="Collector errors" aria-expanded="false">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/></svg>' +
+                '<span class="zt-info-tip" role="tooltip"><p>Some Microsoft Graph or Microsoft Intune information could not be retrieved. These are collector or API issues, not security control failures.</p><ul>' + items + "</ul></span></button></div>";
+            var infoBtn = document.getElementById("ztPartialInfo");
+            if (infoBtn) {
+                infoBtn.onclick = function (ev) {
+                    ev.stopPropagation();
+                    var open = bannerEl.classList.toggle("is-open");
+                    infoBtn.setAttribute("aria-expanded", open ? "true" : "false");
+                };
+            }
             return;
         }
         if (state.assessment && state.assessment.stale) {
@@ -713,6 +725,8 @@
             deviceSignInCard(viz.deviceSignIn) +
             "</div>";
 
+        html += pillarTelemetrySection(viz);
+
         html += '<div class="zt-pillar-cards">' + pillars.map(function (p) {
             return '<button type="button" class="zt-pillar-card" data-view="' + esc(p.view) + '">' +
                 "<h3>" + esc(p.name) + "</h3>" +
@@ -740,6 +754,89 @@
         if (hasActiveFilters()) html += '<button type="button" class="btn btn-ghost" id="ztClearFindings">Clear filters</button>';
         html += "</div>" + tableFor(filtered, tests.length, "controls") + "</section>";
         return html;
+    }
+
+    var PILLAR_METRIC_FIELDS = {
+        identity: [
+            { key: "mfaRegistered", label: "MFA registered" },
+            { key: "passwordless", label: "Passwordless" },
+            { key: "caEnabled", label: "CA enabled" },
+            { key: "mfaPolicies", label: "MFA policies" },
+            { key: "privilegedMembers", label: "Privileged members" },
+            { key: "pimEligible", label: "PIM eligible" },
+            { key: "highRiskUsers", label: "High-risk users" },
+            { key: "accessReviews", label: "Access reviews" }
+        ],
+        devices: [
+            { key: "managedDevices", label: "Managed devices" },
+            { key: "compliant", label: "Compliant" },
+            { key: "encrypted", label: "Encrypted" },
+            { key: "compliancePolicies", label: "Compliance policies" },
+            { key: "entraDevices", label: "Entra devices" }
+        ],
+        network: [
+            { key: "nsgsAssociated", label: "NSGs associated" },
+            { key: "subnetsWithoutNsg", label: "Subnets without NSG" },
+            { key: "publicIps", label: "Public IPs attached" },
+            { key: "openManagementRules", label: "Open management rules" },
+            { key: "internetAllowRules", label: "Internet allow rules" },
+            { key: "firewalls", label: "Azure Firewalls" },
+            { key: "wafPolicies", label: "WAF policies" },
+            { key: "privateEndpoints", label: "Private endpoints" }
+        ],
+        data: [
+            { key: "sensitivityLabels", label: "Sensitivity labels" },
+            { key: "dlpScopes", label: "DLP scopes" },
+            { key: "retentionLabels", label: "Retention labels" },
+            { key: "anonymousSharing", label: "Anonymous sharing" },
+            { key: "directoryAudits", label: "Directory audits" }
+        ],
+        infrastructure: [
+            { key: "resourceGroups", label: "Resource groups" },
+            { key: "vms", label: "Trusted Launch VMs" },
+            { key: "storageHttps", label: "Storage HTTPS" },
+            { key: "storagePublic", label: "Public storage" },
+            { key: "keyVaultPurge", label: "Key Vault purge protection" },
+            { key: "defenderScore", label: "Defender secure score" },
+            { key: "unhealthyAssessments", label: "Unhealthy assessments" },
+            { key: "privilegedAssignments", label: "Privileged ARM assignments" }
+        ]
+    };
+
+    function formatPillarMetric(item) {
+        if (!item) return null;
+        if (typeof item.value === "boolean") return item.value ? "Yes" : "No";
+        if (item.total != null && item.value != null) {
+            var p = pct(item.value, item.total);
+            return metric(item.value) + " / " + metric(item.total) + (p == null ? "" : " · " + p + "%");
+        }
+        if (item.value != null) return metric(item.value);
+        return null;
+    }
+
+    function pillarTelemetrySection(viz) {
+        var metrics = (viz && viz.pillarMetrics) || {};
+        var cards = [];
+        PILLAR_ORDER.forEach(function (p) {
+            var fields = PILLAR_METRIC_FIELDS[p.key] || [];
+            var data = metrics[p.key];
+            if (!data) return;
+            var rows = "";
+            fields.forEach(function (field) {
+                var shown = formatPillarMetric(data[field.key]);
+                if (shown == null) return;
+                rows += '<div class="zt-metric-row"><span>' + esc(field.label) + "</span><strong>" + esc(shown) + "</strong></div>";
+            });
+            if (!rows) return;
+            cards.push(
+                '<button type="button" class="zt-metric-pillar" data-view="' + esc(p.view) + '">' +
+                "<h3>" + esc(p.name) + "</h3>" + rows + "</button>"
+            );
+        });
+        if (!cards.length) return "";
+        return '<section class="zt-card zt-metric-section"><h2>Pillar telemetry ' +
+            tip("Collector counts from this assessment. A metric is shown only when that source returned data.") +
+            "</h2><div class=\"zt-metric-pillars\">" + cards.join("") + "</div></section>";
     }
 
     function kpiFilter(label, value, risk, status, ic, help) {

@@ -480,6 +480,86 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         })
         self.assertIsNone(adapted["visualizations"]["deviceFlow"])
         self.assertIsNone(adapted["visualizations"]["privilegedAuth"])
+        self.assertIsNone(adapted["visualizations"]["pillarMetrics"]["identity"])
+        self.assertIsNone(adapted["visualizations"]["pillarMetrics"]["devices"])
+        self.assertIsNone(adapted["visualizations"]["pillarMetrics"]["network"])
+        self.assertIsNone(adapted["visualizations"]["pillarMetrics"]["data"])
+        self.assertIsNone(adapted["visualizations"]["pillarMetrics"]["infrastructure"])
+
+    def test_pillar_metrics_only_from_available_evidence(self):
+        adapted = adapt_assessment({
+            "assessment_id": "metrics-1",
+            "status": "completed",
+            "findings": [],
+            "evidence": {
+                "auth_registration": {
+                    "available": True,
+                    "count": 40,
+                    "mfa_registered_count": 32,
+                    "passwordless_count": 4,
+                },
+                "conditional_access": {
+                    "available": True,
+                    "count": 16,
+                    "enabled_count": 8,
+                    "mfa_policy_count": 3,
+                },
+                "privileged_roles": {
+                    "available": True,
+                    "privileged_member_count": 5,
+                },
+                "managed_devices": {
+                    "available": True,
+                    "count": 12,
+                    "compliant_count": 9,
+                    "encrypted_count": 8,
+                    "devices": [],
+                },
+                "network_security": {
+                    "available": True,
+                    "nsg_count": 6,
+                    "nsg_associated_count": 4,
+                    "public_ip_count": 3,
+                    "public_ip_attached_count": 2,
+                    "open_management_rule_count": 1,
+                    "firewall_count": 0,
+                },
+                "dlp_policies": {
+                    "available": True,
+                    "count": 2,
+                    "enabled_count": 1,
+                },
+                "sensitivity_labels": {"available": False, "error": "Graph 403"},
+                "infrastructure_security": {
+                    "available": True,
+                    "resource_group_count": 65,
+                    "vm_count": 4,
+                    "trusted_launch_count": 1,
+                    "storage_account_count": 7,
+                    "storage_https_count": 7,
+                    "storage_public_count": 2,
+                    "privileged_assignment_count": 9,
+                },
+                "defender_secure_score": {
+                    "available": True,
+                    "percentage": 61.5,
+                },
+                "access_reviews": {"available": False, "error": "Graph 400"},
+            },
+        })
+        metrics = adapted["visualizations"]["pillarMetrics"]
+        self.assertEqual(metrics["identity"]["mfaRegistered"], {"value": 32, "total": 40})
+        self.assertEqual(metrics["identity"]["caEnabled"], {"value": 8, "total": 16})
+        self.assertEqual(metrics["identity"]["privilegedMembers"], {"value": 5})
+        self.assertNotIn("accessReviews", metrics["identity"])
+        self.assertEqual(metrics["devices"]["compliant"], {"value": 9, "total": 12})
+        self.assertEqual(metrics["network"]["nsgsAssociated"], {"value": 4, "total": 6})
+        self.assertEqual(metrics["network"]["openManagementRules"], {"value": 1})
+        self.assertEqual(metrics["data"]["dlpScopes"], {"value": 1, "total": 2})
+        self.assertNotIn("sensitivityLabels", metrics["data"])
+        self.assertEqual(metrics["infrastructure"]["resourceGroups"], {"value": 65})
+        self.assertEqual(metrics["infrastructure"]["defenderScore"], {"value": 61.5})
+        self.assertEqual(metrics["infrastructure"]["storagePublic"], {"value": 2})
 
     def test_csv_export_fields(self):
         adapted = adapt_assessment({

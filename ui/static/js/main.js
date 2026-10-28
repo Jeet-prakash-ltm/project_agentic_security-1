@@ -403,14 +403,14 @@
     });
 
     // ------------------------------------------------------------
-    // INACTIVITY SIGN-OUT — after 5 idle minutes the session ends
+    // INACTIVITY SIGN-OUT — after 15 idle minutes the session ends
     // and the user is returned to sign-in, then back to this page.
     // ------------------------------------------------------------
     (function idleSignOut() {
         var logoutUrl = document.body.getAttribute("data-logout-url");
         if (!logoutUrl) return;
 
-        var LIMIT_MS = 5 * 60 * 1000;
+        var LIMIT_MS = 15 * 60 * 1000;
         var timer = null;
         var events = ["mousemove", "mousedown", "click", "keydown", "scroll", "touchstart", "wheel"];
 

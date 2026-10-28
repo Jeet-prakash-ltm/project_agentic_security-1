@@ -53,7 +53,7 @@
     };
 
     var viewEl = document.getElementById("ztView");
-    var bannerEl = document.getElementById("ztBanner");
+    var bannerEl = document.getElementById("ztStatusPill");
     var progressEl = document.getElementById("ztProgress");
     var runBtn = document.getElementById("ztRunBtn");
     var refreshBtn = document.getElementById("ztRefreshBtn");
@@ -327,43 +327,73 @@
         if (runBtn) runBtn.disabled = state.running;
     }
 
+    function statusInfoButton(label, tipHtml) {
+        return '<button type="button" class="zt-info-btn" id="ztStatusInfo" aria-label="' + label + '" aria-expanded="false">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/></svg>' +
+            '<span class="zt-info-tip" role="tooltip">' + tipHtml + "</span></button>";
+    }
+
+    function bindStatusInfo() {
+        var infoBtn = document.getElementById("ztStatusInfo");
+        if (!infoBtn || !bannerEl) return;
+        infoBtn.onclick = function (ev) {
+            ev.stopPropagation();
+            var open = bannerEl.classList.toggle("is-open");
+            infoBtn.setAttribute("aria-expanded", open ? "true" : "false");
+        };
+    }
+
     function renderBanner() {
         if (!bannerEl) return;
+        bannerEl.classList.remove("is-open");
+        if (state.running || state.loading) {
+            bannerEl.hidden = true;
+            bannerEl.textContent = "";
+            return;
+        }
         if (state.error) {
             bannerEl.hidden = false;
-            bannerEl.className = "zt-banner is-error";
-            bannerEl.innerHTML = "<strong>Assessment failed.</strong> " + esc(state.error) +
-                (state.assessmentId ? " Assessment ID: " + esc(state.assessmentId) + "." : "") +
-                ' <button type="button" class="zt-copy" id="ztRetryFailed">Retry</button>';
+            bannerEl.className = "zt-status-pill is-error";
+            bannerEl.innerHTML = "<strong>Failed</strong>" +
+                statusInfoButton("Assessment error", "<p>" + esc(state.error) +
+                    (state.assessmentId ? " Assessment ID: " + esc(state.assessmentId) + "." : "") +
+                    '</p><button type="button" class="zt-copy" id="ztRetryFailed">Retry</button>');
+            bindStatusInfo();
             var retry = document.getElementById("ztRetryFailed");
-            if (retry) retry.onclick = function () { openConfirm(); };
+            if (retry) retry.onclick = function (ev) { ev.stopPropagation(); openConfirm(); };
             return;
         }
         if (state.assessment && state.assessment.partial && state.assessment.partial.length) {
             bannerEl.hidden = false;
-            bannerEl.className = "zt-banner is-partial";
+            bannerEl.className = "zt-status-pill is-partial";
             var items = state.assessment.partial.map(function (p) {
                 return "<li><strong>" + esc(p.domain) + "</strong> " + esc(p.message || "unavailable") + "</li>";
             }).join("");
-            bannerEl.innerHTML =
-                '<div class="zt-banner-title"><strong>Assessment completed with partial data</strong>' +
-                '<button type="button" class="zt-info-btn" id="ztPartialInfo" aria-label="Collector errors" aria-expanded="false">' +
-                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/></svg>' +
-                '<span class="zt-info-tip" role="tooltip"><p>Some Microsoft Graph or Microsoft Intune information could not be retrieved. These are collector or API issues, not security control failures.</p><ul>' + items + "</ul></span></button></div>";
-            var infoBtn = document.getElementById("ztPartialInfo");
-            if (infoBtn) {
-                infoBtn.onclick = function (ev) {
-                    ev.stopPropagation();
-                    var open = bannerEl.classList.toggle("is-open");
-                    infoBtn.setAttribute("aria-expanded", open ? "true" : "false");
-                };
-            }
+            bannerEl.innerHTML = "<strong>Partial</strong>" +
+                statusInfoButton("Collector errors",
+                    "<p>Some Microsoft Graph or Microsoft Intune information could not be retrieved. These are collector or API issues, not security control failures.</p><ul>" + items + "</ul>");
+            bindStatusInfo();
             return;
         }
-        if (state.assessment && state.assessment.stale) {
+        if (state.assessment && (state.status === "completed" || state.assessment.completedAt)) {
             bannerEl.hidden = false;
-            bannerEl.className = "zt-banner is-stale";
-            bannerEl.textContent = "These results may no longer represent the current tenant configuration.";
+            if (state.assessment.stale) {
+                bannerEl.className = "zt-status-pill is-stale";
+                bannerEl.innerHTML = "<strong>Stale</strong>" +
+                    statusInfoButton("Stale results", "<p>These results may no longer represent the current tenant configuration.</p>");
+                bindStatusInfo();
+                return;
+            }
+            bannerEl.className = "zt-status-pill is-success";
+            bannerEl.innerHTML = "<strong>Completed</strong>";
+            return;
+        }
+        if (state.assessmentId || state.status) {
+            bannerEl.hidden = false;
+            bannerEl.className = "zt-status-pill is-error";
+            bannerEl.innerHTML = "<strong>Incomplete</strong>" +
+                statusInfoButton("Incomplete assessment", "<p>" + esc(state.message || "Assessment did not finish successfully.") + "</p>");
+            bindStatusInfo();
             return;
         }
         bannerEl.hidden = true;

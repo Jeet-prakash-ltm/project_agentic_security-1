@@ -499,7 +499,7 @@ def dashboard():
 @app.route("/dashboard/cloud-security/infrastructure")
 @login_required
 def cloud_security():
-    """Zero Trust assessment workspace under Dashboard / Cloud Security."""
+    """Zero Trust assessment workspace under Zero Trust / Cloud Security."""
 
     path = request.path.rstrip("/")
     if path.endswith("/identity"):

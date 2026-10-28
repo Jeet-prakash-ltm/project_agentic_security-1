@@ -79,7 +79,7 @@
     margin-bottom: 20px;
     padding: 16px 24px;
     min-height: 56px;
-    overflow: hidden;
+    overflow: visible;
     border-radius: 24px;
     border: 1px solid rgba(255, 94, 79, 0.2);
     box-shadow: var(--zt-shadow);
@@ -109,10 +109,14 @@
 .zt-tabs,
 .zt-top-actions {
     position: relative;
+}
+
+.zt-tabs {
     z-index: 1;
 }
 
 .zt-brand {
+    z-index: 2;
     display: inline-flex;
     align-items: center;
     gap: 10px;
@@ -120,7 +124,74 @@
     padding: 8px 0;
 }
 
-.zt-brand strong {
+.zt-top-actions {
+    z-index: 3;
+}
+
+.zt-status-pill {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 4px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.2;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.zt-status-pill strong {
+    display: inline;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.2;
+}
+
+.zt-status-pill.is-success {
+    color: var(--zt-passed, #22C55E);
+    background: rgba(34, 197, 94, 0.16);
+    border-color: rgba(34, 197, 94, 0.4);
+}
+
+.zt-status-pill.is-partial,
+.zt-status-pill.is-stale {
+    color: var(--zt-yellow, #FBBF24);
+    background: rgba(251, 191, 36, 0.18);
+    border-color: rgba(217, 119, 6, 0.4);
+}
+
+.zt-status-pill.is-error {
+    color: var(--zt-failed, #EF4444);
+    background: rgba(239, 68, 68, 0.16);
+    border-color: rgba(220, 38, 38, 0.4);
+}
+
+.zt-status-pill .zt-info-btn {
+    width: 18px;
+    height: 18px;
+    color: inherit;
+}
+
+.zt-status-pill .zt-info-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.zt-status-pill .zt-info-tip {
+    left: 0;
+    top: calc(100% + 10px);
+    z-index: 90;
+}
+
+.zt-brand > div:first-child strong {
     display: block;
     font-size: 15px;
     font-weight: 800;
@@ -490,7 +561,6 @@
     margin-bottom: 10px;
 }
 
-.zt-banner,
 .zt-progress {
     margin: 0 0 16px;
     padding: 12px 16px;
@@ -501,25 +571,6 @@
     font-size: 13px;
     overflow: visible;
     box-shadow: var(--shadow-soft);
-}
-
-.zt-banner.is-error,
-.zt-banner.is-failed {
-    border-color: rgba(220, 38, 38, 0.35);
-    background: rgba(220, 38, 38, 0.08);
-}
-
-.zt-banner.is-warn,
-.zt-banner.is-partial,
-.zt-banner.is-stale {
-    border-color: rgba(217, 119, 6, 0.35);
-    background: rgba(217, 119, 6, 0.08);
-}
-
-.zt-banner-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
 }
 
 .zt-info-btn {
@@ -545,7 +596,7 @@
 
 .zt-info-btn:hover,
 .zt-info-btn:focus-visible,
-.zt-banner.is-open .zt-info-btn {
+.zt-status-pill.is-open .zt-info-btn {
     color: var(--crimson, #ff5e4f);
     background: rgba(255, 94, 79, 0.14);
     outline: none;
@@ -590,7 +641,7 @@
 
 .zt-info-btn:hover .zt-info-tip,
 .zt-info-btn:focus-visible .zt-info-tip,
-.zt-banner.is-open .zt-info-tip {
+.zt-status-pill.is-open .zt-info-tip {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
@@ -798,6 +849,8 @@
 
 .zt-app .reports-filter {
     position: relative;
+    z-index: 30;
+    overflow: visible;
 }
 
 .zt-app .reports-filter-btn {
@@ -848,7 +901,7 @@
     -webkit-backdrop-filter: blur(34px) saturate(170%);
     backdrop-filter: blur(34px) saturate(170%);
     box-shadow: var(--shadow-glass, var(--zt-shadow));
-    z-index: 80;
+    z-index: 90;
     display: flex;
     flex-direction: column;
     gap: 16px;

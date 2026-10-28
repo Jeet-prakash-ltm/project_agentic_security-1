@@ -4,7 +4,7 @@
 
 {% block page_title %}Cloud Security{% endblock %}
 
-{% block hero_eyebrow %}Dashboard / Cloud Security{% endblock %}
+{% block hero_eyebrow %}Zero Trust / Cloud Security{% endblock %}
 
 {% block navbar_actions %}
 <button class="hero-chip-btn" id="ztRefreshBtn" type="button" aria-label="Refresh assessment">
@@ -23,6 +23,7 @@
                     <strong>Zero Trust</strong>
                     <span class="zt-brand-sub">Assessment</span>
                 </div>
+                <div class="zt-status-pill" id="ztStatusPill" hidden></div>
             </div>
             <nav class="zt-tabs" aria-label="Zero Trust pages">
                 <a href="{{ url_for('cloud_security') }}" class="zt-tab" data-view="overview">Overview</a>
@@ -151,7 +152,6 @@
             </div>
         </header>
 
-        <div class="zt-banner" id="ztBanner" hidden></div>
         <div class="zt-progress" id="ztProgress" hidden role="status" aria-live="polite"></div>
         <div id="ztView" class="zt-view"></div>
     </div>
@@ -210,5 +210,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=15"></script>
+<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=16"></script>
 {% endblock %}

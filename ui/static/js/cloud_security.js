@@ -721,16 +721,6 @@
         var failedPct = pct(cover.failed, cover.total);
         var investPct = pct(cover.investigate, cover.total);
         html += '<section class="zt-exec">' +
-            '<article class="zt-score-card">' +
-            '<div class="zt-score-ring-wrap">' +
-            '<canvas id="ztScoreRing" width="180" height="180" data-passed="' + cover.passed + '" data-failed="' + cover.failed + '" data-investigate="' + cover.investigate + '" role="img" aria-label="' + esc(score.label) + " " + (score.value == null ? "unavailable" : score.value + " of 100") + '"></canvas>' +
-            '<div class="zt-score-center"><strong>' + (score.value == null ? "—" : esc(String(score.value))) + "%</strong><span>Zero Trust score</span></div>" +
-            "</div>" +
-            '<div class="zt-donut-pills">' +
-            '<button type="button" class="zt-donut-pill" data-risk="all" data-status="Passed"><i class="zt-donut-dot is-passed"></i><span>Passed</span><strong>' + cover.passed + "</strong><em>" + (passedPct == null ? "—" : passedPct + "%") + "</em></button>" +
-            '<button type="button" class="zt-donut-pill" data-risk="all" data-status="Failed"><i class="zt-donut-dot is-failed"></i><span>Failed</span><strong>' + cover.failed + "</strong><em>" + (failedPct == null ? "—" : failedPct + "%") + "</em></button>" +
-            '<button type="button" class="zt-donut-pill" data-risk="all" data-status="Investigate"><i class="zt-donut-dot is-investigate"></i><span>Investigate</span><strong>' + cover.investigate + "</strong><em>" + (investPct == null ? "—" : investPct + "%") + "</em></button>" +
-            "</div></article>" +
             '<section class="zt-inventory-card">' +
             "<h2>Tenant inventory</h2>" +
             '<div class="zt-inv-stats">' +
@@ -740,28 +730,26 @@
             inventoryStat("purple", "devices", "Managed devices", t.managedDevices) +
             inventoryStat("teal", "groups", "Groups", t.groups) +
             inventoryStat("teal", "apps", "Applications", t.applications) +
-            "</div></section></section>";
+            "</div></section>" +
+            '<article class="zt-score-card">' +
+            "<h2>Zero Trust Score</h2>" +
+            '<div class="zt-score-ring-wrap">' +
+            '<canvas id="ztScoreRing" width="180" height="180" data-passed="' + cover.passed + '" data-failed="' + cover.failed + '" data-investigate="' + cover.investigate + '" role="img" aria-label="' + esc(score.label) + " " + (score.value == null ? "unavailable" : score.value + " of 100") + '"></canvas>' +
+            '<div class="zt-score-center"><strong>' + (score.value == null ? "—" : esc(String(score.value))) + "%</strong></div>" +
+            "</div>" +
+            '<div class="zt-donut-pills">' +
+            '<button type="button" class="zt-donut-pill" data-risk="all" data-status="Passed"><i class="zt-donut-dot is-passed"></i><span>Passed</span><strong>' + cover.passed + "</strong><em>" + (passedPct == null ? "—" : passedPct + "%") + "</em></button>" +
+            '<button type="button" class="zt-donut-pill" data-risk="all" data-status="Failed"><i class="zt-donut-dot is-failed"></i><span>Failed</span><strong>' + cover.failed + "</strong><em>" + (failedPct == null ? "—" : failedPct + "%") + "</em></button>" +
+            '<button type="button" class="zt-donut-pill" data-risk="all" data-status="Investigate"><i class="zt-donut-dot is-investigate"></i><span>Investigate</span><strong>' + cover.investigate + "</strong><em>" + (investPct == null ? "—" : investPct + "%") + "</em></button>" +
+            "</div></article></section>";
 
-        html += '<div class="zt-grid-2">' +
-            '<section class="zt-card"><h2>Security posture by pillar</h2>' +
-            '<div class="zt-hbar">' + pillars.map(function (p) {
-                var width = p.passRate == null ? 0 : p.passRate;
-                var toneClass = scoreTone(p.passRate);
-                return '<button type="button" class="zt-hbar-row" data-area="' + esc(p.name) + '" data-risk="all" data-status="all">' +
-                    '<span class="zt-hbar-name">' + esc(p.name) + "</span>" +
-                    '<span class="zt-hbar-track"><span class="zt-pillar-fill is-' + toneClass + '" style="width:' + width + '%"></span></span>' +
-                    '<span class="zt-hbar-meta"><strong>' + (p.passRate == null ? "—" : p.passRate + "%") + "</strong> " + p.passed + "/" + p.total + (p.high ? " · " + p.high + " high" : "") + "</span></button>";
-            }).join("") + "</div></section>" +
-            '<section class="zt-card"><h2>Control status</h2>' +
-            '<div class="zt-donut-wrap">' +
-            '<canvas id="ztStatusDonut" width="168" height="168" data-passed="' + cover.passed + '" data-failed="' + cover.failed + '" data-investigate="' + cover.investigate + '" data-planned="' + cover.planned + '" data-skipped="' + cover.skipped + '" role="img" aria-label="Control status. Passed ' + cover.passed + ", failed " + cover.failed + ", investigate " + cover.investigate + ", planned " + cover.planned + ", skipped " + cover.skipped + '."></canvas>' +
-            '<div class="zt-legend">' +
-            statusLegend("Passed", cover.passed, cover.total, "all", "Passed") +
-            statusLegend("Failed", cover.failed, cover.total, "all", "Failed") +
-            statusLegend("Investigate", cover.investigate, cover.total, "all", "Investigate") +
-            statusLegend("Planned", cover.planned, cover.total, "all", "Planned") +
-            statusLegend("Skipped", cover.skipped, cover.total, "all", "Skipped") +
-            "</div></div></section></div>";
+        html += '<div class="zt-pillar-cards">' + pillars.map(function (p) {
+            return '<button type="button" class="zt-pillar-card" data-view="' + esc(p.view) + '">' +
+                "<h3>" + esc(p.name) + "</h3>" +
+                '<div class="zt-pillar-count"><strong>' + (p.passRate == null ? "—" : p.passRate + "%") + "</strong></div>" +
+                '<p class="zt-muted">' + p.passed + " passed · " + p.failed + " failed · " + p.high + " high</p>" +
+                '<span class="zt-pillar-track"><span class="zt-pillar-fill is-' + scoreTone(p.passRate) + '" style="width:' + (p.passRate || 0) + '%"></span></span></button>';
+        }).join("") + "</div>";
 
         html += pillarRiskChart(heat);
 
@@ -772,14 +760,6 @@
             "</div>";
 
         html += pillarTelemetrySection(viz);
-
-        html += '<div class="zt-pillar-cards">' + pillars.map(function (p) {
-            return '<button type="button" class="zt-pillar-card" data-view="' + esc(p.view) + '">' +
-                "<h3>" + esc(p.name) + "</h3>" +
-                '<div class="zt-pillar-count"><strong>' + (p.passRate == null ? "—" : p.passRate + "%") + "</strong></div>" +
-                '<p class="zt-muted">' + p.passed + " passed · " + p.failed + " failed · " + p.high + " high</p>" +
-                '<span class="zt-pillar-track"><span class="zt-pillar-fill is-' + scoreTone(p.passRate) + '" style="width:' + (p.passRate || 0) + '%"></span></span></button>';
-        }).join("") + "</div>";
 
         html += '<div class="zt-grid-2">' +
             '<section class="zt-card"><h2>Top security gaps</h2>' + renderGaps(a.priority || []) + "</section>" +

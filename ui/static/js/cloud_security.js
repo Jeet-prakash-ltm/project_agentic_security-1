@@ -335,6 +335,11 @@
         if (filterWrap) filterWrap.hidden = state.view === "overview";
         if (filterBtn) filterBtn.hidden = state.view === "overview";
         if (state.view === "overview") closeFilter();
+        var topnav = document.getElementById("ztTopNav");
+        var brand = topnav && topnav.querySelector(".zt-brand");
+        var isOverview = state.view === "overview";
+        if (brand) brand.hidden = !isOverview;
+        if (topnav) topnav.classList.toggle("is-compact", !isOverview);
     }
 
     function statusInfoButton(label, tipHtml) {
@@ -674,43 +679,26 @@
         var viz = a.visualizations || {};
         var html = "";
 
-        html += '<section class="zt-tenant-strip zt-tenant-compact">' +
-            '<div class="zt-tenant-meta">' +
-            '<div><span class="zt-inv-label">Tenant</span><strong>' + esc(t.tenantName || t.primaryDomain || "Unavailable") + "</strong>" +
-            (t.primaryDomain ? '<span class="zt-muted">' + esc(t.primaryDomain) + "</span>" : "") + "</div>" +
-            '<div><span class="zt-inv-label">Tenant ID</span><strong>' + esc(maskTenant(t.tenantId)) + "</strong>" +
-            (state.isAdmin && t.tenantId ? ' <button type="button" class="zt-copy" data-copy="' + esc(t.tenantId) + '">Copy</button>' : "") + "</div>" +
-            '<div><span class="zt-inv-label">Last assessed</span><strong>' + esc(formatTime(a.completedAt)) + "</strong></div>" +
-            '<div><span class="zt-inv-label">Assessment ID</span><strong>' + esc(a.assessmentId || "Unavailable") + "</strong></div>" +
+        var tone = scoreTone(score.value);
+        html += '<section class="zt-exec">' +
+            '<article class="zt-score-card">' +
+            '<div class="zt-score-ring-wrap">' +
+            '<canvas id="ztScoreRing" width="180" height="180" data-value="' + (score.value == null ? "" : score.value) + '" data-tone="' + tone + '" role="img" aria-label="' + esc(score.label) + " " + (score.value == null ? "unavailable" : score.value + " of 100") + '"></canvas>' +
+            '<div class="zt-score-center"><strong>' + (score.value == null ? "—" : esc(String(score.value))) + "</strong><span>/100</span></div>" +
             "</div>" +
-            '<div class="zt-inv-inline">' +
+            "<div><h2>" + esc(score.label) + "</h2>" +
+            '<p class="zt-muted">' + (a.scoreSource === "backend" ? "Official assessment score." : (score.value == null ? "Score unavailable." : "Weighted from assessed controls.")) + "</p></div>" +
+            "</article>" +
+            '<section class="zt-inventory-card">' +
+            "<h2>Tenant inventory</h2>" +
+            '<div class="zt-inv-stats">' +
             inventoryStat("blue", "user", "Users", t.users) +
             inventoryStat("blue", "guests", "Guest users", t.guests) +
             inventoryStat("purple", "laptop", "Devices", t.devices) +
             inventoryStat("purple", "devices", "Managed devices", t.managedDevices) +
             inventoryStat("teal", "groups", "Groups", t.groups) +
             inventoryStat("teal", "apps", "Applications", t.applications) +
-            "</div></section>";
-
-        var tone = scoreTone(score.value);
-        html += '<section class="zt-exec">' +
-            '<article class="zt-score-card">' +
-            '<div class="zt-score-ring-wrap">' +
-            '<canvas id="ztScoreRing" width="132" height="132" data-value="' + (score.value == null ? "" : score.value) + '" data-tone="' + tone + '" role="img" aria-label="' + esc(score.label) + " " + (score.value == null ? "unavailable" : score.value + " of 100") + '"></canvas>' +
-            '<div class="zt-score-center"><strong>' + (score.value == null ? "—" : esc(String(score.value))) + "</strong><span>/100</span></div>" +
-            "</div>" +
-            "<div><h2>" + esc(score.label) + "</h2>" +
-            '<p class="zt-muted">' + (a.scoreSource === "backend" ? "Official assessment score." : (score.value == null ? "Score unavailable." : "Weighted from assessed controls.")) + "</p></div>" +
-            "</article>" +
-            kpiFilter("Passed", cover.passed, "all", "Passed", "pass", "Controls with a Passed result.") +
-            kpiFilter("Failed", cover.failed, "all", "Failed", "fail", "Controls that failed a security check. Collection errors are not counted here.") +
-            kpiFilter("High findings", sev.High, "High", "Failed", "warn", "Failed controls with High severity.") +
-            kpiFilter("Unable to assess", cover.investigate, "all", "Investigate", "search", "Controls that could not be assessed, including permission or collector failures.") +
-            '<article class="zt-kpi">' +
-            '<div class="zt-metric-head">' + icon("shield") + " Coverage</div>" +
-            '<div class="zt-metric-value">' + (cover.coveragePct == null ? "Unavailable" : cover.coveragePct + "%") + "</div>" +
-            '<p class="zt-muted">' + cover.assessed + " of " + cover.total + " controls assessed</p></article>" +
-            "</section>";
+            "</div></section></section>";
 
         html += '<div class="zt-grid-2">' +
             '<section class="zt-card"><h2>Security posture by pillar</h2>' +
@@ -733,14 +721,7 @@
             statusLegend("Skipped", cover.skipped, cover.total, "all", "Skipped") +
             "</div></div></section></div>";
 
-        html += '<div class="zt-grid-2">' +
-            '<section class="zt-card"><h2>Findings by severity</h2>' +
-            '<div class="zt-sev-grid">' +
-            sevCard("High", sev.High, cover.failed, "High") +
-            sevCard("Medium", sev.Medium, cover.failed, "Medium") +
-            sevCard("Low", sev.Low, cover.failed, "Low") +
-            "</div></section>" +
-            '<section class="zt-card"><h2>Pillar risk heatmap</h2>' +
+        html += '<section class="zt-card"><h2>Pillar risk heatmap</h2>' +
             '<table class="zt-heat"><thead><tr><th>Pillar</th><th>High</th><th>Medium</th><th>Low</th></tr></thead><tbody>' +
             heat.map(function (row) {
                 return "<tr><th>" + esc(row.name) + "</th>" +
@@ -748,7 +729,7 @@
                     heatCell(row.name, "Medium", row.Medium) +
                     heatCell(row.name, "Low", row.Low) + "</tr>";
             }).join("") +
-            "</tbody></table></section></div>";
+            "</tbody></table></section>";
 
         html += '<div class="zt-viz-grid">' +
             authCoverageCard(viz.userAuthCoverage, viz.privilegedAuth) +
@@ -1033,7 +1014,6 @@
         if (!tenantPop) return;
         var a = state.assessment || {};
         var t = a.tenant || {};
-        var name = tenantValue(t.tenantName || t.primaryDomain);
         var rows = [
             ["Tenant name", tenantValue(t.tenantName)],
             ["Tenant ID", tenantValue(state.isAdmin ? t.tenantId : maskTenant(t.tenantId))],
@@ -1043,8 +1023,8 @@
         tenantPop.innerHTML =
             '<div class="rep-device-pop-head">' +
             '<span class="rep-device-pop-name">' +
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-8h6v8"/></svg>' +
-            esc(name) + "</span>" +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-8h6v8"/><path d="M9 9h.01M15 9h.01M9 13h.01M15 13h.01"/></svg>' +
+            "Tenant Info</span>" +
             '<button type="button" class="rep-device-pop-close" aria-label="Close">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>' +
             "</button></div>" +
@@ -1212,7 +1192,6 @@
         var summary = (a.identity && a.identity.summary) || {};
         var filtered = sortTests(applyFilters(tests));
         var html = '<div class="zt-page-head"><div><h1>Identity</h1><p>' + tests.length + " checks · high-risk failed " + (summary.highRiskFailed || 0) + " · last evaluated " + formatTime(a.completedAt) + "</p></div>" + countsRow(summary) + "</div>";
-        html += categoryCards(tests, ["Inventory", "Authentication methods", "Conditional Access", "Legacy authentication", "Strong authentication", "Privileged accounts", "Least privilege", "Identity protection", "External identities", "Application identity security", "Access reviews", "Monitoring and diagnostics", "Tenant administration"]);
         html += tableFor(filtered, tests.length, "identity tests");
         return html;
     }
@@ -1226,7 +1205,6 @@
         var filtered = sortTests(applyFilters(tests));
         var platforms = ["All", "Windows", "macOS", "iOS/iPadOS", "Android", "Tenant-wide"];
         var html = '<div class="zt-page-head"><div><h1>Devices</h1><p>' + tests.length + " tests · high-risk failed " + (summary.highRiskFailed || 0) + " · devices " + metric(inv.count) + " · managed " + metric(inv.count) + " · last evaluated " + formatTime(a.completedAt) + "</p></div>" + countsRow(summary) + "</div>";
-        html += categoryCards(tests, ["Enrollment", "Inventory", "Encryption", "Compliance", "Conditional Access", "Session controls", "Sign-in evidence", "Inventory reconcile"]);
         html += '<div class="zt-platform-tabs" role="tablist">' + platforms.map(function (p) {
             var subset = p === "All" ? tests : tests.filter(function (t) { return (t.platform || "Tenant-wide") === p; });
             var failedHigh = subset.filter(function (t) { return t.status === "Failed" && t.risk === "High"; }).length;
@@ -1267,7 +1245,6 @@
         var summary = bucket.summary || {};
         var filtered = sortTests(applyFilters(tests));
         var html = '<div class="zt-page-head"><div><h1>' + esc(meta.title) + "</h1><p>" + tests.length + " checks · high-risk failed " + (summary.highRiskFailed || 0) + " · last evaluated " + formatTime(a.completedAt) + "</p></div>" + countsRow(summary) + "</div>";
-        html += categoryCards(tests, meta.categories);
         html += tableFor(filtered, tests.length, meta.caption);
         return html;
     }

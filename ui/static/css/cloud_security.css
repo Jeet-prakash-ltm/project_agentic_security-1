@@ -74,7 +74,7 @@
     z-index: 20;
     display: flex;
     align-items: center;
-    gap: 24px;
+    gap: 16px;
     flex-wrap: nowrap;
     margin-bottom: 20px;
     padding: 16px 24px;
@@ -120,6 +120,14 @@
     flex-shrink: 0;
 }
 
+.zt-brand[hidden] {
+    display: none;
+}
+
+.zt-topnav.is-compact {
+    justify-content: flex-end;
+}
+
 .zt-top-actions {
     z-index: 3;
 }
@@ -129,7 +137,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    margin-left: 4px;
+    margin-right: auto;
     padding: 4px 10px;
     border-radius: 999px;
     border: 1px solid transparent;
@@ -1411,17 +1419,19 @@
 
 .zt-exec {
     display: grid;
-    grid-template-columns: 1.4fr repeat(5, minmax(0, 1fr));
-    gap: 10px;
+    grid-template-columns: 1.7fr 1fr;
+    gap: 16px;
+    align-items: stretch;
 }
 
 .zt-score-card,
+.zt-inventory-card,
 .zt-kpi {
     position: relative;
     background: var(--zt-surface);
     border: 1px solid var(--zt-border);
     border-radius: var(--zt-radius);
-    padding: 16px 18px;
+    padding: 22px 24px;
     color: inherit;
     text-align: left;
     box-shadow: var(--zt-shadow);
@@ -1432,13 +1442,40 @@
 .zt-score-card {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 22px;
+    min-height: 220px;
+}
+
+.zt-score-card h2 {
+    margin: 0 0 8px;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+}
+
+.zt-inventory-card {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 220px;
+}
+
+.zt-inventory-card h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.zt-inventory-card .zt-inv-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px 14px;
+    flex: 1;
 }
 
 .zt-score-ring-wrap {
     position: relative;
-    width: 132px;
-    height: 132px;
+    width: 180px;
+    height: 180px;
     flex-shrink: 0;
 }
 
@@ -1453,7 +1490,7 @@
 }
 
 .zt-score-center strong {
-    font-size: 28px;
+    font-size: 36px;
     line-height: 1;
     letter-spacing: -0.04em;
 }
@@ -1841,6 +1878,7 @@
     .zt-pillar-cards,
     .zt-metric-pillars,
     .zt-tenant-compact .zt-tenant-meta,
+    .zt-inventory-card .zt-inv-stats,
     .zt-sev-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -1859,7 +1897,8 @@
     .zt-inv-inline,
     .zt-pillar-cards,
     .zt-metric-pillars,
-    .zt-tenant-compact .zt-tenant-meta {
+    .zt-tenant-compact .zt-tenant-meta,
+    .zt-inventory-card .zt-inv-stats {
         grid-template-columns: 1fr;
     }
 

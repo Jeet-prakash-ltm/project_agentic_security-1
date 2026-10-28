@@ -84,6 +84,7 @@
     // SIDEBAR NAV GROUPS — expand/collapse to their sub-pages
     // ------------------------------------------------------------
     var navGroups = [
+        { group: document.getElementById("navDashboardGroup"), toggle: document.getElementById("navDashboardToggle") },
         { group: document.getElementById("navWorkspaceGroup"), toggle: document.getElementById("navWorkspaceToggle") },
         { group: document.getElementById("navZeroTrustGroup"), toggle: document.getElementById("navZeroTrustToggle") },
         { group: document.getElementById("navAutomationGroup"), toggle: document.getElementById("navAutomationToggle") },

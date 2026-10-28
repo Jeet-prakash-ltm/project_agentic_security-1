@@ -474,7 +474,7 @@ def request_demo():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    """Network Security view (the default page after sign-in)."""
+    """Network Security view under Dashboard (the default page after sign-in)."""
 
     connected = agents_service.get_connected_agent()
 
@@ -492,11 +492,50 @@ def dashboard():
 
 
 @app.route("/dashboard/cloud-security")
+@login_required
+def dashboard_cloud_security():
+    """Placeholder Cloud Security page under Dashboard."""
+
+    return render_with_css(
+        "under_construction.html",
+        browser_title="Cloud Security",
+        page_heading="Cloud Security",
+        hero_text="Dashboard / Cloud Security",
+    )
+
+
 @app.route("/dashboard/cloud-security/identity")
 @app.route("/dashboard/cloud-security/devices")
 @app.route("/dashboard/cloud-security/network")
 @app.route("/dashboard/cloud-security/data")
 @app.route("/dashboard/cloud-security/infrastructure")
+@login_required
+def dashboard_cloud_security_redirect():
+    """Keep previous Zero Trust pillar URLs working after the move."""
+
+    suffix = request.path[len("/dashboard/cloud-security"):]
+    return redirect("/zero-trust/cloud-security" + suffix)
+
+
+@app.route("/zero-trust/network-security")
+@login_required
+def zero_trust_network_security():
+    """Placeholder Network Security page under Zero Trust."""
+
+    return render_with_css(
+        "under_construction.html",
+        browser_title="Network Security",
+        page_heading="Network Security",
+        hero_text="Zero Trust / Network Security",
+    )
+
+
+@app.route("/zero-trust/cloud-security")
+@app.route("/zero-trust/cloud-security/identity")
+@app.route("/zero-trust/cloud-security/devices")
+@app.route("/zero-trust/cloud-security/network")
+@app.route("/zero-trust/cloud-security/data")
+@app.route("/zero-trust/cloud-security/infrastructure")
 @login_required
 def cloud_security():
     """Zero Trust assessment workspace under Zero Trust / Cloud Security."""

@@ -226,7 +226,7 @@
             else tabs[i].removeAttribute("aria-current");
         }
         if (push !== false) {
-            var path = "/dashboard/cloud-security";
+            var path = "/zero-trust/cloud-security";
             if (view && view !== "overview") path += "/" + view;
             if (window.history && history.pushState) history.pushState({ ztView: view }, "", path);
         }

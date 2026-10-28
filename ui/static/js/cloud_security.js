@@ -1161,8 +1161,9 @@
         var showing = opts.limit
             ? "Showing top " + page.length + " of " + filteredTotal + " matching " + caption
             : "Showing " + filtered.length + " of " + allCount + " " + caption;
+        var showingHtml = state.view === "overview" ? '<p class="zt-muted">' + esc(showing) + "</p>" : "";
         if (!filtered.length) {
-            return '<p class="zt-muted">' + esc(showing) + '</p><div class="zt-empty">No controls match the selected filters.</div>';
+            return showingHtml + '<div class="zt-empty">No controls match the selected filters.</div>';
         }
         var head = state.view === "devices"
             ? "<th>Test name</th><th>Category</th><th>Platform</th><th>Risk</th><th>Status</th><th>SFI pillar</th><th>Action</th>"
@@ -1185,16 +1186,15 @@
         var cards = '<div class="zt-mobile-cards">' + page.map(function (t) {
             return '<article class="zt-card"><strong>' + esc(t.name) + "</strong><div>" + riskBadge(t.risk) + " " + statusBadge(t.status) + '</div><p class="zt-muted">' + esc(t.category || "") + '</p><button class="btn btn-ghost" type="button" data-open="' + esc(t.id) + '">Details</button></article>';
         }).join("") + "</div>";
-        return '<p class="zt-muted">' + esc(showing) + '</p><div class="zt-table-wrap"><table class="zt-table"><caption>' + esc(caption) + "</caption><thead><tr>" + head + "</tr></thead><tbody>" + rows.replace(/<td colspan="0" hidden><\/td>/g, "") + "</tbody></table></div>" + cards + pager;
+        return showingHtml + '<div class="zt-table-wrap"><table class="zt-table"><caption>' + esc(caption) + "</caption><thead><tr>" + head + "</tr></thead><tbody>" + rows.replace(/<td colspan="0" hidden><\/td>/g, "") + "</tbody></table></div>" + cards + pager;
     }
 
     function renderIdentity() {
         var a = state.assessment;
         if (!a) return emptyState("No assessment results are available.", "Run a Zero Trust assessment to populate this dashboard.");
         var tests = (a.identity && a.identity.tests) || [];
-        var summary = (a.identity && a.identity.summary) || {};
         var filtered = sortTests(applyFilters(tests));
-        var html = '<div class="zt-page-head"><div><h1>Identity</h1><p>' + tests.length + " checks · high-risk failed " + (summary.highRiskFailed || 0) + " · last evaluated " + formatTime(a.completedAt) + "</p></div>" + countsRow(summary) + "</div>";
+        var html = '<div class="zt-page-head"><div><h1>Identity</h1></div></div>';
         html += tableFor(filtered, tests.length, "identity tests");
         return html;
     }
@@ -1203,11 +1203,9 @@
         var a = state.assessment;
         if (!a) return emptyState("No assessment results are available.", "Run a Zero Trust assessment to populate this dashboard.");
         var tests = (a.devices && a.devices.tests) || [];
-        var summary = (a.devices && a.devices.summary) || {};
-        var inv = a.deviceInventory || {};
         var filtered = sortTests(applyFilters(tests));
         var platforms = ["All", "Windows", "macOS", "iOS/iPadOS", "Android", "Tenant-wide"];
-        var html = '<div class="zt-page-head"><div><h1>Devices</h1><p>' + tests.length + " tests · high-risk failed " + (summary.highRiskFailed || 0) + " · devices " + metric(inv.count) + " · managed " + metric(inv.count) + " · last evaluated " + formatTime(a.completedAt) + "</p></div>" + countsRow(summary) + "</div>";
+        var html = '<div class="zt-page-head"><div><h1>Devices</h1></div></div>';
         html += '<div class="zt-platform-tabs" role="tablist">' + platforms.map(function (p) {
             var subset = p === "All" ? tests : tests.filter(function (t) { return (t.platform || "Tenant-wide") === p; });
             var failedHigh = subset.filter(function (t) { return t.status === "Failed" && t.risk === "High"; }).length;
@@ -1245,9 +1243,8 @@
         var meta = PILLAR_META[view] || { title: view, caption: "tests", categories: [] };
         var bucket = pillarBucket(a, view);
         var tests = bucket.tests || [];
-        var summary = bucket.summary || {};
         var filtered = sortTests(applyFilters(tests));
-        var html = '<div class="zt-page-head"><div><h1>' + esc(meta.title) + "</h1><p>" + tests.length + " checks · high-risk failed " + (summary.highRiskFailed || 0) + " · last evaluated " + formatTime(a.completedAt) + "</p></div>" + countsRow(summary) + "</div>";
+        var html = '<div class="zt-page-head"><div><h1>' + esc(meta.title) + "</h1></div></div>";
         html += tableFor(filtered, tests.length, meta.caption);
         return html;
     }

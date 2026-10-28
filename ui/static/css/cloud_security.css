@@ -1112,12 +1112,327 @@
     display: none;
 }
 
+.zt-tenant-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.zt-tenant-compact .zt-tenant-meta {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px 20px;
+}
+
+.zt-inv-inline {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+    padding-top: 4px;
+    border-top: 1px solid var(--zt-border);
+}
+
+.zt-exec {
+    display: grid;
+    grid-template-columns: 1.4fr repeat(5, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.zt-score-card,
+.zt-kpi {
+    background: var(--zt-surface);
+    border: 1px solid var(--zt-border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    color: inherit;
+    text-align: left;
+}
+
+.zt-score-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.zt-score-ring-wrap {
+    position: relative;
+    width: 132px;
+    height: 132px;
+    flex-shrink: 0;
+}
+
+.zt-score-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.zt-score-center strong {
+    font-size: 28px;
+    line-height: 1;
+    letter-spacing: -0.04em;
+}
+
+.zt-score-center span {
+    font-size: 12px;
+    color: var(--zt-muted);
+}
+
+.zt-kpi {
+    cursor: pointer;
+}
+
+.zt-kpi:hover,
+.zt-kpi:focus-visible,
+.zt-hbar-row:hover,
+.zt-hbar-row:focus-visible,
+.zt-legend-btn:hover,
+.zt-legend-btn:focus-visible,
+.zt-sev-row:hover,
+.zt-sev-row:focus-visible,
+.zt-pillar-card:hover,
+.zt-pillar-card:focus-visible {
+    border-color: var(--zt-primary);
+    outline: none;
+}
+
+.zt-tip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    margin-left: 4px;
+    border-radius: 50%;
+    border: 1px solid var(--zt-border);
+    font-size: 10px;
+    color: var(--zt-muted);
+    cursor: help;
+    vertical-align: middle;
+}
+
+.zt-hbar,
+.zt-sev-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.zt-hbar-row,
+.zt-sev-row,
+.zt-legend-btn {
+    display: grid;
+    grid-template-columns: 110px 1fr auto;
+    gap: 8px;
+    align-items: center;
+    background: none;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+}
+
+.zt-legend-btn {
+    grid-template-columns: 1fr;
+    gap: 0;
+}
+
+.zt-hbar-name {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.zt-hbar-meta {
+    font-size: 12px;
+    color: var(--zt-muted);
+    white-space: nowrap;
+}
+
+.zt-pillar-fill.is-strong { background: #107C10; }
+.zt-pillar-fill.is-moderate { background: #C19C00; }
+.zt-pillar-fill.is-weak { background: #F59E0B; }
+.zt-pillar-fill.is-critical { background: #D13438; }
+.zt-pillar-fill.is-info { background: #0078D4; }
+.zt-pillar-fill.is-unknown { background: #C8C6C4; }
+
+.zt-progress-row {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 4px 10px;
+    margin-bottom: 10px;
+    font-size: 13px;
+}
+
+.zt-progress-row strong {
+    grid-column: 2;
+    font-size: 12px;
+    color: var(--zt-muted);
+    font-weight: 600;
+}
+
+.zt-progress-row .zt-pillar-track {
+    grid-column: 1 / -1;
+}
+
+.zt-heat {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.zt-heat th,
+.zt-heat td {
+    padding: 6px;
+    text-align: center;
+}
+
+.zt-heat th:first-child,
+.zt-heat td:first-child {
+    text-align: left;
+}
+
+.zt-heat-cell {
+    width: 100%;
+    min-width: 44px;
+    border: 0;
+    border-radius: 6px;
+    padding: 8px 0;
+    font-weight: 700;
+    cursor: pointer;
+    background: var(--zt-bg);
+    color: inherit;
+}
+
+.zt-heat-cell.is-cool { background: rgba(0, 120, 212, 0.16); }
+.zt-heat-cell.is-warm { background: rgba(245, 158, 11, 0.28); }
+.zt-heat-cell.is-hot { background: rgba(209, 52, 56, 0.28); color: #D13438; }
+
+.zt-pillar-cards {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.zt-pillar-card {
+    background: var(--zt-surface);
+    border: 1px solid var(--zt-border);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: left;
+    color: inherit;
+    cursor: pointer;
+}
+
+.zt-pillar-card h3 {
+    margin: 0 0 6px;
+    font-size: 14px;
+}
+
+.zt-chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--zt-border);
+    border-radius: 999px;
+    padding: 3px 8px;
+    font-size: 11px;
+    background: var(--zt-bg);
+}
+
+.zt-gaps {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.zt-gaps button {
+    background: none;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+    padding: 0;
+    width: 100%;
+}
+
+.zt-remed-head {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--zt-muted);
+    margin-bottom: 10px;
+}
+
+.zt-remed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 360px;
+    overflow: auto;
+}
+
+.zt-remed-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--zt-border);
+    font-size: 13px;
+}
+
+.zt-health {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.zt-health td,
+.zt-health th {
+    padding: 6px 0;
+    text-align: left;
+    vertical-align: top;
+}
+
+.zt-health-pill {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(193, 156, 0, 0.18);
+    color: #C19C00;
+    font-size: 11px;
+    font-weight: 700;
+    margin-right: 6px;
+}
+
+.zt-findings-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.zt-viz-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 @media (max-width: 1100px) {
     .zt-grid,
     .zt-grid-6,
     .zt-risk-grid,
     .zt-inv-grid,
-    .zt-pillar-row {
+    .zt-pillar-row,
+    .zt-exec,
+    .zt-inv-inline,
+    .zt-pillar-cards,
+    .zt-tenant-compact .zt-tenant-meta {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
@@ -1130,7 +1445,11 @@
     .zt-inv-grid,
     .zt-pillar-row,
     .zt-viz-grid,
-    .zt-tenant-meta {
+    .zt-tenant-meta,
+    .zt-exec,
+    .zt-inv-inline,
+    .zt-pillar-cards,
+    .zt-tenant-compact .zt-tenant-meta {
         grid-template-columns: 1fr;
     }
 

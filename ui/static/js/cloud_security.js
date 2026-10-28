@@ -270,7 +270,7 @@
         var q = (f.query || "").trim().toLowerCase();
         return tests.filter(function (t) {
             if (q) {
-                var hay = [t.name, t.category, t.description, t.recommendation].join(" ").toLowerCase();
+                var hay = [t.id, t.name, t.category, t.description, t.recommendation].join(" ").toLowerCase();
                 if (hay.indexOf(q) === -1) return false;
             }
             if (f.area !== "all" && t.area !== f.area) return false;
@@ -373,47 +373,208 @@
         progressEl.textContent = "Assessment " + (state.status || "running") + " — " + (state.progress || 0) + "% " + (state.message || "");
     }
 
-    function donutHtml(id, identity, devices) {
-        var ip = identity.passed || 0, it = identity.total || 0;
-        var dp = devices.passed || 0, dt = devices.total || 0;
-        return '<div class="zt-donut-wrap">' +
-            '<canvas id="' + id + '" width="168" height="168" role="img" aria-label="Identity assessment: ' + ip + " of " + it + " tests passed. Devices assessment: " + dp + " of " + dt + ' tests passed."></canvas>' +
-            '<div class="zt-legend">' +
-            "<div><b>Identity</b><span class=\"zt-muted\">Passed: " + ip + " of " + it + " tests</span></div>" +
-            "<div><b>Devices</b><span class=\"zt-muted\">Passed: " + dp + " of " + dt + " tests</span></div>" +
-            "</div></div>" +
-            '<p class="zt-muted">Identity assessment: ' + ip + " of " + it + " tests passed. Devices assessment: " + dp + " of " + dt + " tests passed.</p>";
+    var PILLAR_ORDER = [
+        { key: "identity", name: "Identity", view: "identity" },
+        { key: "devices", name: "Devices", view: "devices" },
+        { key: "network", name: "Network", view: "network" },
+        { key: "data", name: "Data", view: "data" },
+        { key: "infrastructure", name: "Infrastructure", view: "infrastructure" }
+    ];
+
+    var STATUS_COLORS = {
+        Passed: "#107C10",
+        Failed: "#D13438",
+        Investigate: "#C19C00",
+        Planned: "#5C2E91",
+        Skipped: "#605E5C"
+    };
+
+    var RISK_COLORS = {
+        High: "#DC2626",
+        Medium: "#F59E0B",
+        Low: "#0078D4"
+    };
+
+    function tip(text) {
+        return '<span class="zt-tip" title="' + esc(text) + '" aria-label="' + esc(text) + '">?</span>';
     }
 
-    function paintDonut(canvas, identity, devices) {
+    function pct(num, den) {
+        if (num == null || den == null || den <= 0) return null;
+        return Math.round((Number(num) / Number(den)) * 100);
+    }
+
+    function scoreModel(a) {
+        if (a && a.score != null && a.score !== "") {
+            return { value: Number(a.score), label: "Zero Trust score", source: "Returned by the assessment API." };
+        }
+        if (a && a.weightedScore != null && a.weightedScore !== "") {
+            return { value: Number(a.weightedScore), label: "Weighted control score", source: "Derived from control results. Skipped controls are excluded. This is not a separate backend maturity model." };
+        }
+        return { value: null, label: "Zero Trust score", source: "No score was returned for this assessment." };
+    }
+
+    function scoreTone(value) {
+        if (value == null || isNaN(value)) return "unknown";
+        if (value >= 80) return "strong";
+        if (value >= 60) return "moderate";
+        if (value >= 40) return "weak";
+        return "critical";
+    }
+
+    function coverageModel(tests) {
+        var total = tests.length;
+        var passed = 0, failed = 0, planned = 0, investigate = 0, skipped = 0;
+        tests.forEach(function (t) {
+            if (t.status === "Passed") passed += 1;
+            else if (t.status === "Failed") failed += 1;
+            else if (t.status === "Planned") planned += 1;
+            else if (t.status === "Investigate") investigate += 1;
+            else if (t.status === "Skipped") skipped += 1;
+        });
+        var assessed = passed + failed + planned;
+        return {
+            total: total,
+            passed: passed,
+            failed: failed,
+            planned: planned,
+            investigate: investigate,
+            skipped: skipped,
+            assessed: assessed,
+            coveragePct: pct(assessed, total)
+        };
+    }
+
+    function pillarModels(a) {
+        return PILLAR_ORDER.map(function (p) {
+            var bucket = (a && a[p.key]) || {};
+            var summary = bucket.summary || {};
+            var tests = bucket.tests || [];
+            var total = summary.total || tests.length || 0;
+            var passed = summary.passed || 0;
+            return {
+                key: p.key,
+                name: p.name,
+                view: p.view,
+                summary: summary,
+                tests: tests,
+                total: total,
+                passed: passed,
+                failed: summary.failed || 0,
+                investigate: summary.investigate || 0,
+                high: summary.highRiskFailed || 0,
+                passRate: pct(passed, total)
+            };
+        });
+    }
+
+    function severityCounts(tests) {
+        var counts = { High: 0, Medium: 0, Low: 0 };
+        tests.forEach(function (t) {
+            if (t.status !== "Failed") return;
+            if (counts[t.risk] != null) counts[t.risk] += 1;
+        });
+        return counts;
+    }
+
+    function heatmapCounts(a) {
+        return pillarModels(a).map(function (p) {
+            var row = { name: p.name, view: p.view, High: 0, Medium: 0, Low: 0 };
+            (p.tests || []).forEach(function (t) {
+                if (t.status !== "Failed") return;
+                if (row[t.risk] != null) row[t.risk] += 1;
+            });
+            return row;
+        });
+    }
+
+    function progressRow(label, num, den, tone) {
+        if (num == null || den == null) {
+            return '<div class="zt-progress-row"><span>' + esc(label) + '</span><strong>Unavailable</strong><span class="zt-pillar-track"><span class="zt-pillar-fill is-unknown" style="width:0"></span></span></div>';
+        }
+        var p = pct(num, den);
+        var width = p == null ? 0 : p;
+        var shown = p == null ? "—" : (p + "%");
+        return '<div class="zt-progress-row"><span>' + esc(label) + "</span><strong>" + esc(String(num)) + " / " + esc(String(den)) + " · " + shown + '</strong><span class="zt-pillar-track" aria-hidden="true"><span class="zt-pillar-fill is-' + (tone || "info") + '" style="width:' + width + '%"></span></span></div>';
+    }
+
+    function paintRing(canvas, value, tone) {
         if (!canvas || !canvas.getContext) return;
         var ctx = canvas.getContext("2d");
-        var cx = 84, cy = 84;
-        function ring(radius, width, passed, total, color) {
-            var rest = Math.max(total - passed, 0);
-            ctx.lineWidth = width;
-            ctx.lineCap = "round";
-            var start = -Math.PI / 2;
-            if (total <= 0) {
-                ctx.strokeStyle = "#E2E8F0";
-                ctx.beginPath();
-                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-                ctx.stroke();
-                return;
-            }
-            var passAngle = (passed / total) * Math.PI * 2;
-            ctx.strokeStyle = color;
+        var size = canvas.width;
+        var cx = size / 2, cy = size / 2, r = size / 2 - 10;
+        var colors = { strong: "#107C10", moderate: "#C19C00", weak: "#F59E0B", critical: "#D13438", unknown: "#C8C6C4" };
+        ctx.clearRect(0, 0, size, size);
+        ctx.lineWidth = 10;
+        ctx.strokeStyle = canvas.closest(".zt-app.is-dark") ? "#333333" : "#E1DFDD";
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+        if (value == null || isNaN(value)) return;
+        var start = -Math.PI / 2;
+        ctx.strokeStyle = colors[tone] || colors.unknown;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, start, start + (Math.max(0, Math.min(value, 100)) / 100) * Math.PI * 2);
+        ctx.stroke();
+    }
+
+    function paintSegments(canvas, segments) {
+        if (!canvas || !canvas.getContext) return;
+        var ctx = canvas.getContext("2d");
+        var size = canvas.width;
+        var cx = size / 2, cy = size / 2, r = size / 2 - 12;
+        var total = 0;
+        segments.forEach(function (s) { total += s.value || 0; });
+        ctx.clearRect(0, 0, size, size);
+        ctx.lineWidth = 14;
+        if (total <= 0) {
+            ctx.strokeStyle = "#E1DFDD";
             ctx.beginPath();
-            ctx.arc(cx, cy, radius, start, start + passAngle);
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
             ctx.stroke();
-            ctx.strokeStyle = rest ? "#DC2626" : "#E2E8F0";
-            ctx.beginPath();
-            ctx.arc(cx, cy, radius, start + passAngle, start + Math.PI * 2);
-            ctx.stroke();
+            return;
         }
-        ctx.clearRect(0, 0, 168, 168);
-        ring(70, 14, identity.passed || 0, identity.total || 0, "#16A34A");
-        ring(50, 12, devices.passed || 0, devices.total || 0, "#0891B2");
+        var angle = -Math.PI / 2;
+        segments.forEach(function (s) {
+            var sweep = ((s.value || 0) / total) * Math.PI * 2;
+            ctx.strokeStyle = s.color;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, angle, angle + sweep);
+            ctx.stroke();
+            angle += sweep;
+        });
+    }
+
+    function paintOverviewCharts() {
+        var scoreEl = document.getElementById("ztScoreRing");
+        if (scoreEl) paintRing(scoreEl, Number(scoreEl.getAttribute("data-value")), scoreEl.getAttribute("data-tone"));
+        var statusEl = document.getElementById("ztStatusDonut");
+        if (statusEl) {
+            paintSegments(statusEl, [
+                { value: Number(statusEl.getAttribute("data-passed") || 0), color: STATUS_COLORS.Passed },
+                { value: Number(statusEl.getAttribute("data-failed") || 0), color: STATUS_COLORS.Failed },
+                { value: Number(statusEl.getAttribute("data-investigate") || 0), color: STATUS_COLORS.Investigate },
+                { value: Number(statusEl.getAttribute("data-planned") || 0), color: STATUS_COLORS.Planned },
+                { value: Number(statusEl.getAttribute("data-skipped") || 0), color: STATUS_COLORS.Skipped }
+            ]);
+        }
+        var signEl = document.getElementById("ztSignInDonut");
+        if (signEl) {
+            paintSegments(signEl, [
+                { value: Number(signEl.getAttribute("data-success") || 0), color: STATUS_COLORS.Passed },
+                { value: Number(signEl.getAttribute("data-failure") || 0), color: STATUS_COLORS.Failed }
+            ]);
+        }
+    }
+
+    function setFindingFilter(area, risk, status) {
+        state.filters.area = area || "all";
+        state.filters.risk = risk || "all";
+        state.filters.status = status || "all";
+        state.page = 1;
+        render();
+        var el = document.getElementById("ztFindings");
+        if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     function metricCard(label, value, ic) {
@@ -461,58 +622,220 @@
         var a = state.assessment;
         if (!a) return emptyState("No assessment results are available.", "Run a Zero Trust assessment to populate this dashboard.");
         var t = a.tenant || {};
-        var idSum = (a.identity && a.identity.summary) || {};
-        var devSum = (a.devices && a.devices.summary) || {};
-        var netSum = (a.network && a.network.summary) || {};
-        var dataSum = (a.data && a.data.summary) || {};
-        var infSum = (a.infrastructure && a.infrastructure.summary) || {};
-        var html = '<section class="zt-tenant-strip">' +
-            '<h2>' + icon("building") + " Tenant info</h2>" +
+        var tests = allTests(a);
+        var cover = coverageModel(tests);
+        var pillars = pillarModels(a);
+        var score = scoreModel(a);
+        var sev = severityCounts(tests);
+        var heat = heatmapCounts(a);
+        var viz = a.visualizations || {};
+        var html = "";
+
+        html += '<section class="zt-tenant-strip zt-tenant-compact">' +
             '<div class="zt-tenant-meta">' +
-            '<div><span class="zt-inv-label">Name</span><strong>' + esc(t.tenantName || t.primaryDomain || "Unavailable") + "</strong>" +
-            (t.primaryDomain ? '<span class="zt-muted"> ' + esc(t.primaryDomain) + "</span>" : "") + "</div>" +
+            '<div><span class="zt-inv-label">Tenant</span><strong>' + esc(t.tenantName || t.primaryDomain || "Unavailable") + "</strong>" +
+            (t.primaryDomain ? '<span class="zt-muted">' + esc(t.primaryDomain) + "</span>" : "") + "</div>" +
             '<div><span class="zt-inv-label">Tenant ID</span><strong>' + esc(maskTenant(t.tenantId)) + "</strong>" +
             (state.isAdmin && t.tenantId ? ' <button type="button" class="zt-copy" data-copy="' + esc(t.tenantId) + '">Copy</button>' : "") + "</div>" +
+            '<div><span class="zt-inv-label">Last assessed</span><strong>' + esc(formatTime(a.completedAt)) + "</strong></div>" +
+            '<div><span class="zt-inv-label">Assessment ID</span><strong>' + esc(a.assessmentId || "Unavailable") + "</strong></div>" +
+            "</div>" +
+            '<div class="zt-inv-inline">' +
+            inventoryStat("blue", "user", "Users", t.users) +
+            inventoryStat("blue", "guests", "Guest users", t.guests) +
+            inventoryStat("purple", "laptop", "Devices", t.devices) +
+            inventoryStat("purple", "devices", "Managed devices", t.managedDevices) +
+            inventoryStat("teal", "groups", "Groups", t.groups) +
+            inventoryStat("teal", "apps", "Applications", t.applications) +
             "</div></section>";
-        html += '<div class="zt-inv-grid">' +
-            inventoryCard("Users", "users", "blue", inventoryStat("blue", "user", "Total users", t.users) + inventoryStat("blue", "guests", "Guest users", t.guests)) +
-            inventoryCard("Devices", "devices", "purple", inventoryStat("purple", "laptop", "Total devices", t.devices) + inventoryStat("purple", "devices", "Managed", t.managedDevices)) +
-            inventoryCard("Groups & apps", "groups", "teal", inventoryStat("teal", "groups", "Groups", t.groups) + inventoryStat("teal", "apps", "Apps", t.applications)) +
-            "</div>";
-        html += '<section class="zt-assess-strip">' +
-            "<h2>" + icon("shield") + " Assessment</h2>" +
-            '<div class="zt-pillar-row">' +
-            pillarBar("Identity", idSum, "identity") +
-            pillarBar("Devices", devSum, "devices") +
-            pillarBar("Network", netSum, "network") +
-            pillarBar("Data", dataSum, "data") +
-            pillarBar("Infrastructure", infSum, "infrastructure") +
-            "</div></section>";
-        function riskTotal(key) {
-            return (idSum[key] || 0) + (devSum[key] || 0) + (netSum[key] || 0) + (dataSum[key] || 0) + (infSum[key] || 0);
-        }
-        html += '<div class="zt-risk-grid">' +
-            riskNav("Critical attention", riskTotal("highRiskFailed"), "High", "Failed") +
-            riskNav("Medium-risk failures", riskTotal("mediumRiskFailed"), "Medium", "Failed") +
-            riskNav("Passed tests", riskTotal("passed"), "all", "Passed") +
-            riskNav("Investigate", riskTotal("investigate"), "all", "Investigate") +
-            riskNav("Skipped", riskTotal("skipped"), "all", "Skipped") +
-            "</div>";
-        html += '<section class="zt-card"><h2>Priority remediation</h2>' + renderPriority(a.priority || []) + "</section>";
+
+        var tone = scoreTone(score.value);
+        html += '<section class="zt-exec">' +
+            '<article class="zt-score-card">' +
+            '<div class="zt-score-ring-wrap">' +
+            '<canvas id="ztScoreRing" width="132" height="132" data-value="' + (score.value == null ? "" : score.value) + '" data-tone="' + tone + '" role="img" aria-label="' + esc(score.label) + " " + (score.value == null ? "unavailable" : score.value + " of 100") + '"></canvas>' +
+            '<div class="zt-score-center"><strong>' + (score.value == null ? "—" : esc(String(score.value))) + "</strong><span>/100</span></div>" +
+            "</div>" +
+            "<div><h2>" + esc(score.label) + " " + tip(score.source) + "</h2>" +
+            '<p class="zt-muted">' + (a.scoreSource === "backend" ? "Official assessment score." : (score.value == null ? "Score unavailable." : "Weighted from assessed controls.")) + "</p></div>" +
+            "</article>" +
+            kpiFilter("Passed", cover.passed, "all", "Passed", "pass", "Controls with a Passed result.") +
+            kpiFilter("Failed", cover.failed, "all", "Failed", "fail", "Controls that failed a security check. Collection errors are not counted here.") +
+            kpiFilter("High findings", sev.High, "High", "Failed", "warn", "Failed controls with High severity.") +
+            kpiFilter("Unable to assess", cover.investigate, "all", "Investigate", "search", "Controls that could not be assessed, including permission or collector failures.") +
+            '<article class="zt-kpi">' +
+            '<div class="zt-metric-head">' + icon("shield") + " Coverage " + tip("Share of controls that returned Passed, Failed, or Planned. Investigate and Skipped are excluded from the numerator.") + "</div>" +
+            '<div class="zt-metric-value">' + (cover.coveragePct == null ? "Unavailable" : cover.coveragePct + "%") + "</div>" +
+            '<p class="zt-muted">' + cover.assessed + " of " + cover.total + " controls assessed</p></article>" +
+            "</section>";
+
+        html += '<div class="zt-grid-2">' +
+            '<section class="zt-card"><h2>Security posture by pillar ' + tip("Pass rate is passed controls divided by total controls in that pillar. It is not the official Zero Trust score unless the API returned a score.") + "</h2>" +
+            '<div class="zt-hbar">' + pillars.map(function (p) {
+                var width = p.passRate == null ? 0 : p.passRate;
+                var toneClass = scoreTone(p.passRate);
+                return '<button type="button" class="zt-hbar-row" data-area="' + esc(p.name) + '" data-risk="all" data-status="all">' +
+                    '<span class="zt-hbar-name">' + esc(p.name) + "</span>" +
+                    '<span class="zt-hbar-track"><span class="zt-pillar-fill is-' + toneClass + '" style="width:' + width + '%"></span></span>' +
+                    '<span class="zt-hbar-meta"><strong>' + (p.passRate == null ? "—" : p.passRate + "%") + "</strong> " + p.passed + "/" + p.total + (p.high ? " · " + p.high + " high" : "") + "</span></button>";
+            }).join("") + "</div></section>" +
+            '<section class="zt-card"><h2>Control status ' + tip("Investigate means the control could not be assessed. It is not a Failed security result.") + "</h2>" +
+            '<div class="zt-donut-wrap">' +
+            '<canvas id="ztStatusDonut" width="168" height="168" data-passed="' + cover.passed + '" data-failed="' + cover.failed + '" data-investigate="' + cover.investigate + '" data-planned="' + cover.planned + '" data-skipped="' + cover.skipped + '" role="img" aria-label="Control status. Passed ' + cover.passed + ", failed " + cover.failed + ", investigate " + cover.investigate + ", planned " + cover.planned + ", skipped " + cover.skipped + '."></canvas>' +
+            '<div class="zt-legend">' +
+            statusLegend("Passed", cover.passed, cover.total, "all", "Passed") +
+            statusLegend("Failed", cover.failed, cover.total, "all", "Failed") +
+            statusLegend("Investigate", cover.investigate, cover.total, "all", "Investigate") +
+            statusLegend("Planned", cover.planned, cover.total, "all", "Planned") +
+            statusLegend("Skipped", cover.skipped, cover.total, "all", "Skipped") +
+            "</div></div></section></div>";
+
+        html += '<div class="zt-grid-2">' +
+            '<section class="zt-card"><h2>Findings by severity ' + tip("Counts Failed controls only. High maps from backend High or Critical.") + "</h2>" +
+            '<div class="zt-sev-bars">' +
+            sevBar("High", sev.High, cover.failed, "High") +
+            sevBar("Medium", sev.Medium, cover.failed, "Medium") +
+            sevBar("Low", sev.Low, cover.failed, "Low") +
+            "</div></section>" +
+            '<section class="zt-card"><h2>Pillar risk heatmap</h2>' +
+            '<table class="zt-heat"><thead><tr><th>Pillar</th><th>High</th><th>Medium</th><th>Low</th></tr></thead><tbody>' +
+            heat.map(function (row) {
+                return "<tr><th>" + esc(row.name) + "</th>" +
+                    heatCell(row.name, "High", row.High) +
+                    heatCell(row.name, "Medium", row.Medium) +
+                    heatCell(row.name, "Low", row.Low) + "</tr>";
+            }).join("") +
+            "</tbody></table></section></div>";
+
         html += '<div class="zt-viz-grid">' +
-            vizCard("Privileged users authentication methods", a.visualizations && a.visualizations.privilegedAuth) +
-            vizCard("User authentication coverage", a.visualizations && a.visualizations.userAuthCoverage) +
-            vizCard("Conditional Access coverage", a.visualizations && a.visualizations.conditionalAccessCoverage) +
-            vizCard("Device sign-in state", a.visualizations && a.visualizations.deviceSignIn) +
+            authCoverageCard(viz.userAuthCoverage, viz.privilegedAuth) +
+            caCoverageCard(viz.conditionalAccessCoverage) +
+            deviceSignInCard(viz.deviceSignIn) +
             "</div>";
-        if (hasActiveFilters()) {
-            var tests = allTests(a);
-            var filtered = sortTests(applyFilters(tests));
-            html += '<section class="zt-card" style="margin-top:16px"><h2>Matching tests</h2>';
-            html += tableFor(filtered, tests.length, "matching tests");
-            html += "</section>";
-        }
+
+        html += '<div class="zt-pillar-cards">' + pillars.map(function (p) {
+            return '<button type="button" class="zt-pillar-card" data-view="' + esc(p.view) + '">' +
+                "<h3>" + esc(p.name) + "</h3>" +
+                '<div class="zt-pillar-count"><strong>' + (p.passRate == null ? "—" : p.passRate + "%") + "</strong></div>" +
+                '<p class="zt-muted">' + p.passed + " passed · " + p.failed + " failed · " + p.high + " high</p>" +
+                '<span class="zt-pillar-track"><span class="zt-pillar-fill is-' + scoreTone(p.passRate) + '" style="width:' + (p.passRate || 0) + '%"></span></span></button>';
+        }).join("") + "</div>";
+
+        html += '<div class="zt-grid-2">' +
+            '<section class="zt-card"><h2>Top security gaps</h2>' + renderGaps(a.priority || []) + "</section>" +
+            '<section class="zt-card"><h2>Priority remediation</h2>' + renderPriority(a.priority || []) + "</section>" +
+            "</div>";
+
+        html += '<div class="zt-grid-2">' +
+            '<section class="zt-card"><h2>Assessment coverage ' + tip("Coverage is assessed controls divided by all returned controls. Investigate is unable to assess, not a failure.") + "</h2>" +
+            progressRow("Assessed", cover.assessed, cover.total, "strong") +
+            progressRow("Unable to assess", cover.investigate, cover.total, "moderate") +
+            progressRow("Skipped", cover.skipped, cover.total, "unknown") +
+            "</section>" +
+            collectorHealthCard(a) +
+            "</div>";
+
+        var filtered = sortTests(applyFilters(tests));
+        html += '<section class="zt-card" id="ztFindings"><div class="zt-findings-head"><h2>Findings</h2>';
+        if (hasActiveFilters()) html += '<button type="button" class="btn btn-ghost" id="ztClearFindings">Clear filters</button>';
+        html += "</div>" + tableFor(filtered, tests.length, "controls") + "</section>";
         return html;
+    }
+
+    function kpiFilter(label, value, risk, status, ic, help) {
+        return '<button type="button" class="zt-kpi" data-risk="' + esc(risk) + '" data-status="' + esc(status) + '">' +
+            '<div class="zt-metric-head">' + icon(ic) + esc(label) + " " + tip(help) + "</div>" +
+            '<div class="zt-metric-value">' + esc(metric(value)) + "</div></button>";
+    }
+
+    function statusLegend(label, value, total, risk, status) {
+        var p = pct(value, total);
+        return '<button type="button" class="zt-legend-btn" data-risk="' + esc(risk) + '" data-status="' + esc(status) + '"><b>' + esc(label) + "</b><span class=\"zt-muted\">" + value + (p == null ? "" : " · " + p + "%") + "</span></button>";
+    }
+
+    function sevBar(label, value, total, risk) {
+        var p = pct(value, total) || 0;
+        return '<button type="button" class="zt-sev-row" data-risk="' + esc(risk) + '" data-status="Failed">' +
+            "<span>" + esc(label) + "</span><strong>" + value + "</strong>" +
+            '<span class="zt-pillar-track"><span class="zt-pillar-fill is-' + (label === "High" ? "critical" : (label === "Medium" ? "weak" : "info")) + '" style="width:' + p + '%"></span></span></button>';
+    }
+
+    function heatCell(area, risk, value) {
+        var level = !value ? "none" : (value >= 4 ? "hot" : (value >= 2 ? "warm" : "cool"));
+        return '<td><button type="button" class="zt-heat-cell is-' + level + '" data-area="' + esc(area) + '" data-risk="' + esc(risk) + '" data-status="Failed">' + value + "</button></td>";
+    }
+
+    function authCoverageCard(userAuth, privileged) {
+        if (!userAuth && !privileged) {
+            return '<section class="zt-card zt-viz-card"><h3>Authentication coverage</h3><div class="zt-viz-empty"><div><strong>Visualization unavailable</strong><p>Authentication telemetry was not returned.</p></div></div></section>';
+        }
+        var body = "";
+        if (userAuth) {
+            var den = userAuth.sampled;
+            body += progressRow("MFA registered", userAuth.mfaRegistered, den, "strong");
+            body += progressRow("SSPR registered", userAuth.ssprRegistered, den, "info");
+            body += progressRow("Passwordless", userAuth.passwordless, den, "info");
+            body += '<p class="zt-muted">Sampled users: ' + metric(den) + "</p>";
+        }
+        if (privileged) {
+            var methods = privileged.enabledMethods || [];
+            body += '<p class="zt-muted">Enabled methods: ' + metric(privileged.enabledMethodCount) + " of " + metric(privileged.methodCount) + "</p>";
+            if (methods.length) {
+                body += '<div class="zt-chips">' + methods.map(function (m) {
+                    return '<span class="zt-chip">' + esc(m) + "</span>";
+                }).join("") + "</div>";
+            }
+        }
+        return '<section class="zt-card zt-viz-card"><h3>Authentication coverage</h3>' + body + "</section>";
+    }
+
+    function caCoverageCard(ca) {
+        if (!ca) {
+            return '<section class="zt-card zt-viz-card"><h3>Conditional Access</h3><div class="zt-viz-empty"><div><strong>Visualization unavailable</strong><p>Conditional Access telemetry was not returned.</p></div></div></section>';
+        }
+        var den = ca.policies;
+        return '<section class="zt-card zt-viz-card"><h3>Conditional Access</h3>' +
+            progressRow("Enabled policies", ca.enabled, den, "strong") +
+            progressRow("MFA policies", ca.mfaPolicies, den, "info") +
+            '<p class="zt-muted">All users MFA: ' + metric(ca.allUsersMfa) + " · Legacy block: " + metric(ca.legacyBlock) + "</p></section>";
+    }
+
+    function deviceSignInCard(sign) {
+        if (!sign) {
+            return '<section class="zt-card zt-viz-card"><h3>Device sign-in state</h3><div class="zt-viz-empty"><div><strong>Visualization unavailable</strong><p>Sign-in telemetry was not returned.</p></div></div></section>';
+        }
+        var outcomeDen = (sign.success || 0) + (sign.failure || 0);
+        return '<section class="zt-card zt-viz-card"><h3>Device sign-in state</h3>' +
+            '<div class="zt-donut-wrap">' +
+            '<canvas id="ztSignInDonut" width="132" height="132" data-success="' + (sign.success || 0) + '" data-failure="' + (sign.failure || 0) + '" role="img" aria-label="Sign-in outcomes. Success ' + (sign.success || 0) + ", failure " + (sign.failure || 0) + '."></canvas>' +
+            "<div>" +
+            '<p class="zt-muted">Sampled: ' + metric(sign.sampled) + "</p>" +
+            '<p>Success ' + metric(sign.success) + (outcomeDen ? " · " + (pct(sign.success, outcomeDen) || 0) + "%" : "") + "</p>" +
+            "<p>Failure " + metric(sign.failure) + (outcomeDen ? " · " + (pct(sign.failure, outcomeDen) || 0) + "%" : "") + "</p>" +
+            '<p class="zt-muted">CA success: ' + metric(sign.conditionalAccessSuccess) + " · Managed device: " + metric(sign.managedDevice) + "</p>" +
+            "</div></div></section>";
+    }
+
+    function collectorHealthCard(a) {
+        var partial = a.partial || [];
+        var rows;
+        if (!partial.length) {
+            rows = '<p class="zt-muted">No collector failures were reported for this assessment.</p>';
+        } else {
+            rows = '<table class="zt-health"><thead><tr><th>Source</th><th>Status</th></tr></thead><tbody>' +
+                partial.map(function (p) {
+                    return "<tr><td>" + esc(p.domain) + '</td><td><span class="zt-health-pill">Partial</span> ' + esc(p.message || "unavailable") + "</td></tr>";
+                }).join("") + "</tbody></table>";
+        }
+        return '<section class="zt-card"><h2>Assessment data health ' + tip("Collector or API issues. These are not security control failures.") + "</h2>" + rows + "</section>";
+    }
+
+    function renderGaps(items) {
+        if (!items.length) return '<p class="zt-muted">No failed or investigate controls requiring ranked remediation.</p>';
+        return '<ol class="zt-gaps">' + items.slice(0, 8).map(function (t) {
+            return '<li><button type="button" data-open="' + esc(t.id) + '"><strong>' + esc(t.id) + "</strong> " + esc(t.name) +
+                '<span class="zt-muted"> ' + esc(t.area) + "</span> " + riskBadge(t.risk) + " " + statusBadge(t.status) + "</button></li>";
+        }).join("") + "</ol>";
     }
 
     function defaultFilters() {
@@ -614,9 +937,20 @@
 
     function renderPriority(items) {
         if (!items.length) return '<p class="zt-muted">No failed or investigate controls requiring ranked remediation.</p>';
-        return '<div class="zt-list">' + items.map(function (t) {
-            return '<div class="zt-list-item"><div><strong>' + esc(t.name) + "</strong><div class=\"zt-muted\">" + esc(t.area) + " · " + esc((t.sfiPillars || []).join(", ")) + "</div><div class=\"zt-muted\">" + esc(t.recommendation || "No remediation summary returned.") + "</div></div><div>" + riskBadge(t.risk) + " " + statusBadge(t.status) + ' <button class="btn btn-ghost" type="button" data-open="' + esc(t.id) + '">View details</button></div></div>';
-        }).join("") + "</div>";
+        var high = items.filter(function (t) { return t.risk === "High"; }).length;
+        var medium = items.filter(function (t) { return t.risk === "Medium"; }).length;
+        var low = items.filter(function (t) { return t.risk === "Low"; }).length;
+        return '<div class="zt-remed-head"><span>High ' + high + "</span><span>Medium " + medium + "</span><span>Low " + low + "</span><span>Open " + items.length + "</span></div>" +
+            '<div class="zt-remed-list">' + items.map(function (t) {
+                var rec = t.recommendation || "No remediation summary returned.";
+                if (rec.length > 140) rec = rec.slice(0, 139) + "…";
+                var pillar = t.area || "";
+                return '<article class="zt-remed-row">' +
+                    '<div><strong>' + esc(t.id) + "</strong> " + esc(t.name) +
+                    '<div class="zt-muted">' + esc(pillar) + " · " + esc(rec) + "</div></div>" +
+                    "<div>" + riskBadge(t.risk) + " " + statusBadge(t.status) +
+                    ' <button class="btn btn-ghost" type="button" data-open="' + esc(t.id) + '">View details</button></div></article>';
+            }).join("") + "</div>";
     }
 
     function vizCard(title, data) {
@@ -676,7 +1010,7 @@
             var cols = state.view === "devices"
                 ? "<td>" + esc(t.name) + "</td><td>" + esc(t.category || "") + "</td><td>" + esc(t.platform || "Tenant-wide") + "</td><td>" + riskBadge(t.risk) + "</td><td>" + statusBadge(t.status) + "</td><td>" + esc((t.sfiPillars || []).join(", ")) + "</td>"
                 : (state.view === "overview"
-                    ? "<td>" + esc(t.name) + "</td><td>" + esc(t.area || "") + "</td><td>" + riskBadge(t.risk) + "</td><td>" + statusBadge(t.status) + "</td><td>" + esc(t.category || "") + "</td><td>" + esc(formatTime(t.lastEvaluatedAt)) + "</td>"
+                    ? "<td><span class=\"zt-muted\">" + esc(t.id || "") + "</span> " + esc(t.name) + "</td><td>" + esc(t.area || "") + "</td><td>" + riskBadge(t.risk) + "</td><td>" + statusBadge(t.status) + "</td><td>" + esc(t.category || "") + "</td><td>" + esc(formatTime(t.lastEvaluatedAt)) + "</td>"
                     : "<td>" + esc(t.name) + "</td><td>" + riskBadge(t.risk) + "</td><td>" + statusBadge(t.status) + "</td><td>" + esc((t.sfiPillars || []).join(", ")) + "</td><td>" + esc(t.category || "") + "</td><td>" + esc(formatTime(t.lastEvaluatedAt)) + "</td>");
             return '<tr><td colspan="0" hidden></td>' + cols + '<td><button class="btn btn-ghost" type="button" data-open="' + esc(t.id) + '">Details</button></td></tr>';
         }).join("");
@@ -772,6 +1106,7 @@
         else if (PILLAR_META[state.view]) viewEl.innerHTML = renderPillar(state.view);
         else viewEl.innerHTML = renderOverview();
         bindViewEvents();
+        if (state.view === "overview") paintOverviewCharts();
         if (filterBtn) filterBtn.classList.toggle("has-filters", hasActiveFilters());
     }
 
@@ -784,12 +1119,21 @@
         });
         viewEl.querySelectorAll("[data-risk]").forEach(function (btn) {
             btn.addEventListener("click", function () {
-                state.filters.risk = btn.getAttribute("data-risk") === "all" ? "all" : btn.getAttribute("data-risk");
-                state.filters.status = btn.getAttribute("data-status") || "all";
+                setFindingFilter(
+                    btn.getAttribute("data-area") || "all",
+                    btn.getAttribute("data-risk") === "all" ? "all" : btn.getAttribute("data-risk"),
+                    btn.getAttribute("data-status") || "all"
+                );
+            });
+        });
+        var clearFindings = document.getElementById("ztClearFindings");
+        if (clearFindings) {
+            clearFindings.addEventListener("click", function () {
+                state.filters = defaultFilters();
                 state.page = 1;
                 render();
             });
-        });
+        }
         viewEl.querySelectorAll("[data-view]").forEach(function (btn) {
             btn.addEventListener("click", function () {
                 var view = btn.getAttribute("data-view");

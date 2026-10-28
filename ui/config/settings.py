@@ -31,6 +31,29 @@ Expected environment variables:
 import os
 
 
+def _load_dotenv(path):
+    if os.environ.get("WEBSITE_INSTANCE_ID"):
+        return
+    if not os.path.isfile(path):
+        return
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            for raw in handle:
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                name, value = line.split("=", 1)
+                name = name.strip()
+                value = value.strip().strip('"').strip("'")
+                if name and name not in os.environ:
+                    os.environ[name] = value
+    except OSError:
+        return
+
+
+_load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"))
+
+
 def env(name, default=""):
     value = os.environ.get(name)
     return default if value is None else value.strip()

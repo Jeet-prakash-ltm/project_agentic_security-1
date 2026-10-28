@@ -645,7 +645,9 @@ class ZeroTrustConfigTests(unittest.TestCase):
         from services import zero_trust_service as zts
 
         empty = {name: "" for name in zts._KEY_NAMES + zts._URL_NAMES}
-        with patch.dict(os.environ, empty, clear=False):
+        with patch.dict(os.environ, empty, clear=False), patch.object(
+            zts.settings, "ZERO_TRUST_FUNCTION_KEY", ""
+        ):
             self.assertFalse(zts._key_usable(zts._function_key()))
         with patch.dict(os.environ, dict(empty, ZT_FUNCTION_KEY="host-key-value"), clear=False):
             self.assertTrue(zts.configured())
@@ -665,6 +667,47 @@ class ZeroTrustConfigTests(unittest.TestCase):
                 zts._base_url(),
                 "https://zero-trust-assessment.azurewebsites.net/api",
             )
+
+    def test_dotenv_does_not_override_process_or_azure_env(self):
+        import tempfile
+        from unittest.mock import patch
+        from config.settings import _load_dotenv
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, ".env")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write("ZERO_TRUST_FUNCTION_KEY=from-file\n")
+                handle.write("ZERO_TRUST_FUNCTION_URL=https://from-file.example/api\n")
+            with patch.dict(
+                os.environ,
+                {
+                    "ZERO_TRUST_FUNCTION_KEY": "from-process",
+                    "WEBSITE_INSTANCE_ID": "azure-instance",
+                },
+                clear=False,
+            ):
+                _load_dotenv(path)
+                self.assertEqual(os.environ["ZERO_TRUST_FUNCTION_KEY"], "from-process")
+                self.assertNotEqual(
+                    os.environ.get("ZERO_TRUST_FUNCTION_URL", ""),
+                    "https://from-file.example/api",
+                )
+
+    def test_dotenv_fills_missing_local_key(self):
+        import tempfile
+        from unittest.mock import patch
+        from config.settings import _load_dotenv
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, ".env")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write("# comment\nZERO_TRUST_FUNCTION_KEY=local-only-key\n")
+            env = {k: v for k, v in os.environ.items() if k != "ZERO_TRUST_FUNCTION_KEY"}
+            env.pop("WEBSITE_INSTANCE_ID", None)
+            with patch.dict(os.environ, env, clear=True):
+                self.assertIsNone(os.environ.get("ZERO_TRUST_FUNCTION_KEY"))
+                _load_dotenv(path)
+                self.assertEqual(os.environ.get("ZERO_TRUST_FUNCTION_KEY"), "local-only-key")
 
 
 if __name__ == "__main__":

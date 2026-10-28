@@ -5,6 +5,7 @@
     var STORAGE_KEY = "ltm_zt_assessment_id";
     var THEME_KEY = "ltm_zt_theme";
     var PAGE_SIZE = 12;
+    var OVERVIEW_FINDINGS = 10;
     var POLL_MS = 2500;
 
     var state = {
@@ -394,17 +395,17 @@
     ];
 
     var STATUS_COLORS = {
-        Passed: "#107C10",
-        Failed: "#D13438",
-        Investigate: "#C19C00",
-        Planned: "#5C2E91",
-        Skipped: "#605E5C"
+        Passed: "#22C55E",
+        Failed: "#EF4444",
+        Investigate: "#FBBF24",
+        Planned: "#A78BFA",
+        Skipped: "#9CA3AF"
     };
 
     var RISK_COLORS = {
-        High: "#DC2626",
-        Medium: "#F59E0B",
-        Low: "#0078D4"
+        High: "#F97316",
+        Medium: "#FBBF24",
+        Low: "#22C55E"
     };
 
     function tip(text) {
@@ -515,10 +516,10 @@
         var ctx = canvas.getContext("2d");
         var size = canvas.width;
         var cx = size / 2, cy = size / 2, r = size / 2 - 10;
-        var colors = { strong: "#107C10", moderate: "#C19C00", weak: "#F59E0B", critical: "#D13438", unknown: "#C8C6C4" };
+        var colors = { strong: "#22C55E", moderate: "#FBBF24", weak: "#F97316", critical: "#EF4444", unknown: "#6B7280" };
         ctx.clearRect(0, 0, size, size);
         ctx.lineWidth = 10;
-        ctx.strokeStyle = canvas.closest(".zt-app.is-dark") ? "#333333" : "#E1DFDD";
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
         ctx.stroke();
@@ -540,7 +541,7 @@
         ctx.clearRect(0, 0, size, size);
         ctx.lineWidth = 14;
         if (total <= 0) {
-            ctx.strokeStyle = "#E1DFDD";
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
             ctx.beginPath();
             ctx.arc(cx, cy, r, 0, Math.PI * 2);
             ctx.stroke();
@@ -704,10 +705,10 @@
 
         html += '<div class="zt-grid-2">' +
             '<section class="zt-card"><h2>Findings by severity ' + tip("Counts Failed controls only. High maps from backend High or Critical.") + "</h2>" +
-            '<div class="zt-sev-bars">' +
-            sevBar("High", sev.High, cover.failed, "High") +
-            sevBar("Medium", sev.Medium, cover.failed, "Medium") +
-            sevBar("Low", sev.Low, cover.failed, "Low") +
+            '<div class="zt-sev-grid">' +
+            sevCard("High", sev.High, cover.failed, "High") +
+            sevCard("Medium", sev.Medium, cover.failed, "Medium") +
+            sevCard("Low", sev.Low, cover.failed, "Low") +
             "</div></section>" +
             '<section class="zt-card"><h2>Pillar risk heatmap</h2>' +
             '<table class="zt-heat"><thead><tr><th>Pillar</th><th>High</th><th>Medium</th><th>Low</th></tr></thead><tbody>' +
@@ -750,9 +751,10 @@
             "</div>";
 
         var filtered = sortTests(applyFilters(tests));
-        html += '<section class="zt-card" id="ztFindings"><div class="zt-findings-head"><h2>Findings</h2>';
+        var top = filtered.slice(0, OVERVIEW_FINDINGS);
+        html += '<section class="zt-card" id="ztFindings"><div class="zt-findings-head"><h2>Top findings</h2>';
         if (hasActiveFilters()) html += '<button type="button" class="btn btn-ghost" id="ztClearFindings">Clear filters</button>';
-        html += "</div>" + tableFor(filtered, tests.length, "controls") + "</section>";
+        html += "</div>" + tableFor(top, tests.length, "controls", { limit: OVERVIEW_FINDINGS, totalFiltered: filtered.length }) + "</section>";
         return html;
     }
 
@@ -850,11 +852,14 @@
         return '<button type="button" class="zt-legend-btn" data-risk="' + esc(risk) + '" data-status="' + esc(status) + '"><b>' + esc(label) + "</b><span class=\"zt-muted\">" + value + (p == null ? "" : " · " + p + "%") + "</span></button>";
     }
 
-    function sevBar(label, value, total, risk) {
+    function sevCard(label, value, total, risk) {
         var p = pct(value, total) || 0;
-        return '<button type="button" class="zt-sev-row" data-risk="' + esc(risk) + '" data-status="Failed">' +
-            "<span>" + esc(label) + "</span><strong>" + value + "</strong>" +
-            '<span class="zt-pillar-track"><span class="zt-pillar-fill is-' + (label === "High" ? "critical" : (label === "Medium" ? "weak" : "info")) + '" style="width:' + p + '%"></span></span></button>';
+        var tone = label === "High" ? "high" : (label === "Medium" ? "medium" : "low");
+        return '<button type="button" class="zt-sev-card is-' + tone + '" data-risk="' + esc(risk) + '" data-status="Failed">' +
+            '<span class="zt-sev-card-label">' + esc(label) + "</span>" +
+            '<span class="zt-sev-card-count">' + value + "</span>" +
+            '<span class="zt-sev-card-hint">Failed controls</span>' +
+            '<span class="zt-sev-card-track"><span class="zt-sev-card-fill" style="width:' + p + '%"></span></span></button>';
     }
 
     function heatCell(area, risk, value) {
@@ -1091,10 +1096,15 @@
         }).join("") + "</div>";
     }
 
-    function tableFor(filtered, allCount, caption) {
-        var start = (state.page - 1) * PAGE_SIZE;
-        var page = filtered.slice(start, start + PAGE_SIZE);
-        var showing = "Showing " + filtered.length + " of " + allCount + " " + caption;
+    function tableFor(filtered, allCount, caption, opts) {
+        opts = opts || {};
+        var limit = opts.limit || PAGE_SIZE;
+        var start = opts.limit ? 0 : (state.page - 1) * PAGE_SIZE;
+        var page = filtered.slice(start, start + limit);
+        var filteredTotal = opts.totalFiltered != null ? opts.totalFiltered : filtered.length;
+        var showing = opts.limit
+            ? "Showing top " + page.length + " of " + filteredTotal + " matching " + caption
+            : "Showing " + filtered.length + " of " + allCount + " " + caption;
         if (!filtered.length) {
             return '<p class="zt-muted">' + esc(showing) + '</p><div class="zt-empty">No controls match the selected filters.</div>';
         }
@@ -1111,7 +1121,7 @@
                     : "<td>" + esc(t.name) + "</td><td>" + riskBadge(t.risk) + "</td><td>" + statusBadge(t.status) + "</td><td>" + esc((t.sfiPillars || []).join(", ")) + "</td><td>" + esc(t.category || "") + "</td><td>" + esc(formatTime(t.lastEvaluatedAt)) + "</td>");
             return '<tr><td colspan="0" hidden></td>' + cols + '<td><button class="btn btn-ghost" type="button" data-open="' + esc(t.id) + '">Details</button></td></tr>';
         }).join("");
-        var pages = Math.ceil(filtered.length / PAGE_SIZE);
+        var pages = opts.limit ? 1 : Math.ceil(filtered.length / PAGE_SIZE);
         var pager = pages > 1 ? '<div class="zt-chips" style="margin-top:10px">' + Array.from({ length: pages }, function (_, i) {
             var n = i + 1;
             return '<button type="button" class="btn btn-ghost' + (n === state.page ? " is-active" : "") + '" data-page="' + n + '">' + n + "</button>";

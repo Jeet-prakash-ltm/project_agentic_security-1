@@ -55,7 +55,6 @@
     var viewEl = document.getElementById("ztView");
     var bannerEl = document.getElementById("ztBanner");
     var progressEl = document.getElementById("ztProgress");
-    var lastUpdatedEl = document.getElementById("ztLastUpdated");
     var runBtn = document.getElementById("ztRunBtn");
     var refreshBtn = document.getElementById("ztRefreshBtn");
     var orgEl = document.getElementById("ztOrgName");
@@ -324,11 +323,6 @@
         var a = state.assessment;
         if (orgEl) {
             orgEl.textContent = (a && a.tenant && (a.tenant.tenantName || a.tenant.primaryDomain)) || state.userName || "Organization";
-        }
-        if (lastUpdatedEl) {
-            if (state.running) lastUpdatedEl.textContent = "Assessment running";
-            else if (a && a.completedAt) lastUpdatedEl.textContent = "Last assessed " + formatTime(a.completedAt);
-            else lastUpdatedEl.textContent = "No assessment yet";
         }
         if (runBtn) runBtn.disabled = state.running;
     }

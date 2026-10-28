@@ -1,3 +1,30 @@
+.top-navbar-actions .hero-chip-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 17px;
+    border: 1px solid rgba(255, 94, 79, 0.35);
+    border-radius: 999px;
+    background: var(--gradient-red);
+    color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    box-shadow: var(--shadow-glow);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.top-navbar-actions .hero-chip-btn svg {
+    width: 13px;
+    height: 13px;
+}
+
+.top-navbar-actions .hero-chip-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px rgba(255, 94, 79, 0.28);
+}
+
 .zt-app {
     --zt-high: #EF4444;
     --zt-medium: #FBBF24;

@@ -128,6 +128,10 @@
     justify-content: flex-end;
 }
 
+.zt-topnav[hidden] {
+    display: none;
+}
+
 .zt-top-actions {
     z-index: 3;
 }

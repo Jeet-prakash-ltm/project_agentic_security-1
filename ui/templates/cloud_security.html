@@ -27,7 +27,7 @@
 
 <div class="zt-app" id="ztApp" data-view="{{ zt_view }}" data-configured="{{ '1' if zt_configured else '0' }}" data-admin="{{ '1' if is_admin else '0' }}" data-user="{{ current_user.name if current_user else '' }}">
     <div class="zt-shell">
-        <header class="zt-topnav{% if zt_view != 'overview' %} is-compact{% endif %}" id="ztTopNav">
+        <header class="zt-topnav{% if zt_view != 'overview' %} is-compact{% endif %}" id="ztTopNav"{% if zt_view != 'overview' %} hidden{% endif %}>
             <div class="zt-brand"{% if zt_view != 'overview' %} hidden{% endif %}>
                 <div>
                     <strong>Zero Trust</strong>
@@ -194,5 +194,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=20"></script>
+<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=21"></script>
 {% endblock %}

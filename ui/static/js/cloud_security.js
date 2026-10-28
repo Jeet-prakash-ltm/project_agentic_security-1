@@ -339,7 +339,10 @@
         var brand = topnav && topnav.querySelector(".zt-brand");
         var isOverview = state.view === "overview";
         if (brand) brand.hidden = !isOverview;
-        if (topnav) topnav.classList.toggle("is-compact", !isOverview);
+        if (topnav) {
+            topnav.hidden = !isOverview;
+            topnav.classList.toggle("is-compact", !isOverview);
+        }
     }
 
     function statusInfoButton(label, tipHtml) {

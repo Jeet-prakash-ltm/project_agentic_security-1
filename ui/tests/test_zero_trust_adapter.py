@@ -484,6 +484,8 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         self.assertIsNone(adapted["visualizations"]["deviceFlow"])
         self.assertIsNone(adapted["visualizations"]["privilegedAuth"])
         self.assertIsNone(adapted["visualizations"]["identityOverview"])
+        self.assertIsNone(adapted["visualizations"]["networkOverview"])
+        self.assertIsNone(adapted["visualizations"]["infrastructureOverview"])
         self.assertIsNone(adapted["visualizations"]["pillarMetrics"]["identity"])
         self.assertIsNone(adapted["visualizations"]["pillarMetrics"]["devices"])
         self.assertIsNone(adapted["visualizations"]["pillarMetrics"]["network"])
@@ -541,6 +543,10 @@ class ZeroTrustAdapterTests(unittest.TestCase):
                     "public_ip_attached_count": 2,
                     "open_management_rule_count": 1,
                     "firewall_count": 0,
+                    "subnets_without_nsg_count": 75,
+                    "internet_allow_rule_count": 168,
+                    "waf_policy_count": 0,
+                    "private_endpoint_count": 12,
                 },
                 "dlp_policies": {
                     "available": True,
@@ -557,10 +563,16 @@ class ZeroTrustAdapterTests(unittest.TestCase):
                     "storage_https_count": 7,
                     "storage_public_count": 2,
                     "privileged_assignment_count": 9,
+                    "key_vault_count": 10,
+                    "key_vault_purge_protection_count": 0,
                 },
                 "defender_secure_score": {
                     "available": True,
                     "percentage": 61.5,
+                },
+                "defender_assessments": {
+                    "available": True,
+                    "unhealthy_count": 682,
                 },
                 "access_reviews": {"available": False, "error": "Graph 400"},
             },
@@ -587,6 +599,20 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         self.assertEqual(metrics["infrastructure"]["resourceGroups"], {"value": 65})
         self.assertEqual(metrics["infrastructure"]["defenderScore"], {"value": 61.5})
         self.assertEqual(metrics["infrastructure"]["storagePublic"], {"value": 2})
+        network = adapted["visualizations"]["networkOverview"]
+        self.assertEqual(network["inventory"]["nsgsAssociated"], {"value": 4, "total": 6})
+        self.assertEqual(network["inventory"]["subnetsWithoutNsg"], {"value": 75})
+        self.assertEqual(network["inventory"]["privateEndpoints"], {"value": 12})
+        self.assertEqual(network["perimeter"]["firewalls"], {"value": 0})
+        self.assertEqual(network["perimeter"]["wafPolicies"], {"value": 0})
+        self.assertEqual(network["exposure"]["internetAllowRules"], {"value": 168})
+        infra = adapted["visualizations"]["infrastructureOverview"]
+        self.assertEqual(infra["inventory"]["resourceGroups"], {"value": 65})
+        self.assertEqual(infra["inventory"]["vms"], {"value": 1, "total": 4})
+        self.assertEqual(infra["privileged"]["keyVaultPurge"], {"value": 0, "total": 10})
+        self.assertEqual(infra["privileged"]["privilegedAssignments"], {"value": 9})
+        self.assertEqual(infra["defender"]["defenderScore"], {"value": 61.5})
+        self.assertEqual(infra["defender"]["unhealthyAssessments"], {"value": 682})
 
     def test_csv_export_fields(self):
         adapted = adapt_assessment({

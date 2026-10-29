@@ -1339,8 +1339,152 @@
             "</div>";
     }
 
+    function formatOverviewValue(item) {
+        if (!item || item.value == null) return null;
+        if (item.total != null) {
+            var p = pct(item.value, item.total);
+            return compactNumber(item.value) + " / " + compactNumber(item.total) + (p == null ? "" : " · " + p + "%");
+        }
+        return compactNumber(item.value);
+    }
+
+    function overviewStat(tone, ic, label, item) {
+        var shown = formatOverviewValue(item);
+        if (shown == null) return "";
+        return '<article class="zt-inv-tile is-' + tone + '">' +
+            '<span class="zt-inv-icon zt-tone-' + tone + '">' + icon(ic) + "</span>" +
+            '<span class="zt-inv-label">' + esc(label) + "</span>" +
+            "<strong>" + esc(shown) + "</strong></article>";
+    }
+
+    function overviewCard(title, tilesHtml, emptyMsg) {
+        if (!tilesHtml) {
+            return '<section class="zt-inventory-card"><h2>' + esc(title) + '</h2><p class="zt-muted">' + esc(emptyMsg) + "</p></section>";
+        }
+        return '<section class="zt-inventory-card">' +
+            "<h2>" + esc(title) + "</h2>" +
+            '<div class="zt-inv-metrics">' + tilesHtml + "</div></section>";
+    }
+
+    function overviewHealth(tone, label, lines) {
+        return '<div class="zt-cred-health is-' + tone + '">' +
+            '<span class="zt-cred-dot" aria-hidden="true"></span>' +
+            "<strong>" + esc(label) + "</strong>" +
+            lines.join("") +
+            "</div>";
+    }
+
+    function networkInventoryCard(overview) {
+        var inv = (overview && overview.inventory) || {};
+        var tiles = overviewStat("blue", "shield", "NSGs associated", inv.nsgsAssociated) +
+            overviewStat("sky", "building", "Subnets without NSG", inv.subnetsWithoutNsg) +
+            overviewStat("teal", "laptop", "Public IPs attached", inv.publicIps) +
+            overviewStat("violet", "lock", "Private endpoints", inv.privateEndpoints);
+        return overviewCard("Network inventory", tiles, "Network inventory was not returned.");
+    }
+
+    function networkPerimeterCard(overview) {
+        var per = (overview && overview.perimeter) || {};
+        var tiles = overviewStat("purple", "shield", "Azure Firewalls", per.firewalls) +
+            overviewStat("mint", "pass", "WAF policies", per.wafPolicies);
+        return overviewCard("Perimeter controls", tiles, "Perimeter telemetry was not returned.");
+    }
+
+    function networkExposureCard(overview) {
+        var exp = (overview && overview.exposure) || {};
+        var open = metricValue(exp.openManagementRules);
+        var internet = metricValue(exp.internetAllowRules);
+        var tiles = overviewStat("purple", "fail", "Open management rules", exp.openManagementRules) +
+            overviewStat("sky", "warn", "Internet allow rules", exp.internetAllowRules);
+        if (!tiles) {
+            return overviewCard("Internet exposure", "", "Internet exposure telemetry was not returned.");
+        }
+        var tone = "healthy";
+        var label = "No open internet management";
+        if ((open || 0) > 0) {
+            tone = "expired";
+            label = "Open management paths";
+        } else if ((internet || 0) > 0) {
+            tone = "expiring";
+            label = "Internet allow rules";
+        }
+        return '<section class="zt-inventory-card zt-cred-card">' +
+            "<h2>Internet exposure</h2>" +
+            overviewHealth(tone, label, [
+                "<span>Open management rules: " + esc(compactNumber(open)) + "</span>",
+                "<span>Internet allow rules: " + esc(compactNumber(internet)) + "</span>"
+            ]) +
+            '<div class="zt-inv-metrics">' + tiles + "</div></section>";
+    }
+
+    function networkOverviewSections(a) {
+        var viz = (a && a.visualizations) || {};
+        var overview = viz.networkOverview || {};
+        return '<div class="zt-id-overview">' +
+            '<div class="zt-id-overview-row">' +
+            networkInventoryCard(overview) +
+            networkPerimeterCard(overview) +
+            "</div>" +
+            networkExposureCard(overview) +
+            "</div>";
+    }
+
+    function infrastructureInventoryCard(overview) {
+        var inv = (overview && overview.inventory) || {};
+        var tiles = overviewStat("blue", "building", "Resource groups", inv.resourceGroups) +
+            overviewStat("sky", "devices", "Trusted Launch VMs", inv.vms) +
+            overviewStat("teal", "lock", "Storage HTTPS", inv.storageHttps) +
+            overviewStat("violet", "warn", "Public storage", inv.storagePublic);
+        return overviewCard("Infrastructure inventory", tiles, "Infrastructure inventory was not returned.");
+    }
+
+    function infrastructurePrivilegedCard(overview) {
+        var priv = (overview && overview.privileged) || {};
+        var tiles = overviewStat("purple", "key", "Key Vault purge protection", priv.keyVaultPurge) +
+            overviewStat("mint", "users", "Privileged ARM assignments", priv.privilegedAssignments);
+        return overviewCard("Privileged access", tiles, "Privileged access telemetry was not returned.");
+    }
+
+    function infrastructureDefenderCard(overview) {
+        var defn = (overview && overview.defender) || {};
+        var score = metricValue(defn.defenderScore);
+        var unhealthy = metricValue(defn.unhealthyAssessments);
+        var tiles = overviewStat("mint", "shield", "Defender secure score", defn.defenderScore) +
+            overviewStat("purple", "fail", "Unhealthy assessments", defn.unhealthyAssessments);
+        if (!tiles) {
+            return overviewCard("Defender for Cloud", "", "Defender telemetry was not returned.");
+        }
+        var tone = "healthy";
+        var label = "Healthy";
+        if ((unhealthy || 0) > 0) {
+            tone = "expired";
+            label = "Unhealthy assessments";
+        }
+        return '<section class="zt-inventory-card zt-cred-card">' +
+            "<h2>Defender for Cloud</h2>" +
+            overviewHealth(tone, label, [
+                "<span>Secure score: " + esc(compactNumber(score)) + "</span>",
+                "<span>Unhealthy assessments: " + esc(compactNumber(unhealthy)) + "</span>"
+            ]) +
+            '<div class="zt-inv-metrics">' + tiles + "</div></section>";
+    }
+
+    function infrastructureOverviewSections(a) {
+        var viz = (a && a.visualizations) || {};
+        var overview = viz.infrastructureOverview || {};
+        return '<div class="zt-id-overview">' +
+            '<div class="zt-id-overview-row">' +
+            infrastructureInventoryCard(overview) +
+            infrastructurePrivilegedCard(overview) +
+            "</div>" +
+            infrastructureDefenderCard(overview) +
+            "</div>";
+    }
+
     function pillarOverviewMetrics(view) {
         if (view === "identity") return identityOverviewSections(state.assessment);
+        if (view === "network") return networkOverviewSections(state.assessment);
+        if (view === "infrastructure") return infrastructureOverviewSections(state.assessment);
         var a = state.assessment;
         var viz = (a && a.visualizations) || {};
         var metrics = (viz.pillarMetrics && viz.pillarMetrics[view]) || {};

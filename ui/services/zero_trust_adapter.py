@@ -799,6 +799,63 @@ def _identity_overview_from_evidence(evidence):
     }
 
 
+def _network_overview_from_evidence(evidence):
+    network = (evidence or {}).get("network_security") or {}
+    inventory = _compact_metrics({
+        "nsgsAssociated": _ratio_metric(network, "nsg_associated_count", "nsg_count"),
+        "subnetsWithoutNsg": _count_metric(network, "subnets_without_nsg_count"),
+        "publicIps": _ratio_metric(network, "public_ip_attached_count", "public_ip_count"),
+        "privateEndpoints": _count_metric(network, "private_endpoint_count"),
+    })
+    perimeter = _compact_metrics({
+        "firewalls": _count_metric(network, "firewall_count"),
+        "wafPolicies": _count_metric(network, "waf_policy_count"),
+    })
+    exposure = _compact_metrics({
+        "openManagementRules": _count_metric(network, "open_management_rule_count"),
+        "internetAllowRules": _count_metric(network, "internet_allow_rule_count"),
+        "firewalls": _count_metric(network, "firewall_count"),
+        "wafPolicies": _count_metric(network, "waf_policy_count"),
+    })
+    if not inventory and not perimeter and not exposure:
+        return None
+    return {
+        "inventory": inventory,
+        "perimeter": perimeter,
+        "exposure": exposure,
+    }
+
+
+def _infrastructure_overview_from_evidence(evidence):
+    evidence = evidence or {}
+    infra = evidence.get("infrastructure_security") or {}
+    score = evidence.get("defender_secure_score") or {}
+    assessments = evidence.get("defender_assessments") or {}
+    inventory = _compact_metrics({
+        "resourceGroups": _count_metric(infra, "resource_group_count"),
+        "vms": _ratio_metric(infra, "trusted_launch_count", "vm_count"),
+        "storageHttps": _ratio_metric(infra, "storage_https_count", "storage_account_count"),
+        "storagePublic": _count_metric(infra, "storage_public_count"),
+    })
+    privileged = _compact_metrics({
+        "keyVaultPurge": _ratio_metric(infra, "key_vault_purge_protection_count", "key_vault_count"),
+        "privilegedAssignments": _count_metric(infra, "privileged_assignment_count"),
+    })
+    defender = _compact_metrics({
+        "defenderScore": _score_metric(score, "percentage"),
+        "unhealthyAssessments": _count_metric(assessments, "unhealthy_count"),
+        "keyVaultPurge": _ratio_metric(infra, "key_vault_purge_protection_count", "key_vault_count"),
+        "privilegedAssignments": _count_metric(infra, "privileged_assignment_count"),
+    })
+    if not inventory and not privileged and not defender:
+        return None
+    return {
+        "inventory": inventory,
+        "privileged": privileged,
+        "defender": defender,
+    }
+
+
 def _visualizations_from_evidence(evidence, inventory):
     methods = evidence.get("authentication_methods") or {}
     registration = evidence.get("auth_registration") or {}
@@ -847,6 +904,8 @@ def _visualizations_from_evidence(evidence, inventory):
         "deviceSignIn": device_sign_in,
         "pillarMetrics": _pillar_metrics_from_evidence(evidence),
         "identityOverview": _identity_overview_from_evidence(evidence),
+        "networkOverview": _network_overview_from_evidence(evidence),
+        "infrastructureOverview": _infrastructure_overview_from_evidence(evidence),
     }
 
 

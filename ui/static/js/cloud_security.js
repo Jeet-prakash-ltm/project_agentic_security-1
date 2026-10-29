@@ -37,7 +37,8 @@
             area: "all"
         },
         page: 1,
-        selectedId: null
+        selectedId: null,
+        pillarTab: "overview"
     };
 
     var draft = {
@@ -241,6 +242,7 @@
         }
         state.view = view;
         state.page = 1;
+        state.pillarTab = "overview";
         if (view !== "overview") state.filters.area = "all";
         closeFilter();
         render();
@@ -1225,19 +1227,66 @@
         return showingHtml + '<div class="zt-table-wrap"><table class="zt-table"><caption>' + esc(caption) + "</caption><thead><tr>" + head + "</tr></thead><tbody>" + rows.replace(/<td colspan="0" hidden><\/td>/g, "") + "</tbody></table></div>" + cards + pager;
     }
 
+    function pillarTabs(title) {
+        var overviewOn = state.pillarTab !== "assessment";
+        return '<div class="zt-page-head"><div><h1>' + esc(title) + "</h1></div></div>" +
+            '<div class="zt-pillar-tabs" role="tablist" aria-label="' + esc(title) + ' views">' +
+            '<button type="button" role="tab" data-pillar-tab="overview" class="' + (overviewOn ? "is-active" : "") + '" aria-selected="' + (overviewOn ? "true" : "false") + '">Overview metrics</button>' +
+            '<button type="button" role="tab" data-pillar-tab="assessment" class="' + (overviewOn ? "" : "is-active") + '" aria-selected="' + (overviewOn ? "false" : "true") + '">Assessment data</button>' +
+            "</div>";
+    }
+
+    function pillarOverviewMetrics(view) {
+        var a = state.assessment;
+        var viz = (a && a.visualizations) || {};
+        var metrics = (viz.pillarMetrics && viz.pillarMetrics[view]) || {};
+        var fields = PILLAR_METRIC_FIELDS[view] || [];
+        var cards = "";
+        fields.forEach(function (field) {
+            var shown = formatPillarMetric(metrics[field.key]);
+            if (shown == null) return;
+            cards += '<article class="zt-card zt-metric"><div class="zt-metric-head">' + esc(field.label) + '</div><div class="zt-metric-value">' + esc(shown) + "</div></article>";
+        });
+        if (!cards) {
+            return '<section class="zt-card"><h2>Overview metrics</h2><p class="zt-muted">No telemetry was returned for this pillar.</p></section>';
+        }
+        return '<div class="zt-grid">' + cards + "</div>";
+    }
+
+    function pillarOverviewVisuals(view) {
+        var a = state.assessment;
+        var viz = (a && a.visualizations) || {};
+        if (view === "identity") {
+            return '<div class="zt-viz-grid">' +
+                authCoverageCard(viz.userAuthCoverage, viz.privilegedAuth) +
+                caCoverageCard(viz.conditionalAccessCoverage) +
+                deviceSignInCard(viz.deviceSignIn) +
+                "</div>";
+        }
+        if (view === "devices") {
+            return '<section class="zt-card"><h2>Device join and compliance flow</h2>' + (viz.deviceFlow
+                ? '<p class="zt-muted">Device inventory flow is available.</p>'
+                : '<div class="zt-viz-empty"><div><strong>Visualization unavailable</strong><p>The assessment returned configuration test results but did not return the telemetry required for this flow diagram.</p></div></div>') + "</section>";
+        }
+        var meta = PILLAR_META[view];
+        if (meta && meta.categories && meta.categories.length) {
+            var tests = pillarBucket(a, view).tests || [];
+            return categoryCards(tests, meta.categories);
+        }
+        return "";
+    }
+
     function renderIdentity() {
         var a = state.assessment;
         if (!a) return emptyState("No assessment results are available.", "Run a Zero Trust assessment to populate this dashboard.");
         var tests = (a.identity && a.identity.tests) || [];
-        var filtered = sortTests(applyFilters(tests));
-        var viz = a.visualizations || {};
-        var html = '<div class="zt-page-head"><div><h1>Identity</h1></div></div>';
-        html += '<div class="zt-viz-grid">' +
-            authCoverageCard(viz.userAuthCoverage, viz.privilegedAuth) +
-            caCoverageCard(viz.conditionalAccessCoverage) +
-            deviceSignInCard(viz.deviceSignIn) +
-            "</div>";
-        html += tableFor(filtered, tests.length, "identity tests");
+        var html = pillarTabs("Identity");
+        if (state.pillarTab === "assessment") {
+            html += tableFor(sortTests(applyFilters(tests)), tests.length, "identity tests");
+            return html;
+        }
+        html += pillarOverviewMetrics("identity");
+        html += pillarOverviewVisuals("identity");
         return html;
     }
 
@@ -1245,19 +1294,20 @@
         var a = state.assessment;
         if (!a) return emptyState("No assessment results are available.", "Run a Zero Trust assessment to populate this dashboard.");
         var tests = (a.devices && a.devices.tests) || [];
-        var filtered = sortTests(applyFilters(tests));
-        var platforms = ["All", "Windows", "macOS", "iOS/iPadOS", "Android", "Tenant-wide"];
-        var html = '<div class="zt-page-head"><div><h1>Devices</h1></div></div>';
-        html += '<div class="zt-platform-tabs" role="tablist">' + platforms.map(function (p) {
-            var subset = p === "All" ? tests : tests.filter(function (t) { return (t.platform || "Tenant-wide") === p; });
-            var failedHigh = subset.filter(function (t) { return t.status === "Failed" && t.risk === "High"; }).length;
-            var passed = subset.filter(function (t) { return t.status === "Passed"; }).length;
-            return '<button type="button" role="tab" data-platform="' + esc(p) + '" class="' + (state.filters.platform === p ? "is-active" : "") + '" aria-selected="' + (state.filters.platform === p ? "true" : "false") + '">' + esc(p) + " · " + subset.length + " / " + passed + " passed / " + failedHigh + " high-risk</button>";
-        }).join("") + "</div>";
-        html += '<section class="zt-card" style="margin-bottom:14px"><h2>Device join and compliance flow</h2>' + (a.visualizations && a.visualizations.deviceFlow
-            ? '<p class="zt-muted">Device inventory flow is available.</p>'
-            : '<div class="zt-viz-empty"><div><strong>Visualization unavailable</strong><p>The assessment returned configuration test results but did not return the telemetry required for this flow diagram.</p></div></div>') + "</section>";
-        html += tableFor(filtered, tests.length, "device tests");
+        var html = pillarTabs("Devices");
+        if (state.pillarTab === "assessment") {
+            var platforms = ["All", "Windows", "macOS", "iOS/iPadOS", "Android", "Tenant-wide"];
+            html += '<div class="zt-platform-tabs" role="tablist">' + platforms.map(function (p) {
+                var subset = p === "All" ? tests : tests.filter(function (t) { return (t.platform || "Tenant-wide") === p; });
+                var failedHigh = subset.filter(function (t) { return t.status === "Failed" && t.risk === "High"; }).length;
+                var passed = subset.filter(function (t) { return t.status === "Passed"; }).length;
+                return '<button type="button" role="tab" data-platform="' + esc(p) + '" class="' + (state.filters.platform === p ? "is-active" : "") + '" aria-selected="' + (state.filters.platform === p ? "true" : "false") + '">' + esc(p) + " · " + subset.length + " / " + passed + " passed / " + failedHigh + " high-risk</button>";
+            }).join("") + "</div>";
+            html += tableFor(sortTests(applyFilters(tests)), tests.length, "device tests");
+            return html;
+        }
+        html += pillarOverviewMetrics("devices");
+        html += pillarOverviewVisuals("devices");
         return html;
     }
 
@@ -1285,9 +1335,13 @@
         var meta = PILLAR_META[view] || { title: view, caption: "tests", categories: [] };
         var bucket = pillarBucket(a, view);
         var tests = bucket.tests || [];
-        var filtered = sortTests(applyFilters(tests));
-        var html = '<div class="zt-page-head"><div><h1>' + esc(meta.title) + "</h1></div></div>";
-        html += tableFor(filtered, tests.length, meta.caption);
+        var html = pillarTabs(meta.title);
+        if (state.pillarTab === "assessment") {
+            html += tableFor(sortTests(applyFilters(tests)), tests.length, meta.caption);
+            return html;
+        }
+        html += pillarOverviewMetrics(view);
+        html += pillarOverviewVisuals(view);
         return html;
     }
 
@@ -1305,7 +1359,7 @@
         else if (PILLAR_META[state.view]) viewEl.innerHTML = renderPillar(state.view);
         else viewEl.innerHTML = renderOverview();
         bindViewEvents();
-        if (state.view === "overview" || state.view === "identity") paintOverviewCharts();
+        if (state.view === "overview" || (state.view === "identity" && state.pillarTab !== "assessment")) paintOverviewCharts();
         if (filterBtn) filterBtn.classList.toggle("has-filters", hasActiveFilters());
     }
 
@@ -1351,6 +1405,13 @@
                 if (view) setView(view);
             });
         });
+        viewEl.querySelectorAll("[data-pillar-tab]").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                state.pillarTab = btn.getAttribute("data-pillar-tab") || "overview";
+                state.page = 1;
+                render();
+            });
+        });
         viewEl.querySelectorAll("[data-platform]").forEach(function (btn) {
             btn.addEventListener("click", function () {
                 state.filters.platform = btn.getAttribute("data-platform");
@@ -1376,30 +1437,50 @@
         return null;
     }
 
+    function layerChip(label, value) {
+        var v = value || "Not assessed";
+        var tone = v === "Yes" ? "yes" : (v === "No" ? "no" : "na");
+        return '<span class="zt-layer-chip is-' + tone + '"><em>' + esc(label) + "</em><strong>" + esc(v) + "</strong></span>";
+    }
+
     function openDrawer(id) {
         var test = findTest(id);
         if (!test || !drawer) return;
         state.selectedId = id;
         drawerTitle.textContent = test.name;
-        var evidence = (test.evidence || []).map(function (e) { return "<li>" + esc(e) + "</li>"; }).join("") || "<li>Evidence was not returned.</li>";
-        var steps = (test.remediationSteps || []).map(function (e) { return "<li>" + esc(e) + "</li>"; }).join("") || "<li>No remediation steps returned.</li>";
-        drawerBody.innerHTML = "<dl>" +
-            "<dt>Risk</dt><dd>" + riskBadge(test.risk) + "</dd>" +
-            "<dt>Status</dt><dd>" + statusBadge(test.status) + "</dd>" +
-            "<dt>Category</dt><dd>" + esc(test.category || "Unavailable") + "</dd>" +
-            (test.assessmentLayer ? "<dt>Assessment layer</dt><dd>Configured " + esc(test.assessmentLayer.configured || "Not assessed") + " · Assigned " + esc(test.assessmentLayer.assigned || "Not assessed") + " · Observed " + esc(test.assessmentLayer.observed || "Not assessed") + " · Validation " + esc(test.assessmentLayer.validation || "Required") + "</dd>" : "") +
-            "<dt>SFI pillar</dt><dd>" + esc((test.sfiPillars || []).join(", ") || "Unavailable") + "</dd>" +
-            (test.platform ? "<dt>Platform</dt><dd>" + esc(test.platform) + "</dd>" : "") +
-            "<dt>What it validates</dt><dd>" + esc(test.description || "Not returned") + "</dd>" +
-            "<dt>Why it matters</dt><dd>" + esc(test.impact || test.description || "Not returned") + "</dd>" +
-            "<dt>Evidence</dt><dd><ul>" + evidence + "</ul></dd>" +
-            "<dt>Recommended remediation</dt><dd>" + esc(test.recommendation || "Not returned") + "</dd>" +
-            "<dt>Remediation steps</dt><dd><ul>" + steps + "</ul></dd>" +
-            "<dt>Documentation</dt><dd>" + (test.documentationUrl ? '<a href="' + esc(test.documentationUrl) + '" target="_blank" rel="noopener noreferrer">Open documentation</a>' : "Unavailable") + "</dd>" +
-            "<dt>Related portal</dt><dd>" + (test.portalUrl ? '<a href="' + esc(test.portalUrl) + '" target="_blank" rel="noopener noreferrer">Open portal</a>' : "Unavailable") + "</dd>" +
-            "<dt>Last evaluated</dt><dd>" + esc(formatTime(test.lastEvaluatedAt)) + "</dd>" +
-            (test.error ? "<dt>Error</dt><dd>" + esc(test.error.message) + "</dd>" : "") +
-            "</dl>";
+        var layer = test.assessmentLayer || {};
+        var evidenceItems = test.evidence || [];
+        var evidenceLine = evidenceItems.length ? evidenceItems.slice(0, 2).join(" · ") : "Evidence was not returned.";
+        var finding = test.impact || test.description || "No finding summary returned.";
+        var kpis = [];
+        if (test.category) kpis.push(["Category", test.category]);
+        if (test.platform) kpis.push(["Platform", test.platform]);
+        if (test.area) kpis.push(["Area", test.area]);
+        kpis.push(["Evaluated", formatTime(test.lastEvaluatedAt)]);
+        kpis = kpis.slice(0, 4);
+        var meta = "";
+        if (test.id) meta += '<div class="zt-assess-meta-row"><span>Control ID</span><strong>' + esc(test.id) + "</strong></div>";
+        meta += '<div class="zt-assess-meta-row"><span>SFI pillar</span><strong>' + esc((test.sfiPillars || []).join(", ") || "Unavailable") + "</strong></div>";
+        meta += '<div class="zt-assess-meta-row"><span>Documentation</span>' + (test.documentationUrl ? '<a href="' + esc(test.documentationUrl) + '" target="_blank" rel="noopener noreferrer">Open docs</a>' : "<strong>Unavailable</strong>") + "</div>";
+        meta += '<div class="zt-assess-meta-row"><span>Portal</span>' + (test.portalUrl ? '<a href="' + esc(test.portalUrl) + '" target="_blank" rel="noopener noreferrer">Open portal</a>' : "<strong>Unavailable</strong>") + "</div>";
+        if (layer.validation) meta += '<div class="zt-assess-meta-row"><span>Validation</span><strong>' + esc(layer.validation) + "</strong></div>";
+        drawerBody.innerHTML =
+            '<div class="zt-assess">' +
+            '<div class="zt-assess-outcome">' + statusBadge(test.status) + riskBadge(test.risk) + "</div>" +
+            '<div class="zt-assess-kpis">' + kpis.map(function (row) {
+                return '<article><span>' + esc(row[0]) + "</span><strong>" + esc(row[1]) + "</strong></article>";
+            }).join("") + "</div>" +
+            '<div class="zt-assess-layers" aria-label="Assessment posture">' +
+            layerChip("Configured", layer.configured) +
+            layerChip("Assigned", layer.assigned) +
+            layerChip("Observed", layer.observed) +
+            "</div>" +
+            '<section class="zt-assess-block"><h4>Finding</h4><p>' + esc(finding) + "</p></section>" +
+            '<section class="zt-assess-block"><h4>Evidence</h4><p class="zt-assess-evidence">' + esc(evidenceLine) + "</p></section>" +
+            '<section class="zt-assess-block"><h4>Action</h4><p>' + esc(test.recommendation || "No remediation summary returned.") + "</p></section>" +
+            (test.error ? '<section class="zt-assess-block is-error"><h4>Error</h4><p>' + esc(test.error.message) + "</p></section>" : "") +
+            '<details class="zt-assess-more"><summary>Docs, portal, and identifiers</summary>' + meta + "</details>" +
+            "</div>";
         drawer.hidden = false;
         if (drawerBackdrop) drawerBackdrop.hidden = false;
         requestAnimationFrame(function () {

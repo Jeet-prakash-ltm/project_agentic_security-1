@@ -110,6 +110,10 @@
             devices: '<rect x="5" y="3" width="14" height="12" rx="2"/><path d="M8 21h8M12 15v6"/>',
             laptop: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M2 20h20M8 16h8"/>',
             building: '<path d="M4 21V5a2 2 0 012-2h8a2 2 0 012 2v16"/><path d="M20 21V11a2 2 0 00-2-2h-2"/><path d="M9 7h.01M13 7h.01M9 11h.01M13 11h.01M9 15h.01M13 15h.01M8 21h8"/>',
+            key: '<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>',
+            lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>',
+            cert: '<rect x="4" y="3" width="16" height="13" rx="2"/><path d="M9 21l3-2 3 2v-6H9z"/>',
+            clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
             shield: '<path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"/>',
             pass: '<path d="M20 6L9 17l-5-5"/>',
             fail: '<path d="M18 6L6 18M6 6l12 12"/>',
@@ -1236,7 +1240,105 @@
             "</div>";
     }
 
+    function metricValue(item) {
+        if (!item) return null;
+        if (item.value != null) return item.value;
+        return null;
+    }
+
+    function identityInventoryCard(overview, tenant) {
+        var inv = (overview && overview.inventory) || {};
+        var users = metricValue(inv.users);
+        var guests = metricValue(inv.guests);
+        var groups = metricValue(inv.groups);
+        var applications = metricValue(inv.applications);
+        var sps = metricValue(inv.servicePrincipals);
+        if (users == null && tenant) users = tenant.users;
+        if (guests == null && tenant) guests = tenant.guests;
+        if (groups == null && tenant) groups = tenant.groups;
+        if (applications == null && tenant) applications = tenant.applications;
+        if (sps == null && tenant) sps = tenant.servicePrincipals;
+        if (users == null && guests == null && groups == null && applications == null && sps == null) {
+            return '<section class="zt-inventory-card"><h2>Identity inventory</h2><p class="zt-muted">Identity inventory was not returned.</p></section>';
+        }
+        return '<section class="zt-inventory-card">' +
+            "<h2>Identity inventory</h2>" +
+            '<div class="zt-inv-metrics">' +
+            inventoryStat("blue", "user", "Users", users) +
+            inventoryStat("sky", "guests", "Guest users", guests) +
+            inventoryStat("teal", "groups", "Groups", groups) +
+            inventoryStat("mint", "apps", "Applications", applications) +
+            inventoryStat("violet", "key", "Service principals", sps) +
+            "</div></section>";
+    }
+
+    function privilegedAccessCard(overview) {
+        var priv = (overview && overview.privileged) || {};
+        var members = metricValue(priv.members);
+        var roles = metricValue(priv.roles);
+        var eligible = metricValue(priv.pimEligible);
+        var active = metricValue(priv.pimActive);
+        if (members == null && roles == null && eligible == null && active == null) {
+            return '<section class="zt-inventory-card"><h2>Privileged access / PIM</h2><p class="zt-muted">Privileged access telemetry was not returned.</p></section>';
+        }
+        return '<section class="zt-inventory-card">' +
+            "<h2>Privileged access / PIM</h2>" +
+            '<div class="zt-inv-metrics">' +
+            inventoryStat("purple", "shield", "Privileged members", members) +
+            inventoryStat("violet", "lock", "Privileged roles", roles) +
+            inventoryStat("teal", "users", "PIM eligible assignments", eligible) +
+            inventoryStat("mint", "pass", "PIM active assignments", active) +
+            "</div></section>";
+    }
+
+    function credentialHealthCard(overview) {
+        var creds = (overview && overview.credentials) || {};
+        var assessed = metricValue(creds.applicationsAssessed);
+        var expired = metricValue(creds.expiredCredentials);
+        var expiring = metricValue(creds.expiring30d);
+        var secrets = metricValue(creds.secrets);
+        var certs = metricValue(creds.certificates);
+        if (assessed == null && expired == null && expiring == null && secrets == null && certs == null) {
+            return '<section class="zt-inventory-card"><h2>Application identity and credential hygiene</h2><p class="zt-muted">Application credential telemetry was not returned.</p></section>';
+        }
+        var tone = "healthy";
+        var label = "Healthy";
+        if ((expired || 0) > 0) {
+            tone = "expired";
+            label = "Expired credentials";
+        } else if ((expiring || 0) > 0) {
+            tone = "expiring";
+            label = "Expiring soon";
+        }
+        return '<section class="zt-inventory-card zt-cred-card">' +
+            "<h2>Application identity and credential hygiene</h2>" +
+            '<div class="zt-cred-health is-' + tone + '">' +
+            '<span class="zt-cred-dot" aria-hidden="true"></span>' +
+            "<strong>" + esc(label) + "</strong>" +
+            '<span>Expiring ≤30 days: ' + esc(compactNumber(expiring)) + "</span>" +
+            "<span>Expired credentials: " + esc(compactNumber(expired)) + "</span>" +
+            "</div>" +
+            '<div class="zt-inv-metrics">' +
+            inventoryStat("mint", "apps", "Applications assessed", assessed) +
+            inventoryStat("sky", "clock", "Expiring within 30 days", expiring) +
+            inventoryStat("purple", "fail", "Expired credentials", expired) +
+            inventoryStat("teal", "key", "Secrets", secrets) +
+            inventoryStat("violet", "cert", "Certificates", certs) +
+            "</div></section>";
+    }
+
+    function identityOverviewSections(a) {
+        var viz = (a && a.visualizations) || {};
+        var overview = viz.identityOverview || {};
+        return '<div class="zt-id-overview">' +
+            identityInventoryCard(overview, a.tenant || {}) +
+            privilegedAccessCard(overview) +
+            credentialHealthCard(overview) +
+            "</div>";
+    }
+
     function pillarOverviewMetrics(view) {
+        if (view === "identity") return identityOverviewSections(state.assessment);
         var a = state.assessment;
         var viz = (a && a.visualizations) || {};
         var metrics = (viz.pillarMetrics && viz.pillarMetrics[view]) || {};

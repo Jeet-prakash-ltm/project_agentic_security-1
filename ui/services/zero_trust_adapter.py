@@ -699,7 +699,9 @@ def _pillar_metrics_from_evidence(evidence):
         "caEnabled": _ratio_metric(ca, "enabled_count", "count"),
         "mfaPolicies": _count_metric(ca, "mfa_policy_count"),
         "privilegedMembers": _count_metric(roles, "privileged_member_count"),
+        "privilegedRoles": _count_metric(roles, "privileged_role_count"),
         "pimEligible": _count_metric(pim, "eligible_count"),
+        "pimActive": _count_metric(pim, "active_assignment_count"),
         "highRiskUsers": _count_metric(risky, "high_count"),
         "accessReviews": _count_metric(reviews, "count"),
     })
@@ -762,6 +764,41 @@ def _pillar_metrics_from_evidence(evidence):
     }
 
 
+def _identity_overview_from_evidence(evidence):
+    evidence = evidence or {}
+    profile = evidence.get("tenant_profile") or {}
+    roles = evidence.get("privileged_roles") or {}
+    pim = evidence.get("privileged_eligibility") or {}
+    apps = evidence.get("application_credentials") or {}
+    inventory = _compact_metrics({
+        "users": _count_metric(profile, "users"),
+        "guests": _count_metric(profile, "guests"),
+        "groups": _count_metric(profile, "groups"),
+        "applications": _count_metric(profile, "applications"),
+        "servicePrincipals": _count_metric(profile, "service_principals"),
+    })
+    privileged = _compact_metrics({
+        "members": _count_metric(roles, "privileged_member_count"),
+        "roles": _count_metric(roles, "privileged_role_count"),
+        "pimEligible": _count_metric(pim, "eligible_count"),
+        "pimActive": _count_metric(pim, "active_assignment_count"),
+    })
+    credentials = _compact_metrics({
+        "applicationsAssessed": _count_metric(apps, "application_count"),
+        "expiredCredentials": _count_metric(apps, "expired_credential_count"),
+        "expiring30d": _count_metric(apps, "expiring_30d_count"),
+        "secrets": _count_metric(apps, "secret_count"),
+        "certificates": _count_metric(apps, "certificate_count"),
+    })
+    if not inventory and not privileged and not credentials:
+        return None
+    return {
+        "inventory": inventory,
+        "privileged": privileged,
+        "credentials": credentials,
+    }
+
+
 def _visualizations_from_evidence(evidence, inventory):
     methods = evidence.get("authentication_methods") or {}
     registration = evidence.get("auth_registration") or {}
@@ -809,6 +846,7 @@ def _visualizations_from_evidence(evidence, inventory):
         "conditionalAccessCoverage": ca_coverage,
         "deviceSignIn": device_sign_in,
         "pillarMetrics": _pillar_metrics_from_evidence(evidence),
+        "identityOverview": _identity_overview_from_evidence(evidence),
     }
 
 
@@ -835,6 +873,7 @@ def _tenant_from_evidence(payload, evidence):
         "guests": _metric(payload.get("guests") if payload.get("guests") is not None else profile.get("guests"), profile_ok or payload.get("guests") is not None),
         "groups": _metric(payload.get("groups") if payload.get("groups") is not None else profile.get("groups"), profile_ok or payload.get("groups") is not None),
         "applications": _metric(payload.get("applications") if payload.get("applications") is not None else profile.get("applications"), profile_ok or payload.get("applications") is not None),
+        "servicePrincipals": _metric(profile.get("service_principals"), profile_ok),
         "devices": _metric(managed.get("count"), managed_available),
         "managedDevices": _metric(managed.get("count"), managed_available),
     }

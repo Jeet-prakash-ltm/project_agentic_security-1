@@ -176,6 +176,7 @@ class ZeroTrustAdapterTests(unittest.TestCase):
                     "guests": 3,
                     "groups": 18,
                     "applications": 9,
+                    "service_principals": 12,
                 },
                 "conditional_access": {
                     "available": True,
@@ -198,6 +199,8 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         self.assertEqual(adapted["tenant"]["primaryDomain"], "ltimsec.com")
         self.assertEqual(adapted["tenant"]["users"], 42)
         self.assertEqual(adapted["tenant"]["guests"], 3)
+        self.assertEqual(adapted["tenant"]["servicePrincipals"], 12)
+        self.assertEqual(adapted["visualizations"]["identityOverview"]["inventory"]["servicePrincipals"], {"value": 12})
         self.assertEqual(adapted["visualizations"]["conditionalAccessCoverage"]["enabled"], 8)
         self.assertEqual(adapted["visualizations"]["privilegedAuth"]["enabledMethodCount"], 2)
         self.assertIsNone(adapted["visualizations"]["deviceFlow"])
@@ -480,6 +483,7 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         })
         self.assertIsNone(adapted["visualizations"]["deviceFlow"])
         self.assertIsNone(adapted["visualizations"]["privilegedAuth"])
+        self.assertIsNone(adapted["visualizations"]["identityOverview"])
         self.assertIsNone(adapted["visualizations"]["pillarMetrics"]["identity"])
         self.assertIsNone(adapted["visualizations"]["pillarMetrics"]["devices"])
         self.assertIsNone(adapted["visualizations"]["pillarMetrics"]["network"])
@@ -507,6 +511,20 @@ class ZeroTrustAdapterTests(unittest.TestCase):
                 "privileged_roles": {
                     "available": True,
                     "privileged_member_count": 5,
+                    "privileged_role_count": 8,
+                },
+                "privileged_eligibility": {
+                    "available": True,
+                    "eligible_count": 88,
+                    "active_assignment_count": 87,
+                },
+                "application_credentials": {
+                    "available": True,
+                    "application_count": 200,
+                    "expired_credential_count": 46,
+                    "expiring_30d_count": 2,
+                    "secret_count": 74,
+                    "certificate_count": 12,
                 },
                 "managed_devices": {
                     "available": True,
@@ -551,7 +569,16 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         self.assertEqual(metrics["identity"]["mfaRegistered"], {"value": 32, "total": 40})
         self.assertEqual(metrics["identity"]["caEnabled"], {"value": 8, "total": 16})
         self.assertEqual(metrics["identity"]["privilegedMembers"], {"value": 5})
+        self.assertEqual(metrics["identity"]["privilegedRoles"], {"value": 8})
+        self.assertEqual(metrics["identity"]["pimEligible"], {"value": 88})
+        self.assertEqual(metrics["identity"]["pimActive"], {"value": 87})
         self.assertNotIn("accessReviews", metrics["identity"])
+        overview = adapted["visualizations"]["identityOverview"]
+        self.assertEqual(overview["privileged"]["members"], {"value": 5})
+        self.assertEqual(overview["privileged"]["pimActive"], {"value": 87})
+        self.assertEqual(overview["credentials"]["expiredCredentials"], {"value": 46})
+        self.assertEqual(overview["credentials"]["expiring30d"], {"value": 2})
+        self.assertEqual(overview["credentials"]["secrets"], {"value": 74})
         self.assertEqual(metrics["devices"]["compliant"], {"value": 9, "total": 12})
         self.assertEqual(metrics["network"]["nsgsAssociated"], {"value": 4, "total": 6})
         self.assertEqual(metrics["network"]["openManagementRules"], {"value": 1})

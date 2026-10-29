@@ -1732,6 +1732,91 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.zt-id-overview {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.zt-id-overview .zt-inventory-card {
+    width: 100%;
+}
+
+.zt-id-overview .zt-inv-metrics {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.zt-cred-health {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    border: 1px solid var(--zt-border);
+    background: rgba(255, 255, 255, 0.03);
+    font-size: 12px;
+}
+
+.zt-cred-health strong {
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.zt-cred-health span {
+    color: var(--zt-muted);
+}
+
+.zt-cred-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.zt-cred-health.is-healthy {
+    border-color: rgba(34, 197, 94, 0.35);
+}
+
+.zt-cred-health.is-healthy .zt-cred-dot,
+.zt-cred-health.is-healthy strong {
+    color: #16A34A;
+}
+
+.zt-cred-health.is-healthy .zt-cred-dot {
+    background: #16A34A;
+    box-shadow: 0 0 8px rgba(22, 163, 74, 0.55);
+}
+
+.zt-cred-health.is-expiring {
+    border-color: rgba(245, 158, 11, 0.4);
+}
+
+.zt-cred-health.is-expiring .zt-cred-dot,
+.zt-cred-health.is-expiring strong {
+    color: #F59E0B;
+}
+
+.zt-cred-health.is-expiring .zt-cred-dot {
+    background: #F59E0B;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.55);
+}
+
+.zt-cred-health.is-expired {
+    border-color: rgba(220, 38, 38, 0.4);
+}
+
+.zt-cred-health.is-expired .zt-cred-dot,
+.zt-cred-health.is-expired strong {
+    color: #DC2626;
+}
+
+.zt-cred-health.is-expired .zt-cred-dot {
+    background: #DC2626;
+    box-shadow: 0 0 8px rgba(220, 38, 38, 0.55);
+}
+
 .zt-inv-tile.is-blue { border-color: rgba(96, 165, 250, 0.35); }
 .zt-inv-tile.is-sky { border-color: rgba(56, 189, 248, 0.35); }
 .zt-inv-tile.is-purple { border-color: rgba(167, 139, 250, 0.35); }
@@ -2416,7 +2501,8 @@
     .zt-metric-pillars,
     .zt-tenant-compact .zt-tenant-meta,
     .zt-inventory-card .zt-inv-stats,
-    .zt-inv-metrics {
+    .zt-inv-metrics,
+    .zt-id-overview .zt-inv-metrics {
         grid-template-columns: 1fr;
     }
 

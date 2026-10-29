@@ -1735,15 +1735,56 @@
 .zt-id-overview {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
+}
+
+.zt-id-overview-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: stretch;
 }
 
 .zt-id-overview .zt-inventory-card {
     width: 100%;
+    min-width: 0;
+    padding: 18px 16px 16px;
+    gap: 12px;
 }
 
-.zt-id-overview .zt-inv-metrics {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+.zt-id-overview .zt-inventory-card h2 {
+    font-size: 15px;
+    margin: 0;
+}
+
+.zt-id-overview-row .zt-inv-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.zt-id-overview-row .zt-inv-tile {
+    padding: 10px 12px;
+    column-gap: 8px;
+    border-radius: 12px;
+}
+
+.zt-id-overview-row .zt-inv-tile .zt-inv-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+}
+
+.zt-id-overview-row .zt-inv-tile .zt-inv-label {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+}
+
+.zt-id-overview-row .zt-inv-tile strong {
+    font-size: 20px;
+}
+
+.zt-id-overview .zt-cred-card .zt-inv-metrics {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .zt-cred-health {
@@ -2469,6 +2510,11 @@
 }
 
 @media (max-width: 1100px) {
+    .zt-id-overview-row,
+    .zt-id-overview .zt-cred-card .zt-inv-metrics {
+        grid-template-columns: 1fr 1fr;
+    }
+
     .zt-grid,
     .zt-grid-6,
     .zt-risk-grid,
@@ -2502,7 +2548,9 @@
     .zt-tenant-compact .zt-tenant-meta,
     .zt-inventory-card .zt-inv-stats,
     .zt-inv-metrics,
-    .zt-id-overview .zt-inv-metrics {
+    .zt-id-overview-row,
+    .zt-id-overview-row .zt-inv-metrics,
+    .zt-id-overview .zt-cred-card .zt-inv-metrics {
         grid-template-columns: 1fr;
     }
 

@@ -1331,8 +1331,10 @@
         var viz = (a && a.visualizations) || {};
         var overview = viz.identityOverview || {};
         return '<div class="zt-id-overview">' +
+            '<div class="zt-id-overview-row">' +
             identityInventoryCard(overview, a.tenant || {}) +
             privilegedAccessCard(overview) +
+            "</div>" +
             credentialHealthCard(overview) +
             "</div>";
     }

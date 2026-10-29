@@ -5,7 +5,7 @@
     var STORAGE_KEY = "ltm_zt_assessment_id";
     var THEME_KEY = "ltm_zt_theme";
     var PAGE_SIZE = 12;
-    var OVERVIEW_FINDINGS = 10;
+    var OVERVIEW_FINDINGS = 5;
     var POLL_MS = 2500;
 
     var state = {
@@ -603,11 +603,11 @@
         if (!canvas || !canvas.getContext) return;
         var ctx = canvas.getContext("2d");
         var size = canvas.width;
-        var cx = size / 2, cy = size / 2, r = size / 2 - 12;
+        var cx = size / 2, cy = size / 2, r = size / 2 - 15;
         var total = 0;
         segments.forEach(function (s) { total += s.value || 0; });
         ctx.clearRect(0, 0, size, size);
-        ctx.lineWidth = 14;
+        ctx.lineWidth = 17;
         if (total <= 0) {
             ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
             ctx.beginPath();
@@ -754,20 +754,14 @@
 
         html += pillarRiskChart(heat);
 
-        html += '<div class="zt-viz-grid">' +
-            authCoverageCard(viz.userAuthCoverage, viz.privilegedAuth) +
-            caCoverageCard(viz.conditionalAccessCoverage) +
-            deviceSignInCard(viz.deviceSignIn) +
-            "</div>";
-
         html += pillarTelemetrySection(viz);
-
-        html += collectorHealthCard(a);
 
         var ranked = sortTests(tests);
         var top = ranked.slice(0, OVERVIEW_FINDINGS);
-        html += '<section class="zt-card" id="ztFindings"><div class="zt-findings-head"><h2>Top findings</h2></div>' +
-            tableFor(top, tests.length, "controls", { limit: OVERVIEW_FINDINGS, totalFiltered: ranked.length }) + "</section>";
+        html += '<div class="zt-grid-2 zt-health-findings">' +
+            collectorHealthCard(a) +
+            '<section class="zt-card" id="ztFindings"><div class="zt-findings-head"><h2>Top findings</h2></div>' +
+            tableFor(top, tests.length, "controls", { limit: OVERVIEW_FINDINGS, totalFiltered: ranked.length }) + "</section></div>";
         return html;
     }
 
@@ -929,6 +923,12 @@
             "</div></div></section>";
     }
 
+    function healthInfoButton(title, message) {
+        return '<button type="button" class="zt-info-btn zt-health-info" aria-label="Why ' + esc(title) + ' is partial" aria-expanded="false">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/></svg>' +
+            '<span class="zt-info-tip" role="tooltip"><p>' + esc(title) + "</p><p>" + esc(message) + "</p></span></button>";
+    }
+
     function collectorHealthCard(a) {
         var partial = a.partial || [];
         var rows;
@@ -937,7 +937,8 @@
         } else {
             rows = '<table class="zt-health"><thead><tr><th>Source</th><th>Status</th></tr></thead><tbody>' +
                 partial.map(function (p) {
-                    return "<tr><td>" + esc(p.domain) + '</td><td><span class="zt-health-pill">Partial</span> ' + esc(p.message || "unavailable") + "</td></tr>";
+                    return "<tr><td>" + esc(p.domain) + '</td><td><span class="zt-health-status"><span class="zt-health-pill">Partial</span>' +
+                        healthInfoButton(p.domain, p.message || "unavailable") + "</span></td></tr>";
                 }).join("") + "</tbody></table>";
         }
         return '<section class="zt-card"><h2>Assessment data health</h2>' + rows + "</section>";
@@ -1209,7 +1210,7 @@
             var cols = state.view === "devices"
                 ? "<td>" + esc(t.name) + "</td><td>" + esc(t.category || "") + "</td><td>" + esc(t.platform || "Tenant-wide") + "</td><td>" + riskBadge(t.risk) + "</td><td>" + statusBadge(t.status) + "</td><td>" + esc((t.sfiPillars || []).join(", ")) + "</td>"
                 : (state.view === "overview"
-                    ? "<td><span class=\"zt-muted\">" + esc(t.id || "") + "</span> " + esc(t.name) + "</td><td>" + esc(t.area || "") + "</td><td>" + riskBadge(t.risk) + "</td><td>" + statusBadge(t.status) + "</td><td>" + esc(t.category || "") + "</td><td>" + esc(formatTime(t.lastEvaluatedAt)) + "</td>"
+                    ? "<td>" + esc(t.name) + "</td><td>" + esc(t.area || "") + "</td><td>" + riskBadge(t.risk) + "</td><td>" + statusBadge(t.status) + "</td><td>" + esc(t.category || "") + "</td><td>" + esc(formatTime(t.lastEvaluatedAt)) + "</td>"
                     : "<td>" + esc(t.name) + "</td><td>" + riskBadge(t.risk) + "</td><td>" + statusBadge(t.status) + "</td><td>" + esc((t.sfiPillars || []).join(", ")) + "</td><td>" + esc(t.category || "") + "</td><td>" + esc(formatTime(t.lastEvaluatedAt)) + "</td>");
             return '<tr><td colspan="0" hidden></td>' + cols + '<td><button class="btn btn-ghost" type="button" data-open="' + esc(t.id) + '">Details</button></td></tr>';
         }).join("");
@@ -1229,7 +1230,13 @@
         if (!a) return emptyState("No assessment results are available.", "Run a Zero Trust assessment to populate this dashboard.");
         var tests = (a.identity && a.identity.tests) || [];
         var filtered = sortTests(applyFilters(tests));
+        var viz = a.visualizations || {};
         var html = '<div class="zt-page-head"><div><h1>Identity</h1></div></div>';
+        html += '<div class="zt-viz-grid">' +
+            authCoverageCard(viz.userAuthCoverage, viz.privilegedAuth) +
+            caCoverageCard(viz.conditionalAccessCoverage) +
+            deviceSignInCard(viz.deviceSignIn) +
+            "</div>";
         html += tableFor(filtered, tests.length, "identity tests");
         return html;
     }
@@ -1298,13 +1305,25 @@
         else if (PILLAR_META[state.view]) viewEl.innerHTML = renderPillar(state.view);
         else viewEl.innerHTML = renderOverview();
         bindViewEvents();
-        if (state.view === "overview") paintOverviewCharts();
+        if (state.view === "overview" || state.view === "identity") paintOverviewCharts();
         if (filterBtn) filterBtn.classList.toggle("has-filters", hasActiveFilters());
     }
 
     function bindViewEvents() {
         viewEl.querySelectorAll("[data-open]").forEach(function (btn) {
             btn.addEventListener("click", function () { openDrawer(btn.getAttribute("data-open")); });
+        });
+        viewEl.querySelectorAll(".zt-health-info").forEach(function (btn) {
+            btn.addEventListener("click", function (ev) {
+                ev.stopPropagation();
+                var open = btn.classList.toggle("is-open");
+                btn.setAttribute("aria-expanded", open ? "true" : "false");
+                viewEl.querySelectorAll(".zt-health-info").forEach(function (other) {
+                    if (other === btn) return;
+                    other.classList.remove("is-open");
+                    other.setAttribute("aria-expanded", "false");
+                });
+            });
         });
         viewEl.querySelectorAll("[data-page]").forEach(function (btn) {
             btn.addEventListener("click", function () { state.page = parseInt(btn.getAttribute("data-page"), 10) || 1; render(); });
@@ -1667,6 +1686,12 @@
         });
     }
     document.addEventListener("click", function (event) {
+        if (!event.target.closest(".zt-health-info")) {
+            document.querySelectorAll(".zt-health-info.is-open").forEach(function (btn) {
+                btn.classList.remove("is-open");
+                btn.setAttribute("aria-expanded", "false");
+            });
+        }
         if (tenantPop && !tenantPop.hidden && tenantPop.contains(event.target)) return;
         if (tenantBtn && tenantBtn.contains(event.target)) return;
         closeTenantPop();

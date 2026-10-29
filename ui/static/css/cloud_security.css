@@ -733,7 +733,8 @@
 
 .zt-info-btn:hover .zt-info-tip,
 .zt-info-btn:focus-visible .zt-info-tip,
-.zt-status-pill.is-open .zt-info-tip {
+.zt-status-pill.is-open .zt-info-tip,
+.zt-health-info.is-open .zt-info-tip {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
@@ -2012,6 +2013,29 @@
     font-size: 11px;
     font-weight: 700;
     margin-right: 6px;
+}
+
+.zt-health-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.zt-health-info.is-open .zt-info-tip,
+.zt-health-info.is-open {
+    color: var(--crimson, #ff5e4f);
+}
+
+.zt-health-info.is-open {
+    background: rgba(255, 94, 79, 0.14);
+}
+
+.zt-health-findings {
+    align-items: stretch;
+}
+
+.zt-health-findings > .zt-card {
+    min-width: 0;
 }
 
 .zt-pillar-risk h2 {

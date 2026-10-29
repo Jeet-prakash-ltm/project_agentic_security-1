@@ -681,9 +681,10 @@
     }
 
     function inventoryStat(tone, ic, label, value) {
-        return '<div class="zt-inv-stat">' +
+        return '<article class="zt-inv-tile is-' + tone + '">' +
             '<span class="zt-inv-icon zt-tone-' + tone + '">' + icon(ic) + "</span>" +
-            '<div><span class="zt-inv-label">' + esc(label) + '</span><strong>' + esc(compactNumber(value)) + "</strong></div></div>";
+            '<span class="zt-inv-label">' + esc(label) + "</span>" +
+            "<strong>" + esc(compactNumber(value)) + "</strong></article>";
     }
 
     function inventoryCard(title, ic, tone, statsHtml) {
@@ -723,13 +724,13 @@
         html += '<section class="zt-exec">' +
             '<section class="zt-inventory-card">' +
             "<h2>Tenant inventory</h2>" +
-            '<div class="zt-inv-stats">' +
+            '<div class="zt-inv-metrics">' +
             inventoryStat("blue", "user", "Users", t.users) +
-            inventoryStat("blue", "guests", "Guest users", t.guests) +
+            inventoryStat("sky", "guests", "Guest users", t.guests) +
             inventoryStat("purple", "laptop", "Devices", t.devices) +
-            inventoryStat("purple", "devices", "Managed devices", t.managedDevices) +
+            inventoryStat("violet", "devices", "Managed devices", t.managedDevices) +
             inventoryStat("teal", "groups", "Groups", t.groups) +
-            inventoryStat("teal", "apps", "Applications", t.applications) +
+            inventoryStat("mint", "apps", "Applications", t.applications) +
             "</div></section>" +
             '<article class="zt-score-card">' +
             "<h2>Zero Trust Score</h2>" +

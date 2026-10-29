@@ -1561,6 +1561,70 @@
     flex: 1;
 }
 
+.zt-inv-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    flex: 1;
+}
+
+.zt-inv-tile {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 12px;
+    row-gap: 2px;
+    align-items: center;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.zt-inv-tile.is-blue { border-color: rgba(96, 165, 250, 0.35); }
+.zt-inv-tile.is-sky { border-color: rgba(56, 189, 248, 0.35); }
+.zt-inv-tile.is-purple { border-color: rgba(167, 139, 250, 0.35); }
+.zt-inv-tile.is-violet { border-color: rgba(139, 92, 246, 0.35); }
+.zt-inv-tile.is-teal { border-color: rgba(45, 212, 191, 0.35); }
+.zt-inv-tile.is-mint { border-color: rgba(94, 234, 212, 0.3); }
+
+.zt-inv-tile .zt-inv-icon {
+    grid-row: 1 / 3;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+}
+
+.zt-inv-tile .zt-inv-label {
+    grid-column: 2;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #D1D5DB;
+    margin: 0;
+}
+
+.zt-inv-tile strong {
+    grid-column: 2;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+    font-family: var(--font-display, inherit);
+}
+
+.zt-inv-tile.is-blue strong { color: #60A5FA; }
+.zt-inv-tile.is-sky strong { color: #38BDF8; }
+.zt-inv-tile.is-purple strong { color: #A78BFA; }
+.zt-inv-tile.is-violet strong { color: #8B5CF6; }
+.zt-inv-tile.is-teal strong { color: #2DD4BF; }
+.zt-inv-tile.is-mint strong { color: #5EEAD4; }
+
+.zt-tone-sky { background: rgba(56, 189, 248, 0.16); color: #38BDF8; }
+.zt-tone-violet { background: rgba(139, 92, 246, 0.16); color: #8B5CF6; }
+.zt-tone-mint { background: rgba(94, 234, 212, 0.16); color: #5EEAD4; }
+
 .zt-score-ring-wrap {
     position: relative;
     width: 220px;
@@ -2157,6 +2221,7 @@
     .zt-metric-pillars,
     .zt-tenant-compact .zt-tenant-meta,
     .zt-inventory-card .zt-inv-stats,
+    .zt-inv-metrics,
     .zt-sev-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -2176,7 +2241,8 @@
     .zt-pillar-cards,
     .zt-metric-pillars,
     .zt-tenant-compact .zt-tenant-meta,
-    .zt-inventory-card .zt-inv-stats {
+    .zt-inventory-card .zt-inv-stats,
+    .zt-inv-metrics {
         grid-template-columns: 1fr;
     }
 

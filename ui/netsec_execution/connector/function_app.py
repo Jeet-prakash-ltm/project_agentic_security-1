@@ -81,7 +81,7 @@ class FunctionAppPanosClient:
         info = self._load_info()
         if "dry_run" in info:
             return bool(info.get("dry_run"))
-        return True
+        return False
 
     def describe(self):
         return "{0} | dry_run={1} | via=function_app".format(

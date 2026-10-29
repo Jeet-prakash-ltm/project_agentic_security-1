@@ -19,7 +19,7 @@ class Settings:
     TIMEOUT = int(os.getenv("NETSEC_FW_TIMEOUT", "30"))
 
     DRY_RUN = (
-        os.getenv("NETSEC_FW_DRY_RUN", "1")
+        os.getenv("NETSEC_FW_DRY_RUN", "0")
         == "1"
     )
 

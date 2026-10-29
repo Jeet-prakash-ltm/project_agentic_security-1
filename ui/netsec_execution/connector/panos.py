@@ -104,7 +104,7 @@ class PanosClient:
         self.timeout = int(timeout or _env("NETSEC_FW_TIMEOUT", "30") or 30)
         self._key = api_key or _env("NETSEC_FW_API_KEY") or None
         if dry_run is None:
-            dry_run = _env_bool("NETSEC_FW_DRY_RUN", "1")
+            dry_run = _env_bool("NETSEC_FW_DRY_RUN", "0")
         self.dry_run = bool(dry_run)
 
     # ------------------------------------------------------------------

@@ -21,7 +21,7 @@ Expected environment variables:
 * ``NETSEC_FW_HOST`` / ``NETSEC_FW_USERNAME`` / ``NETSEC_FW_PASSWORD`` - the
   firewall used when the Function App is not configured (see
   ``netsec_execution.connector.panos`` for the full NETSEC_FW_* set)
-* ``NETSEC_FW_DRY_RUN`` - ``1`` previews playbook changes, ``0`` applies them
+* ``NETSEC_FW_DRY_RUN`` - ``0`` applies and commits playbook changes, ``1`` previews only
 * ``NETSEC_WORKBOOK_DIR`` - where uploaded playbook workbooks are stored
 * ``NETSEC_MAX_ROWS`` - cap on data rows executed per playbook run
 * ``ZERO_TRUST_FUNCTION_URL`` / ``ZERO_TRUST_FUNCTION_KEY`` - Zero Trust

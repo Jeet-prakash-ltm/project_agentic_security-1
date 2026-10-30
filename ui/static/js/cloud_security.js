@@ -1184,16 +1184,6 @@
             "</div>";
     }
 
-    function categoryCards(tests, labels) {
-        return '<div class="zt-cat-grid">' + labels.map(function (label) {
-            var subset = tests.filter(function (t) { return (t.category || "") === label; });
-            var passed = subset.filter(function (t) { return t.status === "Passed"; }).length;
-            var total = subset.length;
-            var pct = total ? Math.round((passed / total) * 100) : 0;
-            return '<article class="zt-cat-card"><h3>' + esc(label) + "</h3><div class=\"zt-pillar-count\"><strong>" + passed + "</strong>/" + total + '</div><span class="zt-pillar-track" aria-hidden="true"><span class="zt-pillar-fill" style="width:' + pct + '%"></span></span></article>';
-        }).join("") + "</div>";
-    }
-
     function tableFor(filtered, allCount, caption, opts) {
         opts = opts || {};
         var limit = opts.limit || PAGE_SIZE;
@@ -1516,11 +1506,6 @@
                 ? '<p class="zt-muted">Device inventory flow is available.</p>'
                 : '<div class="zt-viz-empty"><div><strong>Visualization unavailable</strong><p>The assessment returned configuration test results but did not return the telemetry required for this flow diagram.</p></div></div>') + "</section>";
         }
-        var meta = PILLAR_META[view];
-        if (meta && meta.categories && meta.categories.length) {
-            var tests = pillarBucket(a, view).tests || [];
-            return categoryCards(tests, meta.categories);
-        }
         return "";
     }
 
@@ -1562,25 +1547,22 @@
     var PILLAR_META = {
         network: {
             title: "Network",
-            caption: "network tests",
-            categories: ["Inventory", "NSG security", "Public exposure", "Private connectivity", "Firewall", "WAF", "DDoS", "Remote connectivity", "Encryption", "Monitoring", "Segmentation", "Routing"]
+            caption: "network tests"
         },
         data: {
             title: "Data",
-            caption: "data tests",
-            categories: ["Classification", "Information protection", "Data loss prevention", "Encryption", "External sharing", "Retention", "Data risk", "Audit"]
+            caption: "data tests"
         },
         infrastructure: {
             title: "Infrastructure",
-            caption: "infrastructure tests",
-            categories: ["Inventory", "Governance", "Administrative access", "Workload identity", "Defender for Cloud", "VM security", "Vulnerability management", "Secrets and keys", "Storage security", "Container security", "Monitoring", "Backup and recovery", "Configuration drift"]
+            caption: "infrastructure tests"
         }
     };
 
     function renderPillar(view) {
         var a = state.assessment;
         if (!a) return emptyState("No assessment results are available.", "Run a Zero Trust assessment to populate this dashboard.");
-        var meta = PILLAR_META[view] || { title: view, caption: "tests", categories: [] };
+        var meta = PILLAR_META[view] || { title: view, caption: "tests" };
         var bucket = pillarBucket(a, view);
         var tests = bucket.tests || [];
         var html = pillarTabs(meta.title);

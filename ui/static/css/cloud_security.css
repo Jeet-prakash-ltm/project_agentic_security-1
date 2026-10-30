@@ -619,28 +619,6 @@
     min-width: 2px;
 }
 
-.zt-cat-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 10px;
-}
-
-.zt-cat-card {
-    position: relative;
-    background: var(--zt-surface);
-    border: 1px solid var(--zt-border);
-    border-radius: 16px;
-    padding: 14px 16px;
-    box-shadow: var(--shadow-soft);
-}
-
-.zt-cat-card h3 {
-    font-size: 12px;
-    font-weight: 600;
-    margin: 0 0 8px;
-    color: var(--zt-muted);
-}
-
 .zt-viz-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

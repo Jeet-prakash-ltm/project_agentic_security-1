@@ -39,6 +39,10 @@ class ReportsRepository(BaseRepository):
             status=data.get("status") or "Completed",
             size=data.get("size"),
             download_url=data.get("download_url"),
+            assessment_id=data.get("assessment_id"),
+            job_id=data.get("job_id"),
+            security_domain=data.get("security_domain") or "network_security",
+            storage_reference=data.get("storage_reference"),
         )
         self.session.add(report)
         self.session.commit()

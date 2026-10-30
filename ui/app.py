@@ -719,7 +719,7 @@ def executive_report():
             assessment_service
             .get_executive_summary_pdf(
                 firewall_id=_firewall_param(),
-                force=True
+                force=False
             )
         )
 
@@ -737,6 +737,8 @@ def executive_report():
                 "status": "Completed",
                 "size": file_size_label(result["local_file"]),
                 "download_url": result["download_url"],
+                "assessment_id": summary.get("assessment_id"),
+                "security_domain": "network_security",
             },
             user_id=current_user_id(),
         )
@@ -777,7 +779,7 @@ def generate_excel():
 
             result = (
                 assessment_service
-                .get_estate_excel(force=True)
+                .get_estate_excel(force=False)
             )
 
             # Reports centre expects a single-firewall summary shape; map the
@@ -796,7 +798,7 @@ def generate_excel():
                 assessment_service
                 .get_excel_report(
                     firewall_id=_firewall_param(),
-                    force=True
+                    force=False
                 )
             )
 
@@ -834,6 +836,8 @@ def generate_excel():
                 "status": "Completed",
                 "size": size,
                 "download_url": result["download_url"],
+                "assessment_id": result.get("assessment_id"),
+                "security_domain": "network_security",
             },
             user_id=current_user_id(),
         )
@@ -1103,7 +1107,7 @@ def api_summary():
             assessment_service
             .get_executive_summary_pdf(
                 firewall_id=_firewall_param(),
-                force=True
+                force=False
             )
         )
 
@@ -1125,6 +1129,8 @@ def api_summary():
             "status": "Completed",
             "size": file_size_label(result["local_file"]),
             "download_url": result["download_url"],
+            "assessment_id": summary.get("assessment_id"),
+            "security_domain": "network_security",
         }, user_id=current_user_id())
 
         return jsonify(payload)
@@ -1145,7 +1151,7 @@ def api_excel():
             assessment_service
             .get_excel_report(
                 firewall_id=_firewall_param(),
-                force=True
+                force=False
             )
         )
 
@@ -1168,6 +1174,8 @@ def api_excel():
             "status": "Completed",
             "size": file_size_label(result.get("local_file")),
             "download_url": result.get("download_url"),
+            "assessment_id": result.get("assessment_id"),
+            "security_domain": "network_security",
         }, user_id=current_user_id())
 
         return jsonify(payload)
@@ -1189,7 +1197,7 @@ def download_workbook():
             assessment_service
             .get_excel_report(
                 firewall_id=_firewall_param(),
-                force=True
+                force=False
             )
         )
 
@@ -1206,6 +1214,8 @@ def download_workbook():
             "status": "Completed",
             "size": file_size_label(local_file),
             "download_url": "reports/{0}".format(filename),
+            "assessment_id": result.get("assessment_id"),
+            "security_domain": "network_security",
         }, user_id=current_user_id())
 
         return send_file(
@@ -1219,6 +1229,43 @@ def download_workbook():
         return jsonify(
             {"error": str(e)}
         ), 500
+
+
+@app.route("/report-download/<int:report_id>")
+@login_required
+def report_download(report_id):
+    reports = report_history_service.list_reports(user_id=current_user_id())
+    report = next((item for item in reports if item.get("id") == report_id), None)
+    if report is None:
+        return jsonify({"error": "Report not found."}), 404
+
+    firewall_id = report.get("firewall") or _firewall_param()
+    report_type = (report.get("type") or "").lower()
+    try:
+        if "executive" in report_type or "pdf" in report_type:
+            result = assessment_service.get_executive_summary_pdf(
+                firewall_id=firewall_id if firewall_id != "estate" else "vmpafw01",
+                force=False,
+            )
+            return send_file(
+                result["local_file"],
+                as_attachment=True,
+                download_name=result["filename"],
+            )
+        if firewall_id == "estate":
+            result = assessment_service.get_estate_excel(force=False)
+        else:
+            result = assessment_service.get_excel_report(
+                firewall_id=firewall_id, force=False
+            )
+        filename = os.path.basename(result.get("download_url") or "Assessment_Workbook.xlsx")
+        return send_file(
+            result["local_file"],
+            as_attachment=True,
+            download_name=filename,
+        )
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
 
 
 @app.route("/api/agents")
@@ -2087,6 +2134,8 @@ def api_estate_excel():
             "status": "Completed",
             "size": file_size_label(result.get("local_file")),
             "download_url": result.get("download_url"),
+            "assessment_id": result.get("assessment_id"),
+            "security_domain": "network_security",
         }, user_id=current_user_id())
 
         return jsonify(payload)

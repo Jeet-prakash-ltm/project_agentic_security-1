@@ -1445,6 +1445,18 @@
     color: rgba(255, 255, 255, 0.55);
 }
 
+.dash-chip-time {
+    padding-right: 14px;
+    gap: 6px;
+}
+
+.dash-chip-when {
+    font-size: 11.5px;
+    font-weight: 650;
+    letter-spacing: 0.2px;
+    color: rgba(255, 255, 255, 0.86);
+}
+
 .dash-chip-x {
     display: inline-flex;
     align-items: center;

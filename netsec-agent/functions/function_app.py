@@ -474,7 +474,11 @@ def run_full_assessment(
         try:
             from dbwriter import persist_assessment
 
-            persist_assessment("vmpafw01", result, "run_full_assessment")
+            assessment_id = persist_assessment(
+                "vmpafw01", result, "run_full_assessment"
+            )
+            if assessment_id:
+                result["assessment_id"] = assessment_id
         except Exception:
             pass
 
@@ -517,7 +521,11 @@ def run_compliance_assessment(
         try:
             from dbwriter import persist_assessment
 
-            persist_assessment("vmpafw01", result, "run_compliance_assessment")
+            assessment_id = persist_assessment(
+                "vmpafw01", result, "run_compliance_assessment"
+            )
+            if assessment_id:
+                result["assessment_id"] = assessment_id
         except Exception:
             pass
 
@@ -537,6 +545,55 @@ def run_compliance_assessment(
         return error_response(e)
 
 
+def _stored_or_live_assessment():
+    try:
+        from dbwriter import load_latest_assessment
+
+        stored = load_latest_assessment()
+        if stored:
+            return stored
+    except Exception:
+        pass
+    return build_compliance_assessment()
+
+
+def _file_size_label(path):
+    try:
+        size_bytes = os.path.getsize(path) if path and os.path.exists(path) else 0
+    except Exception:
+        return None
+    if not size_bytes:
+        return None
+    if size_bytes >= 1024 * 1024:
+        return "{0:.2f} MB".format(size_bytes / (1024 * 1024))
+    return "{0:.0f} KB".format(size_bytes / 1024.0)
+
+
+def _persist_generated_report(kind, assessment, extra=None):
+    extra = extra or {}
+    try:
+        from dbwriter import persist_report
+
+        inventory = assessment.get("inventory") or {}
+        persist_report(
+            {
+                "name": extra.get("name"),
+                "type": kind,
+                "generated_by": "Firewall Audit Agent",
+                "firewall": inventory.get("hostname") or assessment.get("_firewall_id"),
+                "ts": time.time(),
+                "status": "Completed",
+                "size": extra.get("size"),
+                "download_url": extra.get("download_url"),
+                "assessment_id": assessment.get("assessment_id"),
+                "security_domain": "network_security",
+                "storage_reference": extra.get("storage_reference"),
+            }
+        )
+    except Exception:
+        pass
+
+
 @app.route(
     route="executive_summary",
     auth_level=func.AuthLevel.FUNCTION
@@ -548,7 +605,7 @@ def executive_summary(
     try:
 
         assessment_result = (
-            build_compliance_assessment()
+            _stored_or_live_assessment()
         )
 
         summary = (
@@ -556,6 +613,25 @@ def executive_summary(
             .generate(
                 assessment_result
             )
+        )
+        summary["assessment_id"] = assessment_result.get("assessment_id")
+        summary["message"] = "Executive summary generated, check Report Centre."
+        summary["_source"] = assessment_result.get("_source", "live")
+
+        month = time.strftime("%b_%Y")
+        firewall_id = (
+            (assessment_result.get("inventory") or {}).get("hostname")
+            or assessment_result.get("_firewall_id")
+            or "vmpafw01"
+        )
+        report_name = "Executive_Summary_{0}_{1}".format(firewall_id, month)
+        _persist_generated_report(
+            "Executive Summary",
+            assessment_result,
+            {
+                "name": report_name,
+                "download_url": "reports/{0}.pdf".format(report_name),
+            },
         )
 
         _db_log(
@@ -591,19 +667,37 @@ def generate_excel_report(
     try:
 
         assessment_result = (
-            build_compliance_assessment()
+            _stored_or_live_assessment()
         )
 
         report_generator = (
             ExcelReport()
         )
 
+        firewall_id = (
+            (assessment_result.get("inventory") or {}).get("hostname")
+            or assessment_result.get("_firewall_id")
+            or "vmpafw01"
+        )
+        month = time.strftime("%b_%Y")
+        report_name = "Assessment_Workbook_{0}_{1}".format(firewall_id, month)
+        download_url = "reports/{0}_Assessment_Workbook.xlsx".format(firewall_id)
         report_file = (
             report_generator.generate(
                 assessment_result,
                 output_file=
-                "/tmp/PaloAlto_Assessment.xlsx"
+                "/tmp/{0}_Assessment_Workbook.xlsx".format(firewall_id)
             )
+        )
+        _persist_generated_report(
+            "Workbook",
+            assessment_result,
+            {
+                "name": report_name,
+                "size": _file_size_label(report_file),
+                "download_url": download_url,
+                "storage_reference": report_file,
+            },
         )
 
         _db_log(
@@ -621,7 +715,10 @@ def generate_excel_report(
                 report_file,
 
             "message":
-                "Excel report generated successfully.",
+                "Report generated, check Report Centre.",
+
+            "assessment_id":
+                assessment_result.get("assessment_id"),
 
             "summary":
                 assessment_result.get(

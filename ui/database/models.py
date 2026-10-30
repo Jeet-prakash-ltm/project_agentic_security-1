@@ -126,6 +126,10 @@ class ReportHistory(Base):
     status = Column(String(32))
     size = Column(String(32))
     download_url = Column(String(512))
+    assessment_id = Column(String(64), index=True)
+    job_id = Column(String(64))
+    security_domain = Column(String(64))
+    storage_reference = Column(String(1024))
 
 
 class AssessmentHistory(Base):

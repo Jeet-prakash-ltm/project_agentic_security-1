@@ -59,6 +59,7 @@ def list_reports(user_id=None):
     reports = _repo().list_reports(user_id=user_id)
     return [
         {
+            "id": report.id,
             "name": report.name,
             "type": report.type,
             "generated_by": report.generated_by,
@@ -68,6 +69,8 @@ def list_reports(user_id=None):
             "status": report.status,
             "size": report.size,
             "download_url": report.download_url,
+            "assessment_id": report.assessment_id,
+            "security_domain": report.security_domain,
         }
         for report in reports
     ]

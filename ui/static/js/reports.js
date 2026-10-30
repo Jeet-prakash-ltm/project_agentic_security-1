@@ -186,8 +186,11 @@
             var statusClassValue = statusClass(report);
             var icon = isPdf ? "PDF" : "XLS";
             var iconClass = isPdf ? "file-icon-purple" : "file-icon-green";
-            var download = report.download_url
-                ? '<a class="rep-action-btn" href="/static/' + encodeURIComponent(report.download_url) +
+            var downloadHref = report.id
+                ? "/report-download/" + report.id
+                : (report.download_url ? "/static/" + report.download_url : "");
+            var download = downloadHref
+                ? '<a class="rep-action-btn" href="' + downloadHref +
                     '" download title="Download"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 21h16"/></svg></a>'
                 : '<span class="rep-action-btn muted" title="No file available"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 21h16"/></svg></span>';
             html +=

@@ -23,7 +23,8 @@
         firewalls: [ALL],
         inventory: [],
         source: null,
-        status: {}
+        status: {},
+        lastAssessmentTs: null
     };
 
     function isAll() {
@@ -98,6 +99,24 @@
         var d = parseDate(ts);
         if (!d) return "";
         return d.toLocaleString(undefined, { month: "short", day: "numeric" });
+    }
+
+    function formatAssessmentTs(ts) {
+        var d = parseDate(ts);
+        if (!d) return "";
+        var ist = new Date(d.getTime() + 5.5 * 3600 * 1000);
+        function pad(n) { return (n < 10 ? "0" : "") + n; }
+        return ist.getUTCFullYear() + "-" + pad(ist.getUTCMonth() + 1) + "-" +
+            pad(ist.getUTCDate()) + " " + pad(ist.getUTCHours()) + ":" +
+            pad(ist.getUTCMinutes()) + " IST";
+    }
+
+    function assessmentPillHtml(ts) {
+        var label = formatAssessmentTs(ts);
+        if (!label) return "";
+        return '<span class="dash-chip dash-chip-time" title="Last completed assessment">' +
+            '<span class="dash-chip-note">last assessment</span>' +
+            '<span class="dash-chip-when">' + escapeHtml(label) + "</span></span>";
     }
 
     // ============================================================
@@ -1101,7 +1120,8 @@
             recent_findings: [],
             findings_list: [],
             history: [],
-            firewall_id: labelId
+            firewall_id: labelId,
+            last_assessment_ts: null
         };
         payloads.forEach(function (data) {
             if (!data) return;
@@ -1119,6 +1139,9 @@
             result.recent_findings = result.recent_findings.concat(data.recent_findings || []);
             result.findings_list = result.findings_list.concat(data.findings_list || []);
             result.history = result.history.concat(data.history || []);
+            if (data.last_assessment_ts && (!result.last_assessment_ts || data.last_assessment_ts > result.last_assessment_ts)) {
+                result.last_assessment_ts = data.last_assessment_ts;
+            }
         });
         var total = result.compliance.total_controls;
         result.compliance.compliance_score = total
@@ -1145,6 +1168,7 @@
         container.innerHTML = groupShell(groupId);
         state.source = null;
         state.status = {};
+        state.lastAssessmentTs = null;
 
         var root = container.querySelector(".dash-group");
         var fetchList = isAll() ? [ALL] : targets;
@@ -1176,7 +1200,9 @@
                 return;
             }
             var data = ok.length === 1 ? ok[0] : mergeDashboardPayloads(ok, groupId);
+            state.lastAssessmentTs = data.last_assessment_ts || state.lastAssessmentTs;
             applyNetsecData(root, data, groupId);
+            renderSelection();
             setSource(state.source || "sample");
         });
     }
@@ -1189,7 +1215,8 @@
         if (isAll()) {
             el.innerHTML = '<span class="dash-chip is-all" data-fw="' + ALL + '"><span class="dash-chip-dot ' + statusClass(ALL) + '"></span>' +
                 "All Firewalls" +
-                '<span class="dash-chip-note">cumulative view</span></span>';
+                '<span class="dash-chip-note">cumulative view</span></span>' +
+                assessmentPillHtml(state.lastAssessmentTs);
             return;
         }
         el.innerHTML = state.firewalls.map(function (fw) {
@@ -1198,7 +1225,7 @@
                 escapeHtml(fw) +
                 '<button type="button" class="dash-chip-x" data-fw="' + escapeHtml(fw) + '" aria-label="Remove ' + escapeHtml(fw) + '">&times;</button>' +
                 "</span>";
-        }).join("");
+        }).join("") + assessmentPillHtml(state.lastAssessmentTs);
         el.querySelectorAll(".dash-chip-x").forEach(function (btn) {
             btn.addEventListener("click", function () {
                 var name = btn.getAttribute("data-fw");

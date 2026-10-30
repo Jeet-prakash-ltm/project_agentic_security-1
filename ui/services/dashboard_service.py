@@ -90,6 +90,12 @@ def _trend_history(history):
     return history + extra
 
 
+def _display_source(source):
+    if source in ("live", "stored"):
+        return "live"
+    return source or "sample"
+
+
 def _estate_findings(devices):
     findings = []
     for device in devices or []:
@@ -116,8 +122,13 @@ def get_dashboard(firewall_id="vmpafw01"):
         non_compliant = int(cumulative.get("total_non_compliant", 0))
         not_assessed = int(cumulative.get("total_not_assessed", 0))
         findings = _estate_findings(devices)
-        source = estate.get("_source", "sample")
+        source = _display_source(estate.get("_source", "sample"))
         history = _trend_history(assessment_service.get_history())
+        last_assessment_ts = stats.get("last_assessment_ts")
+        try:
+            last_assessment_ts = assessment_service.last_assessment_ts("all") or last_assessment_ts
+        except Exception:
+            pass
     else:
         try:
             assessment = assessment_service.get_full_assessment(firewall_id)
@@ -131,7 +142,12 @@ def get_dashboard(firewall_id="vmpafw01"):
         compliant = int(summary.get("compliant", 0))
         non_compliant = int(summary.get("non_compliant", 0))
         not_assessed = int(summary.get("not_assessed", 0))
-        source = assessment.get("_source", "sample")
+        source = _display_source(assessment.get("_source", "sample"))
+        last_assessment_ts = stats.get("last_assessment_ts")
+        try:
+            last_assessment_ts = assessment_service.last_assessment_ts(firewall_id) or last_assessment_ts
+        except Exception:
+            pass
 
         base_history = _trend_history(assessment_service.get_history())
         history = [
@@ -229,6 +245,7 @@ def get_dashboard(firewall_id="vmpafw01"):
             "top_drivers": drivers[:3],
         },
         "assessments_run": int((stats or {}).get("assessments_run", 0)),
+        "last_assessment_ts": last_assessment_ts,
         "avg_health": avg_health,
         "agents": health_cards,
         "history": history,

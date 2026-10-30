@@ -22,6 +22,7 @@ import requests
 from config import settings
 from database.db import get_session
 from database.repositories import AssessmentsRepository
+from database.repositories import CanonicalAssessmentsRepository
 from database.repositories import FindingsRepository
 from services import timeutil
 
@@ -116,13 +117,55 @@ def _assessments_repo():
     return AssessmentsRepository(get_session())
 
 
+def _canonical_repo():
+    return CanonicalAssessmentsRepository(get_session())
+
+
+def _canonical_payload(firewall_id=None):
+    try:
+        return _canonical_repo().load_payload(firewall_id)
+    except Exception as exc:
+        log.warning("Canonical assessment read failed: %s", exc)
+        return None
+
+
+def _canonical_history(firewall_id=None, limit=200):
+    try:
+        rows = _canonical_repo().list_completed(firewall_id, limit=limit)
+        return [_canonical_repo().snapshot_from_row(row) for row in rows]
+    except Exception as exc:
+        log.warning("Canonical assessment history read failed: %s", exc)
+        return []
+
+
+def _canonical_stats():
+    try:
+        return _canonical_repo().stats()
+    except Exception as exc:
+        log.warning("Canonical assessment stats read failed: %s", exc)
+        return None
+
+
 # ------------------------------------------------------------
 # PERSISTENCE (PostgreSQL via repositories)
 # ------------------------------------------------------------
 
 def get_assessment_stats():
-    """Return ``{assessments_run, last_assessment_ts}`` from assessment_stats."""
+    """Return ``{assessments_run, last_assessment_ts}`` from canonical assessments."""
+    stats = _canonical_stats()
+    if stats and stats.get("assessments_run"):
+        return stats
     return _assessments_repo().stats_as_dict()
+
+
+def last_assessment_ts(firewall_id=None):
+    """Unix timestamp of the latest completed canonical assessment."""
+    try:
+        fw = None if firewall_id in (None, "all", "estate") else firewall_id
+        return _canonical_repo().last_completed_ts(fw)
+    except Exception as exc:
+        log.warning("Canonical last-assessment timestamp read failed: %s", exc)
+        return None
 
 
 def get_history():
@@ -148,6 +191,9 @@ def _snapshot_from_row(row):
 
 
 def _load_history():
+    snapshots = _canonical_history()
+    if snapshots:
+        return snapshots
     rows = _assessments_repo().list_history()
     snapshots = [_snapshot_from_row(row) for row in rows]
     if not snapshots:
@@ -385,6 +431,16 @@ def get_full_assessment(firewall_id="vmpafw01", force=False, require_reachable=F
     if require_reachable:
         _ensure_firewall_reachable(firewall_id)
 
+    if not force:
+        stored = _canonical_payload(firewall_id)
+        if stored:
+            stored["_source"] = stored.get("_source") or "stored"
+            stored = _apply_firewall(stored, firewall_id)
+            stored["_run_id"] = stored.get("assessment_id") or stored.get("_run_id")
+            _cache["assessment"][firewall_id] = stored
+            _cache["ts"][firewall_id] = now
+            return stored
+
     cached = _cache["assessment"].get(firewall_id)
 
     if (
@@ -542,7 +598,7 @@ def get_posture(firewall_id="vmpafw01", force=False):
 
     collected_at = data.get("_collected_at")
     stats = get_assessment_stats()
-    run_id = data.get("_run_id") or "ASM-{0:06d}".format(int(stats.get("assessments_run", 0)))
+    run_id = data.get("_run_id") or data.get("assessment_id") or "ASM-{0:06d}".format(int(stats.get("assessments_run", 0)))
 
     prev_snapshots = _load_history()
     prev = None
@@ -568,7 +624,8 @@ def get_posture(firewall_id="vmpafw01", force=False):
         "severity": severity,
         "finding_count": len(findings),
     }
-    _record_history(snapshot)
+    if data.get("_source") != "stored":
+        _record_history(snapshot)
 
     history = _load_history()
 
@@ -616,7 +673,7 @@ def get_executive_summary(firewall_id="vmpafw01", force=False):
         ExecutiveSummary
     )
 
-    data = get_full_assessment(firewall_id, force)
+    data = get_full_assessment(firewall_id, force=False)
 
     summary = (
         ExecutiveSummary()
@@ -632,6 +689,7 @@ def get_executive_summary(firewall_id="vmpafw01", force=False):
     )
 
     summary["_firewall_id"] = firewall_id
+    summary["assessment_id"] = data.get("assessment_id") or data.get("_run_id")
 
     return summary
 
@@ -678,7 +736,7 @@ def get_excel_report(firewall_id="vmpafw01", force=False):
     )
 
     firewall_id = firewall_id or "vmpafw01"
-    data = get_full_assessment(firewall_id, force)
+    data = get_full_assessment(firewall_id, force=False)
 
     os.makedirs(
         EXCEL_DIR,
@@ -719,6 +777,7 @@ def get_excel_report(firewall_id="vmpafw01", force=False):
                 "live"
             ),
         "firewall_id": firewall_id,
+        "assessment_id": data.get("assessment_id") or data.get("_run_id"),
     }
 
 
@@ -784,7 +843,7 @@ def get_estate_assessment(force=False):
     if entries:
         names = [entry["device_name"] for entry in entries]
         prime = "vmpafw01" if "vmpafw01" in names else names[0]
-        base = get_full_assessment(prime, force=force)
+        base = get_full_assessment(prime, force=False)
         import copy
 
         for entry in entries:

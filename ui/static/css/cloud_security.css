@@ -2286,10 +2286,26 @@
 
 .zt-health-findings {
     align-items: stretch;
+    overflow: visible;
 }
 
 .zt-health-findings > .zt-card {
     min-width: 0;
+    overflow: visible;
+}
+
+.zt-health-findings > .zt-health-card {
+    z-index: 4;
+}
+
+.zt-health-findings > .zt-card:last-child {
+    z-index: 1;
+}
+
+.zt-health-info .zt-info-tip {
+    z-index: 80;
+    left: auto;
+    right: 0;
 }
 
 .zt-pillar-risk h2 {

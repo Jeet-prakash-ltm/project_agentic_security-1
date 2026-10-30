@@ -947,7 +947,7 @@
                         healthInfoButton(p.domain, p.message || "unavailable") + "</span></td></tr>";
                 }).join("") + "</tbody></table>";
         }
-        return '<section class="zt-card"><h2>Assessment data health</h2>' + rows + "</section>";
+        return '<section class="zt-card zt-health-card"><h2>Assessment data health</h2>' + rows + "</section>";
     }
 
     function renderGaps(items) {

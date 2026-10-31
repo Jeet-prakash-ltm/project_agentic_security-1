@@ -1234,18 +1234,25 @@ def download_workbook():
 @app.route("/report-download/<int:report_id>")
 @login_required
 def report_download(report_id):
-    reports = report_history_service.list_reports(user_id=current_user_id())
-    report = next((item for item in reports if item.get("id") == report_id), None)
+    report = report_history_service.get_report(
+        report_id, user_id=current_user_id()
+    )
     if report is None:
         return jsonify({"error": "Report not found."}), 404
 
-    firewall_id = report.get("firewall") or _firewall_param()
+    firewall_id = report.get("firewall") or _firewall_param() or "vmpafw01"
     report_type = (report.get("type") or "").lower()
+    assessment_id = report.get("assessment_id")
+    stored_name = os.path.basename(
+        (report.get("download_url") or report.get("name") or "").replace("\\", "/")
+    )
     try:
         if "executive" in report_type or "pdf" in report_type:
             result = assessment_service.get_executive_summary_pdf(
                 firewall_id=firewall_id if firewall_id != "estate" else "vmpafw01",
                 force=False,
+                assessment_id=assessment_id,
+                filename=stored_name if stored_name.endswith(".pdf") else None,
             )
             return send_file(
                 result["local_file"],
@@ -1256,9 +1263,14 @@ def report_download(report_id):
             result = assessment_service.get_estate_excel(force=False)
         else:
             result = assessment_service.get_excel_report(
-                firewall_id=firewall_id, force=False
+                firewall_id=firewall_id,
+                force=False,
+                assessment_id=assessment_id,
+                filename=stored_name if stored_name.endswith(".xlsx") else None,
             )
-        filename = os.path.basename(result.get("download_url") or "Assessment_Workbook.xlsx")
+        filename = os.path.basename(
+            result.get("download_url") or stored_name or "Assessment_Workbook.xlsx"
+        )
         return send_file(
             result["local_file"],
             as_attachment=True,

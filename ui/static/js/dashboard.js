@@ -62,12 +62,40 @@
         }
     }
 
-    function setSource(source) {
+    function estateHealth() {
+        var list = inventorySource();
+        var total = list.length;
+        var live = 0;
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].status === "live") live += 1;
+        }
+        if (!total || live === 0) return { mode: "down", live: live, total: total };
+        if (live === total) return { mode: "live", live: live, total: total };
+        return { mode: "partial", live: live, total: total };
+    }
+
+    function setEstateStatus() {
         if (!sourceBadge) return;
-        var label = source === "live" ? "Live Data" : "Sample Data";
+        var health = estateHealth();
+        var label = "System Down";
+        var color = "#DC2626";
+        var border = "rgba(220, 38, 38, 0.5)";
+        if (health.mode === "live") {
+            label = "System Live";
+            color = "#059669";
+            border = "rgba(34, 197, 94, 0.5)";
+        } else if (health.mode === "partial") {
+            label = "System Partial operational";
+            color = "#B45309";
+            border = "rgba(245, 158, 11, 0.5)";
+        }
+        sourceBadge.className = "hero-chip is-" + health.mode;
         sourceBadge.innerHTML = '<span class="pulse-dot"></span> ' + label;
-        sourceBadge.style.borderColor = source === "live" ? "rgba(34, 197, 94, 0.5)" : "rgba(245, 158, 11, 0.5)";
-        sourceBadge.style.color = source === "live" ? "#059669" : "#B45309";
+        sourceBadge.style.borderColor = border;
+        sourceBadge.style.color = color;
+        sourceBadge.title = health.live + " of " + health.total + " firewalls live";
+        state.status[ALL] = health.mode === "partial" ? "pending" : health.mode;
+        updateChipDots();
     }
 
     function escapeHtml(value) {
@@ -1196,14 +1224,14 @@
             var ok = payloads.filter(Boolean);
             if (!ok.length) {
                 if (root) applyGroupError(root, groupId);
-                setSource(state.source || "sample");
+                setEstateStatus();
                 return;
             }
             var data = ok.length === 1 ? ok[0] : mergeDashboardPayloads(ok, groupId);
             state.lastAssessmentTs = data.last_assessment_ts || state.lastAssessmentTs;
             applyNetsecData(root, data, groupId);
             renderSelection();
-            setSource(state.source || "sample");
+            setEstateStatus();
         });
     }
 
@@ -1413,8 +1441,12 @@
                 state.inventory = (data && data.firewalls) || [];
                 if (list && !list.hidden) list.innerHTML = comboRows("");
                 updateScope();
+                setEstateStatus();
             })
-            .catch(function () { state.inventory = []; });
+            .catch(function () {
+                state.inventory = [];
+                setEstateStatus();
+            });
     }
 
     if (window.showToast) {
@@ -1429,7 +1461,7 @@
     if (refreshBtn) {
         refreshBtn.addEventListener("click", function () {
             window.showToast("Refreshing dashboard data...");
-            load();
+            loadInventory().then(load);
         });
     }
 

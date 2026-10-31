@@ -129,6 +129,28 @@ def _canonical_payload(firewall_id=None):
         return None
 
 
+def _canonical_payload_by_id(assessment_id):
+    try:
+        return _canonical_repo().load_payload_by_id(assessment_id)
+    except Exception as exc:
+        log.warning("Canonical assessment by id read failed: %s", exc)
+        return None
+
+
+def get_stored_assessment(assessment_id=None, firewall_id="vmpafw01"):
+    """Return the canonical payload for a stored assessment id.
+
+    Falls back to the latest completed assessment for ``firewall_id``.
+    """
+    if assessment_id:
+        stored = _canonical_payload_by_id(assessment_id)
+        if stored:
+            return _apply_firewall(
+                stored, stored.get("_firewall_id") or firewall_id or "vmpafw01"
+            )
+    return get_full_assessment(firewall_id or "vmpafw01", force=False)
+
+
 def _canonical_history(firewall_id=None, limit=200):
     try:
         rows = _canonical_repo().list_completed(firewall_id, limit=limit)
@@ -667,13 +689,16 @@ def get_posture(firewall_id="vmpafw01", force=False):
     }
 
 
-def get_executive_summary(firewall_id="vmpafw01", force=False):
+def get_executive_summary(firewall_id="vmpafw01", force=False, assessment_id=None):
 
     from reports.executive_summary import (
         ExecutiveSummary
     )
 
-    data = get_full_assessment(firewall_id, force=False)
+    if assessment_id:
+        data = get_stored_assessment(assessment_id, firewall_id)
+    else:
+        data = get_full_assessment(firewall_id, force=False)
 
     summary = (
         ExecutiveSummary()
@@ -688,23 +713,26 @@ def get_executive_summary(firewall_id="vmpafw01", force=False):
         data.get("_collected_at")
     )
 
-    summary["_firewall_id"] = firewall_id
+    summary["_firewall_id"] = data.get("_firewall_id") or firewall_id
     summary["assessment_id"] = data.get("assessment_id") or data.get("_run_id")
 
     return summary
 
 
-def get_executive_summary_pdf(firewall_id="vmpafw01", force=False):
+def get_executive_summary_pdf(firewall_id="vmpafw01", force=False, assessment_id=None, filename=None):
 
     from reports.executive_summary_pdf import (
         generate as generate_pdf
     )
 
     firewall_id = firewall_id or "vmpafw01"
-    summary = get_executive_summary(firewall_id, force)
+    summary = get_executive_summary(firewall_id, force, assessment_id=assessment_id)
 
     month = timeutil.ist_now().strftime("%b_%Y")
-    filename = "Executive_Summary_{0}_{1}.pdf".format(firewall_id, month)
+    filename = filename or "Executive_Summary_{0}_{1}.pdf".format(firewall_id, month)
+    filename = os.path.basename(filename)
+    if not filename.lower().endswith(".pdf"):
+        filename = filename + ".pdf"
 
     os.makedirs(
         EXCEL_DIR,
@@ -729,21 +757,29 @@ def get_executive_summary_pdf(firewall_id="vmpafw01", force=False):
     }
 
 
-def get_excel_report(firewall_id="vmpafw01", force=False):
+def get_excel_report(firewall_id="vmpafw01", force=False, assessment_id=None, filename=None):
 
     from reports.excel_report import (
         ExcelReport
     )
 
     firewall_id = firewall_id or "vmpafw01"
-    data = get_full_assessment(firewall_id, force=False)
+    if assessment_id:
+        data = get_stored_assessment(assessment_id, firewall_id)
+    else:
+        data = get_full_assessment(firewall_id, force=False)
 
     os.makedirs(
         EXCEL_DIR,
         exist_ok=True
     )
 
-    filename = "{0}_Assessment_Workbook.xlsx".format(firewall_id)
+    filename = filename or "{0}_Assessment_Workbook.xlsx".format(
+        data.get("_firewall_id") or firewall_id
+    )
+    filename = os.path.basename(filename)
+    if not filename.lower().endswith(".xlsx"):
+        filename = filename + ".xlsx"
     output_file = os.path.join(
         EXCEL_DIR,
         filename

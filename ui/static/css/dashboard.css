@@ -281,6 +281,33 @@
     background: var(--success);
 }
 
+.hero-chip.is-live {
+    color: #059669;
+    border-color: rgba(22, 163, 74, 0.35);
+}
+
+.hero-chip.is-live .pulse-dot {
+    background: var(--success);
+}
+
+.hero-chip.is-partial {
+    color: #B45309;
+    border-color: rgba(245, 158, 11, 0.5);
+}
+
+.hero-chip.is-partial .pulse-dot {
+    background: #F59E0B;
+}
+
+.hero-chip.is-down {
+    color: #DC2626;
+    border-color: rgba(220, 38, 38, 0.45);
+}
+
+.hero-chip.is-down .pulse-dot {
+    background: #DC2626;
+}
+
 .hero-chip-btn {
     background: var(--gradient-red);
     border: 1px solid rgba(255, 94, 79, 0.35);

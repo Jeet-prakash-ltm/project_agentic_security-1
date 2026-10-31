@@ -20,6 +20,14 @@ class ReportsRepository(BaseRepository):
             .all()
         )
 
+    def get_report(self, report_id, user_id=None):
+        query = self.session.query(ReportHistory).filter(
+            ReportHistory.id == report_id
+        )
+        if user_id:
+            query = query.filter(ReportHistory.user_id == user_id)
+        return query.first()
+
     def recent(self, limit=100):
         return (
             self.session.query(ReportHistory)

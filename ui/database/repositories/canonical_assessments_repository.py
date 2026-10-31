@@ -150,6 +150,25 @@ class CanonicalAssessmentsRepository:
             return None
         return self._payload_from_row(row)
 
+    def load_payload_by_id(self, assessment_id):
+        if not assessment_id:
+            return None
+        row = self.session.execute(
+            text(
+                "SELECT "
+                + LATEST_COLUMNS
+                + """
+                FROM assessments
+                WHERE assessment_id = :assessment_id
+                LIMIT 1
+                """
+            ),
+            {"assessment_id": assessment_id},
+        ).mappings().first()
+        if not row:
+            return None
+        return self._payload_from_row(row)
+
     def _evidence(self, assessment_id):
         rows = self.session.execute(
             text(

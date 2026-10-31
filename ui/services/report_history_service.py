@@ -55,22 +55,30 @@ def append_report(report, user_id=None):
     _repo().append_report(report, user_id=user_id)
 
 
+def _to_dict(report):
+    return {
+        "id": report.id,
+        "name": report.name,
+        "type": report.type,
+        "generated_by": report.generated_by,
+        "firewall": report.firewall
+        or _infer_firewall(report.name, report.download_url),
+        "ts": report.ts,
+        "status": report.status,
+        "size": report.size,
+        "download_url": report.download_url,
+        "assessment_id": report.assessment_id,
+        "security_domain": report.security_domain,
+        "storage_reference": report.storage_reference,
+    }
+
+
 def list_reports(user_id=None):
-    reports = _repo().list_reports(user_id=user_id)
-    return [
-        {
-            "id": report.id,
-            "name": report.name,
-            "type": report.type,
-            "generated_by": report.generated_by,
-            "firewall": report.firewall
-            or _infer_firewall(report.name, report.download_url),
-            "ts": report.ts,
-            "status": report.status,
-            "size": report.size,
-            "download_url": report.download_url,
-            "assessment_id": report.assessment_id,
-            "security_domain": report.security_domain,
-        }
-        for report in reports
-    ]
+    return [_to_dict(report) for report in _repo().list_reports(user_id=user_id)]
+
+
+def get_report(report_id, user_id=None):
+    report = _repo().get_report(report_id, user_id=user_id)
+    if report is None:
+        return None
+    return _to_dict(report)

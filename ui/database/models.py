@@ -315,3 +315,37 @@ class FirewallJob(Base):
     updated_at = Column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class ZeroTrustAssessment(Base):
+    """One Zero Trust assessment run (transitional table).
+
+    The assessment Function App writes this table directly. Its deployment
+    package is read-only, so canonical rows in ``assessments`` /
+    ``assessment_findings`` / ``assessment_evidence`` are produced by
+    ``services.zero_trust_store``, which mirrors every row here. ``report``
+    holds the graded findings and per-pillar scores, ``evidence`` the raw
+    collector output (tenant profile, Entra, Intune, Azure), and ``summary``
+    the compact counts used by the overview cards.
+    """
+
+    __tablename__ = "zero_trust_assessments"
+    __table_args__ = (
+        Index("idx_zero_trust_assessments_completed_at", "completed_at"),
+    )
+
+    assessment_id = Column(String(64), primary_key=True)
+    status = Column(String(32), default="queued", index=True)
+    scope = Column(String(32), default="tenant")
+    tenant_id = Column(String(64))
+    subscription_id = Column(String(64))
+    started_at = Column(DateTime(timezone=True))
+    updated_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    progress = Column(Integer, default=0)
+    message = Column(Text)
+    score = Column(Integer)
+    summary = Column(JSONB)
+    evidence = Column(JSONB)
+    report = Column(JSONB)
+    error = Column(Text)

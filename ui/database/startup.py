@@ -35,6 +35,7 @@ REQUIRED_TABLES = [
     "managed_firewalls",
     "automation_jobs",
     "firewall_jobs",
+    "zero_trust_assessments",
 ]
 
 

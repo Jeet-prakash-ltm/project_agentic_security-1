@@ -202,6 +202,15 @@ def get_status(assessment_id, full=False):
     return result
 
 
+def fetch_report(assessment_id):
+    """Return the raw ``GetAssessmentReport`` payload for one run."""
+
+    if not assessment_id:
+        raise ZeroTrustError("assessment_id is required.", 400)
+    data, _retry = _request("GetAssessmentReport", {"assessment_id": assessment_id})
+    return data
+
+
 def get_results(assessment_id):
     if not assessment_id:
         raise ZeroTrustError("assessment_id is required.", 400)

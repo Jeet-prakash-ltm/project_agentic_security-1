@@ -1832,7 +1832,26 @@
             headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" }
         }).then(function (res) { return res.json().catch(function () { return {}; }); }).then(function (data) {
             if (data && typeof data.configured === "boolean") state.configured = data.configured;
-            if (!state.configured || !state.assessmentId) {
+            loadLatest();
+        }).catch(function () {
+            loadLatest();
+        });
+    }
+
+    function loadLatest() {
+        fetch("/api/zero-trust/latest", {
+            credentials: "same-origin",
+            headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" }
+        }).then(function (res) { return res.json().catch(function () { return {}; }); }).then(function (data) {
+            if (data && data.hasData && data.assessmentId) {
+                state.assessmentId = data.assessmentId;
+                try { localStorage.setItem(STORAGE_KEY, state.assessmentId); } catch (e) {}
+                state.loading = true;
+                render();
+                loadResults(state.assessmentId);
+                return;
+            }
+            if (!state.assessmentId) {
                 render();
                 return;
             }

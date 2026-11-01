@@ -9,6 +9,9 @@ from database.repositories.assessments_repository import AssessmentsRepository
 from database.repositories.canonical_assessments_repository import (
     CanonicalAssessmentsRepository,
 )
+from database.repositories.canonical_zero_trust_repository import (
+    CanonicalZeroTrustRepository,
+)
 from database.repositories.automation_jobs_repository import AutomationJobsRepository
 from database.repositories.conversations_repository import ConversationsRepository
 from database.repositories.demo_requests_repository import DemoRequestsRepository
@@ -19,11 +22,13 @@ from database.repositories.managed_firewalls_repository import ManagedFirewallsR
 from database.repositories.reports_repository import ReportsRepository
 from database.repositories.telemetry_repository import TelemetryRepository
 from database.repositories.users_repository import UsersRepository
+from database.repositories.zero_trust_repository import ZeroTrustRepository
 
 __all__ = [
     "AgentsRepository",
     "AssessmentsRepository",
     "CanonicalAssessmentsRepository",
+    "CanonicalZeroTrustRepository",
     "AutomationJobsRepository",
     "ConversationsRepository",
     "DemoRequestsRepository",
@@ -34,4 +39,5 @@ __all__ = [
     "ReportsRepository",
     "TelemetryRepository",
     "UsersRepository",
+    "ZeroTrustRepository",
 ]

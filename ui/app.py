@@ -31,6 +31,7 @@ from services import foundry_incidents
 from services import timeutil
 from services import users_service
 from services import zero_trust_service
+from services import zero_trust_store
 from gateway.agent_gateway import gateway
 from gateway import session_manager
 
@@ -1732,10 +1733,44 @@ def api_insights_conversation(conversation_id):
     return jsonify({"conversation": summary})
 
 
+def _persist_functions_run(assessment_id, status=None):
+    """Mirror a Function App run into canonical storage once it completes.
+
+    The Function App package is read-only and writes only the transitional
+    ``zero_trust_assessments`` table, so the canonical rows are produced here
+    from its own report payload. Failures never break the API response.
+    """
+
+    if not assessment_id or str(status or "").lower() != "completed":
+        return
+    try:
+        report = zero_trust_service.fetch_report(assessment_id)
+        if str(report.get("status") or "").lower() != "completed":
+            return
+        zero_trust_store.store_run(report, user_id=current_user_id() or "zero-trust")
+    except Exception as exc:  # pragma: no cover - defensive
+        app.logger.warning(
+            "Could not persist Zero Trust run %s: %s", assessment_id, exc
+        )
+
+
 @app.route("/api/zero-trust/config")
 @login_required
 def api_zero_trust_config():
-    return jsonify({"configured": zero_trust_service.configured()})
+    """Report data availability.
+
+    ``configured`` keeps the existing client contract (can assessments run),
+    while ``hasData`` tells the page whether stored results already exist in
+    PostgreSQL so it can render without contacting the Function App.
+    """
+
+    return jsonify(
+        {
+            "configured": zero_trust_service.configured(),
+            "hasData": zero_trust_store.available(),
+            "storage": "postgresql",
+        }
+    )
 
 
 @app.route("/api/zero-trust/start", methods=["POST"])
@@ -1763,12 +1798,19 @@ def api_zero_trust_status():
     )
     full = bool(body.get("full"))
     try:
-        return jsonify(zero_trust_service.get_status(assessment_id, full=full))
-    except zero_trust_service.ZeroTrustError as exc:
-        payload = {"error": str(exc)}
-        if exc.retry_after:
-            payload["retryAfter"] = exc.retry_after
-        return jsonify(payload), exc.status_code
+        return jsonify(zero_trust_store.get_status(assessment_id, full=full))
+    except zero_trust_store.ZeroTrustStoreError as exc:
+        if exc.status_code == 404 and zero_trust_service.configured():
+            try:
+                result = zero_trust_service.get_status(assessment_id, full=full)
+                _persist_functions_run(assessment_id, result.get("status"))
+                return jsonify(result)
+            except zero_trust_service.ZeroTrustError as upstream:
+                return jsonify({"error": str(upstream)}), upstream.status_code
+        return jsonify({"error": str(exc)}), exc.status_code
+    except Exception as exc:
+        app.logger.warning("Zero Trust status lookup failed: %s", exc)
+        return jsonify({"error": "Could not read the stored assessment."}), 503
 
 
 @app.route("/api/zero-trust/results", methods=["POST"])
@@ -1777,12 +1819,44 @@ def api_zero_trust_results():
     body = request.get_json(silent=True) or {}
     assessment_id = body.get("assessmentId") or body.get("assessment_id")
     try:
-        return jsonify(zero_trust_service.get_results(assessment_id))
-    except zero_trust_service.ZeroTrustError as extra:
-        payload = {"error": str(extra)}
-        if extra.retry_after:
-            payload["retryAfter"] = extra.retry_after
-        return jsonify(payload), extra.status_code
+        return jsonify(zero_trust_store.get_results(assessment_id))
+    except zero_trust_store.ZeroTrustStoreError as exc:
+        if exc.status_code == 404 and zero_trust_service.configured():
+            try:
+                result = zero_trust_service.get_results(assessment_id)
+                _persist_functions_run(assessment_id, result.get("status"))
+                return jsonify(result)
+            except zero_trust_service.ZeroTrustError as upstream:
+                return jsonify({"error": str(upstream)}), upstream.status_code
+        return jsonify({"error": str(exc)}), exc.status_code
+    except Exception as exc:
+        app.logger.warning("Zero Trust results lookup failed: %s", exc)
+        return jsonify({"error": "Could not read the stored assessment."}), 503
+
+
+@app.route("/api/zero-trust/latest")
+@login_required
+def api_zero_trust_latest():
+    """Latest stored assessment, used to seed the Cloud Security page."""
+
+    try:
+        summary = zero_trust_store.latest_summary()
+        if summary is None:
+            return jsonify({"hasData": False, "assessment": None})
+        return jsonify(
+            {
+                "hasData": True,
+                "assessmentId": summary["assessmentId"],
+                "status": summary["status"],
+                "score": summary.get("score"),
+                "completedAt": summary.get("completedAt"),
+                "startedAt": summary.get("startedAt"),
+                "message": summary.get("message"),
+            }
+        )
+    except Exception as exc:
+        app.logger.warning("Zero Trust latest lookup failed: %s", exc)
+        return jsonify({"error": "Could not read stored assessments."}), 503
 
 
 @app.route("/api/dashboard")

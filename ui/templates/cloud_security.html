@@ -10,11 +10,20 @@
 } %}
 {% set zt_page_label = zt_page_labels.get(zt_view, 'Dashboard') %}
 
-{% block title %}{{ zt_page_label }} — HeimDRIX AI Agentic Security Platform{% endblock %}
+{% set zt_tabs = [
+    ('overview', 'Overview'),
+    ('identity', 'Identity'),
+    ('devices', 'Devices'),
+    ('network', 'Network'),
+    ('data', 'Data'),
+    ('infrastructure', 'Infrastructure')
+] %}
 
-{% block page_title %}{{ zt_page_label }}{% endblock %}
+{% block title %}Cloud Security — {{ zt_page_label }} — HeimDRIX AI Agentic Security Platform{% endblock %}
 
-{% block hero_eyebrow %}Zero Trust / {{ zt_page_label }}{% endblock %}
+{% block page_title %}Cloud Security{% endblock %}
+
+{% block hero_eyebrow %}Dashboard / Cloud Security{% endblock %}
 
 {% block navbar_actions %}
 <button class="hero-chip-btn" id="ztRefreshBtn" type="button" aria-label="Refresh assessment">
@@ -27,7 +36,16 @@
 
 <div class="zt-app" id="ztApp" data-view="{{ zt_view }}" data-configured="{{ '1' if zt_configured else '0' }}" data-admin="{{ '1' if is_admin else '0' }}" data-user="{{ current_user.name if current_user else '' }}">
     <div class="zt-shell">
-        <header class="zt-topnav{% if zt_view != 'overview' %} is-compact{% endif %}" id="ztTopNav"{% if zt_view != 'overview' %} hidden{% endif %}>
+        <nav class="zt-page-tabs" id="ztPageTabs" role="tablist" aria-label="Cloud Security views">
+            {% for key, label in zt_tabs %}
+            <a href="{{ url_for('dashboard_cloud_security', view=key) if key != 'overview' else url_for('dashboard_cloud_security') }}"
+               role="tab"
+               class="zt-page-tab {{ 'is-active' if zt_view == key else '' }}"
+               aria-selected="{{ 'true' if zt_view == key else 'false' }}"
+               data-tab="{{ key }}">{{ label }}</a>
+            {% endfor %}
+        </nav>
+        <header class="zt-topnav" id="ztTopNav">
             <div class="zt-top-lead">
                 <button type="button" class="reports-filter-btn" id="ztTenantBtn" aria-label="Tenant information" aria-haspopup="dialog" aria-expanded="false" aria-controls="ztTenantPop">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-8h6v8"/><path d="M9 9h.01M15 9h.01M9 13h.01M15 13h.01"/></svg>
@@ -194,5 +212,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=34"></script>
+<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=35"></script>
 {% endblock %}

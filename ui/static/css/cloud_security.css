@@ -61,6 +61,44 @@
     --zt-shadow: var(--shadow-glass, 0 10px 40px rgba(0, 0, 0, 0.5));
 }
 
+.zt-page-tabs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 0 0 18px;
+    padding: 6px;
+    border-radius: 18px;
+    border: 1px solid var(--zt-border, rgba(255, 255, 255, 0.1));
+    background: var(--zt-surface, rgba(30, 30, 30, 0.74));
+    box-shadow: var(--zt-shadow, 0 10px 40px rgba(0, 0, 0, 0.5));
+}
+
+.zt-page-tab {
+    display: inline-flex;
+    align-items: center;
+    padding: 9px 18px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    color: var(--zt-muted, #b8b8b8);
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: color 0.16s ease, background 0.16s ease, border-color 0.16s ease;
+}
+
+.zt-page-tab:hover {
+    color: var(--zt-text, #ffffff);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.zt-page-tab.is-active {
+    color: var(--zt-primary, #ff5e4f);
+    border-color: rgba(255, 94, 79, 0.45);
+    background: rgba(255, 94, 79, 0.14);
+}
+
 .zt-shell {
     background: transparent;
     border: 0;
@@ -2550,6 +2588,17 @@
 
     .zt-topnav {
         padding: 12px;
+    }
+
+    .zt-page-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+
+    .zt-page-tab {
+        padding: 8px 14px;
     }
 
     .zt-table-wrap {

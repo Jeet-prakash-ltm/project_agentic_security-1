@@ -221,25 +221,27 @@
         if (runBtn) runBtn.disabled = false;
     }
 
+    var PILLAR_VIEW_KEYS = ["identity", "devices", "network", "data", "infrastructure"];
+    var PAGE_PATH = "/dashboard/cloud-security";
+
     function viewPath(view) {
-        if (!view || view === "overview") return "/zero-trust/dashboard";
-        return "/zero-trust/" + view;
+        if (!view || view === "overview") return PAGE_PATH;
+        return PAGE_PATH + "?view=" + encodeURIComponent(view);
     }
 
-    function pathToView(path) {
-        var parts = String(path || "").replace(/\/+$/, "").split("/");
-        var last = parts[parts.length - 1] || "";
-        if (last === "identity" || last === "devices" || last === "network" || last === "data" || last === "infrastructure") {
-            return last;
-        }
+    function pathToView(href) {
+        try {
+            var url = new URL(href, location.origin);
+            var view = (url.searchParams.get("view") || "").toLowerCase();
+            if (PILLAR_VIEW_KEYS.indexOf(view) !== -1) return view;
+        } catch (e) {}
         return "overview";
     }
 
     function setView(view, push) {
         if (push !== false) {
             var path = viewPath(view);
-            var current = location.pathname.replace(/\/+$/, "");
-            if (current !== path) {
+            if (location.pathname + location.search !== path) {
                 window.location.href = path;
                 return;
             }
@@ -248,8 +250,18 @@
         state.page = 1;
         state.pillarTab = "overview";
         if (view !== "overview") state.filters.area = "all";
+        syncPageTabs();
         closeFilter();
         render();
+    }
+
+    function syncPageTabs() {
+        var tabs = document.querySelectorAll("#ztPageTabs [data-tab]");
+        for (var i = 0; i < tabs.length; i++) {
+            var active = tabs[i].getAttribute("data-tab") === state.view;
+            tabs[i].classList.toggle("is-active", active);
+            tabs[i].setAttribute("aria-selected", active ? "true" : "false");
+        }
     }
 
     function pillarKey(view) {
@@ -344,13 +356,8 @@
         if (filterBtn) filterBtn.hidden = state.view === "overview";
         if (state.view === "overview") closeFilter();
         var topnav = document.getElementById("ztTopNav");
-        var brand = topnav && topnav.querySelector(".zt-brand");
-        var isOverview = state.view === "overview";
-        if (brand) brand.hidden = !isOverview;
-        if (topnav) {
-            topnav.hidden = !isOverview;
-            topnav.classList.toggle("is-compact", !isOverview);
-        }
+        if (topnav) topnav.classList.toggle("is-compact", state.view !== "overview");
+        syncPageTabs();
     }
 
     function statusInfoButton(label, tipHtml) {
@@ -1974,7 +1981,7 @@
     }
 
     window.addEventListener("popstate", function () {
-        setView(pathToView(location.pathname), false);
+        setView(pathToView(location.href), false);
     });
     if (runBtn) runBtn.addEventListener("click", openConfirm);
     if (refreshBtn) refreshBtn.addEventListener("click", openConfirm);

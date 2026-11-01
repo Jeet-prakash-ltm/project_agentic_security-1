@@ -146,7 +146,7 @@ class ExcelReport:
         ws.row_dimensions[1].height = 34
 
         ws.merge_cells("A2:D2")
-        subtitle = ws.cell(row=2, column=1, value="LTM Security Platform — Network Security Assessment Report")
+        subtitle = ws.cell(row=2, column=1, value="HeimDRIX AI Agentic Security Platform — Network Security Assessment Report")
         subtitle.font = Font(color=SLATE, size=10, italic=True)
         subtitle.alignment = Alignment(horizontal="left", vertical="center")
         ws.row_dimensions[2].height = 20

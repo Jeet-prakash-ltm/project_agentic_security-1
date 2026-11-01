@@ -322,7 +322,7 @@ def _footer(canvas, doc):
     canvas.drawString(
         0.75 * inch,
         0.5 * inch,
-        "LTM Security Platform — Network Security Assessment",
+        "HeimDRIX AI Agentic Security Platform — Network Security Assessment",
     )
     canvas.drawRightString(
         A4[0] - 0.75 * inch,
@@ -345,7 +345,7 @@ def generate(summary, output_file):
         topMargin=0.75 * inch,
         bottomMargin=0.75 * inch,
         title="Executive Summary",
-        author="LTM Security Platform",
+        author="HeimDRIX AI Agentic Security Platform",
     )
 
     story = []

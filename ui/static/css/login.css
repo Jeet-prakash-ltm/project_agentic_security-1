@@ -103,13 +103,15 @@ body {
     font-weight: 700;
     color: #ffffff;
     letter-spacing: 0.3px;
+    line-height: 1.15;
 }
 
 .auth-sub {
-    font-size: 11px;
+    font-size: 10px;
     color: #ffffff;
-    letter-spacing: 2px;
+    letter-spacing: 1.4px;
     text-transform: uppercase;
+    line-height: 1.25;
 }
 
 .auth-tabs {

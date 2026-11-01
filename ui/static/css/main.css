@@ -457,16 +457,18 @@ input, select, textarea {
 }
 
 .brand-title {
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 700;
     color: #ffffff;
+    line-height: 1.15;
 }
 
 .brand-sub {
-    font-size: 10px;
+    font-size: 9px;
     color: #ffffff;
     text-transform: uppercase;
-    letter-spacing: 2.4px;
+    letter-spacing: 1.2px;
+    line-height: 1.25;
 }
 
 .nav-menu {

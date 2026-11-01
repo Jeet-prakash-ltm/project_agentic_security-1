@@ -4,7 +4,7 @@
 
 {% block page_title %}Investigation Centre{% endblock %}
 
-{% block hero_eyebrow %}Firewall Posture Investigation{% endblock %}
+{% block hero_eyebrow %}Persisted findings across Network Security and Zero Trust{% endblock %}
 
 {% block content %}
 
@@ -54,6 +54,30 @@
             </div>
         </div>
         <div class="filter-group toolbar-field">
+            <label class="filter-label" for="domainSelect">Domain</label>
+            <select id="domainSelect" class="filter-select">
+                <option value="all">All domains</option>
+            </select>
+        </div>
+        <div class="filter-group toolbar-field">
+            <label class="filter-label" for="assessmentSelect">Assessment</label>
+            <select id="assessmentSelect" class="filter-select">
+                <option value="all">Latest per scope</option>
+            </select>
+        </div>
+        <div class="filter-group toolbar-field" id="pillarField" hidden>
+            <label class="filter-label" for="pillarSelect">Pillar</label>
+            <select id="pillarSelect" class="filter-select">
+                <option value="all">All pillars</option>
+            </select>
+        </div>
+        <div class="filter-group toolbar-field">
+            <label class="filter-label" for="categorySelect">Category</label>
+            <select id="categorySelect" class="filter-select">
+                <option value="all">All categories</option>
+            </select>
+        </div>
+        <div class="filter-group toolbar-field">
             <label class="filter-label" for="severitySelect">Severity</label>
             <select id="severitySelect" class="filter-select">
                 <option value="all">All</option>
@@ -67,9 +91,6 @@
             <label class="filter-label" for="statusSelect">Status</label>
             <select id="statusSelect" class="filter-select">
                 <option value="all">All</option>
-                <option value="non-compliant">Non-Compliant</option>
-                <option value="compliant">Compliant</option>
-                <option value="not-assessed">Not Assessed</option>
             </select>
         </div>
         <div class="filter-group toolbar-field fw-combo-group">
@@ -95,14 +116,36 @@
             </select>
         </div>
         <div class="filter-group toolbar-field">
-            <label class="filter-label" for="dateSelect">Assessment</label>
+            <label class="filter-label" for="dateSelect">Assessed</label>
             <select id="dateSelect" class="filter-select"><option value="all">All dates</option></select>
+        </div>
+        <div class="filter-group toolbar-field">
+            <label class="filter-label" for="sortSelect">Sort</label>
+            <select id="sortSelect" class="filter-select">
+                <option value="severity">Severity</option>
+                <option value="risk">Risk score (high to low)</option>
+                <option value="riskAsc">Risk score (low to high)</option>
+                <option value="recent">Most recent</option>
+                <option value="oldest">Oldest</option>
+                <option value="domain">Domain / pillar</option>
+                <option value="firewall">Firewall</option>
+                <option value="control">Control</option>
+            </select>
+        </div>
+        <div class="filter-group toolbar-field">
+            <label class="filter-label" for="viewSelect">Saved view</label>
+            <select id="viewSelect" class="filter-select">
+                <option value="all">All Findings</option>
+            </select>
+        </div>
+        <div class="toolbar-field">
+            <button class="btn btn-ghost btn-sm" id="btnResetFilters" type="button">Reset</button>
         </div>
     </div>
     <div class="toolbar-filters">
         <div class="filter-group">
-            <span class="filter-label">Domain</span>
-            <div class="filter-chips" id="domainChips"></div>
+            <span class="filter-label">Scope</span>
+            <div class="filter-chips" id="scopeChips"></div>
         </div>
     </div>
     <div class="active-filters" id="activeFilters" aria-label="Active filters"></div>
@@ -122,6 +165,22 @@
         </div>
     </div>
 </div>
+
+<div class="evidence-backdrop" id="evidenceBackdrop"></div>
+<aside class="evidence-drawer" id="evidenceDrawer" role="dialog" aria-label="Collected evidence" aria-hidden="true">
+    <div class="evidence-drawer-head">
+        <div>
+            <h4>Collected Evidence</h4>
+            <span class="evidence-drawer-sub" id="evidenceDrawerSub">—</span>
+        </div>
+        <button class="copilot-close" id="evidenceClose" type="button" aria-label="Close evidence">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+    </div>
+    <div class="evidence-drawer-body" id="evidenceBody">
+        <p class="copilot-placeholder">Select a finding to inspect its collected evidence.</p>
+    </div>
+</aside>
 
 <div class="copilot-backdrop" id="copilotBackdrop"></div>
 <div class="copilot-panel" id="copilotPanel" role="dialog" aria-label="AI Copilot">
@@ -150,7 +209,7 @@
 
 {% block scripts %}
 {% if not assessment_blocked %}
-<script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=7"></script>
-<script src="{{ url_for('static', filename='js/findings.js') }}?v=15"></script>
+<script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=8"></script>
+<script src="{{ url_for('static', filename='js/findings.js') }}?v=16"></script>
 {% endif %}
 {% endblock %}

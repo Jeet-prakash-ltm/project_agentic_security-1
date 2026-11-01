@@ -20,6 +20,7 @@ from services import agents_service
 from services import dashboard_service
 from services import demo_request_service
 from services import insights_service
+from services import investigation_service
 from services import mailer
 from services import managed_firewalls_service
 from services import report_history_service
@@ -918,6 +919,20 @@ def settings_agents():
         is_admin=_is_admin(current_user()),
     )
 
+
+@app.route("/settings/baseline")
+@login_required
+def settings_baseline():
+
+    return render_with_css(
+        "under_construction.html",
+
+        is_admin=_is_admin(current_user()),
+        browser_title="Baseline",
+        page_heading="Baseline",
+        hero_text="Define and govern security baselines for your estate.",
+    )
+
 # --------------------------------------------------
 # API ROUTES
 # --------------------------------------------------
@@ -951,31 +966,91 @@ def api_compliance():
 
 
 @app.route("/api/findings")
+@login_required
 def api_findings():
+    """Persisted findings for the Investigation Centre and AI Workspace.
 
-    force = (
-        request.args.get(
-            "refresh",
-            "0"
-        )
-        == "1"
-    )
+    Reads canonical storage only: this endpoint never starts an assessment.
+    The legacy posture shape is preserved for existing consumers while a
+    richer ``records`` list is returned alongside it.
+    """
+
+    firewall = _firewall_param()
 
     try:
+        payload = investigation_service.get_findings(
+            request.args,
+            limit=request.args.get("limit", 2000),
+        )
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": str(exc)}), 500
 
+    try:
+        legacy = investigation_service.get_legacy_posture(firewall)
+    except Exception as exc:  # noqa: BLE001
+        app.logger.warning("Stored posture read failed: %s", exc)
+        legacy = {}
+
+    response = dict(legacy or {})
+    response.update(
+        {
+            "records": payload["records"],
+            "summary": payload["summary"],
+            "facets": payload["facets"],
+            "applied": payload["applied"],
+            "status_vocabulary": payload["status_vocabulary"],
+            "risk_buckets": payload["risk_buckets"],
+            "sorts": payload["sorts"],
+            "domains": payload["domains"],
+            "firewall_id": firewall,
+        }
+    )
+    return jsonify(response)
+
+
+@app.route("/api/investigation/findings")
+@login_required
+def api_investigation_findings():
+    """Filtered, DB-backed findings for the Investigation Centre."""
+
+    try:
         return jsonify(
-            assessment_service
-            .get_posture(
-                firewall_id=_firewall_param(),
-                force=force
+            investigation_service.get_findings(
+                request.args,
+                limit=request.args.get("limit", investigation_service.DEFAULT_LIMIT),
+                offset=request.args.get("offset", 0),
             )
         )
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": str(exc)}), 500
 
-    except Exception as e:
 
-        return jsonify(
-            {"error": str(e)}
-        ), 500
+@app.route("/api/investigation/options")
+@login_required
+def api_investigation_options():
+    """Distinct domains, pillars, categories, severities, dates and assessments."""
+
+    try:
+        return jsonify(investigation_service.get_options())
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/investigation/evidence")
+@login_required
+def api_investigation_evidence():
+    """Evidence menu (and one payload) for a selected finding."""
+
+    try:
+        body, status = investigation_service.get_evidence(
+            (request.args.get("assessment") or request.args.get("assessment_id") or "").strip(),
+            evidence_id=(request.args.get("evidence") or "").strip() or None,
+            collector=(request.args.get("collector") or "").strip() or None,
+            pillar=(request.args.get("pillar") or "").strip() or None,
+        )
+        return jsonify(body), status
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": str(exc)}), 500
 
 
 # --- Firewall Data Functions (individual connector calls) ---

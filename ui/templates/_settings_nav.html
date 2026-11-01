@@ -3,6 +3,7 @@
     <a href="{{ url_for('settings_accounts') }}" class="settings-subnav-link {{ 'active' if request.endpoint == 'settings_accounts' else '' }}">User Management</a>
     <a href="{{ url_for('settings_roles') }}" class="settings-subnav-link {{ 'active' if request.endpoint == 'settings_roles' else '' }}">Roles</a>
     <a href="{{ url_for('settings_inventory') }}" class="settings-subnav-link {{ 'active' if request.endpoint == 'settings_inventory' else '' }}">Inventory</a>
+    <a href="{{ url_for('settings_baseline') }}" class="settings-subnav-link {{ 'active' if request.endpoint == 'settings_baseline' else '' }}">Baseline</a>
     {% if is_admin %}
     <a href="{{ url_for('settings_agents') }}" class="settings-subnav-link {{ 'active' if request.endpoint == 'settings_agents' else '' }}">Agents</a>
     {% endif %}

@@ -6,37 +6,29 @@
     var sortSelect = document.getElementById("sortSelect");
     var viewSelect = document.getElementById("viewSelect");
 
-    var CATEGORY_ORDER = [
-        "Software & Platform",
-        "Capacity & Performance",
-        "Security Services",
-        "Networking",
-        "VPN & Remote Access",
-        "Administration",
-        "Logging & Monitoring"
-    ];
-
     var PRESET_VIEWS = [
-        { id: "all", name: "All Findings", filters: { severity: "all", status: "all", domain: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" } },
-        { id: "critical", name: "Critical Only", filters: { severity: "critical", status: "all", domain: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" } },
-        { id: "high", name: "High Risk", filters: { severity: "high", status: "all", domain: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "risk" } },
-        { id: "operational", name: "Operational Risks", filters: { severity: "all", status: "non-compliant", domain: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "risk" } },
-        { id: "gaps", name: "Compliance Gaps", filters: { severity: "all", status: "non-compliant", domain: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "domain" } },
-        { id: "patching", name: "Patch Related", filters: { severity: "all", status: "non-compliant", domain: "Software & Platform", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" } }
+        { id: "all", name: "All Findings", filters: { severity: "all", status: "all", domain: "all", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" } },
+        { id: "critical", name: "Critical Only", filters: { severity: "critical", status: "all", domain: "all", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" } },
+        { id: "high", name: "High Risk", filters: { severity: "high", status: "all", domain: "all", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "risk" } },
+        { id: "network", name: "Network Security", filters: { severity: "all", status: "all", domain: "network_security", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" } },
+        { id: "zero-trust", name: "Zero Trust", filters: { severity: "all", status: "all", domain: "zero_trust", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" } },
+        { id: "open", name: "Open Issues", filters: { severity: "all", status: "open", domain: "all", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "risk" } }
     ];
 
-    var STORAGE_FILTERS = "findings.filters.v1";
-    var STORAGE_VIEWS = "findings.views.v1";
+    var STORAGE_FILTERS = "findings.filters.v2";
+    var STORAGE_VIEWS = "findings.views.v2";
     var STORAGE_REVIEWED = "findings.reviewed.v1";
     var STORAGE_ASSIGNEES = "findings.assignees.v1";
 
     function defaultFilters() {
-        return { severity: "all", status: "all", domain: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" };
+        return { severity: "all", status: "all", domain: "all", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" };
     }
 
     var state = {
         data: null,
         records: [],
+        facets: {},
+        statusVocabulary: {},
         filters: defaultFilters(),
         customViews: [],
         reviewed: {},
@@ -52,54 +44,65 @@
         return d.innerHTML;
     }
 
-    function categoryFor(domain) {
-        if (typeof FINDING_ENRICHMENT_CATEGORIES !== "undefined" && FINDING_ENRICHMENT_CATEGORIES[domain]) {
-            return FINDING_ENRICHMENT_CATEGORIES[domain];
-        }
-        return "Administration";
+    var SEVERITY_SCORE = { critical: 95, high: 72, medium: 45, low: 20 };
+
+    function riskScore(rec) {
+        if (rec._risk_score != null) return rec._risk_score;
+        var sev = String(rec.risk || "").toLowerCase();
+        return SEVERITY_SCORE[sev] != null ? SEVERITY_SCORE[sev] : 10;
     }
 
-    function enrich(result, finding, meta, ctx) {
-        var cid = (result.control || "").toUpperCase();
+    function isOpenStatus(rec) {
+        return rec.status === "not_compliant" || rec.status === "fail" || rec.status === "not_assessed" || rec.status === "investigation";
+    }
+
+    function enrich(row) {
+        var severity = String(row.severity || "").toLowerCase();
+        var risk = row.status === "compliant" || row.status === "pass"
+            ? (severity ? severity.toUpperCase() : "LOW")
+            : (severity ? severity.toUpperCase() : "LOW");
+        var cid = String(row.control_id || row.control_name || row.id || "").toUpperCase();
         var e = (typeof FINDING_ENRICHMENT !== "undefined" && FINDING_ENRICHMENT[cid]) ? FINDING_ENRICHMENT[cid] : null;
-        var domain = (e && e.domain) || "General";
-        var risk = (result.risk || "LOW").toUpperCase();
-        var status = (result.status || "NON_COMPLIANT").toUpperCase();
-        var compliant = status === "COMPLIANT";
+        var detail = row.detail || row.finding || "";
+        var category = row.category || (e && e.domain) || "Uncategorised";
+        var score = riskScore({ _risk_score: row.risk_score, risk: risk });
+        var group = row.pillar || (e && e.domain) || null;
 
         return {
-            control: cid,
-            metric: result.metric || "",
-            observed: result.observed,
-            expected: result.expected,
-            operator: result.operator || "",
-            status: status,
-            risk: compliant ? "COMPLIANT" : risk,
-            _compliant: compliant,
-            _domain: domain,
-            _category: categoryFor(domain),
-            _check: (e && e.check) || (finding && finding.finding) || "Control " + cid,
+            id: row.id,
+            _assessment: row.assessment_id,
+            control: row.control_id || row.control_name || row.id,
+            metric: category,
+            observed: row.observed,
+            expected: row.expected,
+            operator: "",
+            status: row.status,
+            status_label: row.status_label,
+            risk: risk,
+            _compliant: row.status === "compliant" || row.status === "pass",
+            _domain: row.domain_label || row.domain || "",
+            _domain_key: row.domain || "",
+            _pillar: row.pillar || "",
+            _group: group || "",
+            _category: category,
+            _check: row.title || (e && e.check) || row.control_name || ("Control " + cid),
             _method: (e && e.method) || "",
-            _gap: (e && e.gap) || "",
+            _gap: detail || (e && e.gap) || "",
             _impact: (e && e.impact) || "",
-            _risk_score: compliant ? 0 : (e && e.risk_score) || defaultRiskScore(risk),
+            _risk_score: score,
             _evidence: (e && e.evidence) || [],
-            _finding: (finding && finding.finding) || "",
-            _remediation: (finding && finding.remediation) || (e && e.remediation) || "",
-            _detected: ctx.detected,
-            _collected_at: ctx.collected_at,
-            _run_id: ctx.run_id,
-            _firewall: ctx.firewall.hostname,
-            _model: ctx.firewall.model,
-            _version: ctx.firewall.version
+            _finding: detail,
+            _remediation: row.remediation || (e && e.remediation) || "",
+            _detected: row.completed_at ? String(row.completed_at).slice(0, 10) : "\u2014",
+            _collected_at: row.completed_at,
+            _run_id: row.assessment_id,
+            _firewall: row.firewall_id || "\u2014",
+            _model: "",
+            _version: ""
         };
     }
 
-    function defaultRiskScore(risk) {
-        return risk === "CRITICAL" ? 95 : risk === "HIGH" ? 72 : risk === "MEDIUM" ? 45 : 20;
-    }
-
-    var SEV_ORDER = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, COMPLIANT: 4 };
+    var SEV_ORDER = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 
     // ============================================================
     // FORMATTING HELPERS
@@ -176,14 +179,19 @@
 
     function matchesFilters(rec) {
         var f = state.filters;
-        var risk = rec.risk.toLowerCase();
+        var risk = String(rec.risk || "").toLowerCase();
         if (f.severity !== "all" && risk !== f.severity) return false;
         if (f.status !== "all") {
-            if (f.status === "non-compliant" && rec.status !== "NON_COMPLIANT") return false;
-            if (f.status === "compliant" && rec.status !== "COMPLIANT") return false;
-            if (f.status === "not-assessed" && rec.status !== "NOT_ASSESSED") return false;
+            if (f.status === "open") {
+                if (!isOpenStatus(rec)) return false;
+            } else if (rec.status !== f.status) {
+                return false;
+            }
         }
-        if (f.domain !== "all" && rec._category !== f.domain) return false;
+        if (f.domain !== "all" && rec._domain_key !== f.domain) return false;
+        if (f.assessment !== "all" && rec._assessment !== f.assessment) return false;
+        if (f.pillar !== "all" && (rec._pillar || "") !== f.pillar) return false;
+        if (f.category !== "all" && rec._category !== f.category) return false;
         if (f.firewall !== "all" && rec._firewall !== f.firewall) return false;
         if (f.date !== "all" && rec._detected !== f.date) return false;
         if (f.riskRange !== "all") {
@@ -195,7 +203,7 @@
         }
         if (f.search) {
             var q = f.search.toLowerCase();
-            var hay = [rec.control, rec._check, rec._finding, rec._gap, rec._impact, rec._domain, rec._category, rec._firewall, rec.metric, rec._remediation, (rec._evidence || []).join(" ")].join(" ").toLowerCase();
+            var hay = [rec.control, rec._check, rec._finding, rec._gap, rec._impact, rec._domain, rec._pillar, rec._category, rec._firewall, rec.metric, rec._remediation, (rec._evidence || []).join(" ")].join(" ").toLowerCase();
             var terms = q.split(/\s+/);
             for (var i = 0; i < terms.length; i++) {
                 if (hay.indexOf(terms[i]) === -1) return false;
@@ -243,10 +251,12 @@
     function isComparisonOp(op) { return op === "<" || op === "<=" || op === ">" || op === ">="; }
 
     function compareBlockHtml(rec, compliant) {
-        var opSym = OPERATOR_SYMBOLS[rec.operator] || "?";
+        var opSym = OPERATOR_SYMBOLS[rec.operator] || "";
+        var hasValue = rec.observed != null || rec.expected != null;
+        if (!hasValue) return "";
         return '<div class="cmp-values">' +
             '<div class="cmp-block cmp-observed"><span class="cmp-block-label">Observed</span><span class="cmp-block-val">' + escapeHtml(formatVal(rec.observed)) + '</span></div>' +
-            '<div class="cmp-op"><span class="cmp-op-sym">' + escapeHtml(opSym) + '</span><span class="cmp-op-label">' + escapeHtml(rec.operator || "") + '</span></div>' +
+            (rec.operator ? '<div class="cmp-op"><span class="cmp-op-sym">' + escapeHtml(opSym) + '</span><span class="cmp-op-label">' + escapeHtml(rec.operator || "") + '</span></div>' : '<div class="cmp-op"><span class="cmp-op-sym">\u2192</span><span class="cmp-op-label">expected</span></div>') +
             '<div class="cmp-block cmp-expected"><span class="cmp-block-label">Expected</span><span class="cmp-block-val">' + escapeHtml(formatExpected(rec.expected, rec.operator)) + '</span></div>' +
             '</div>';
     }
@@ -304,13 +314,15 @@
             '<span class="evidence-exp">' + escapeHtml(formatExpected(rec.expected, rec.operator)) + '</span>' +
             '</div>' +
             '<div class="evidence-meta">' +
-            '<span><span class="em-label">Metric</span> ' + escapeHtml(rec.metric || "\u2014") + '</span>' +
-            '<span><span class="em-label">Source</span> ' + escapeHtml(srcs.length ? srcs[0] : "Assessment scan") + '</span>' +
+            '<span><span class="em-label">Category</span> ' + escapeHtml(formatCategory(rec._category)) + '</span>' +
+            '<span><span class="em-label">Source</span> ' + escapeHtml(srcs.length ? srcs[0] : "Assessment collector") + '</span>' +
             '<span><span class="em-label">Device</span> ' + escapeHtml(rec._firewall) + (rec._model ? " \u00b7 " + escapeHtml(rec._model) : "") + '</span>' +
             '<span><span class="em-label">Collected</span> ' + escapeHtml(formatTs(rec._collected_at || rec._detected)) + '</span>' +
             '<span><span class="em-label">Run</span> ' + escapeHtml(rec._run_id || "\u2014") + '</span>' +
             '</div>' +
             (srcChips ? '<div class="evidence-sources">' + srcChips + '</div>' : '') +
+            '<button class="action-btn evidence-drill" type="button" data-act="evidence" data-assessment="' + escapeHtml(rec._assessment || "") + '" data-pillar="' + escapeHtml(rec._pillar || "") + '">' +
+            ICONS.evidence + ' Open collected evidence</button>' +
             '</div></div>';
     }
 
@@ -373,7 +385,7 @@
         var score = rec._risk_score || 0;
         var detected = escapeHtml(rec._detected || "\u2014");
         var fw = escapeHtml(rec._firewall);
-        var statusKey = rec.status;
+        var statusKey = rec.status_label || rec.status;
         var statusClass = rec._compliant ? "compliant" : "non-compliant";
         var isReviewed = !!state.reviewed[recKey(rec)];
         var assignee = state.assignees[recKey(rec)];
@@ -390,12 +402,13 @@
             '<span class="finding-card-id">' + cid + '</span>' +
             '<span class="sev-badge sev-' + sev + '">' + escapeHtml(rec.risk) + '</span>' +
             '<span class="risk-score" title="Risk score"><span class="risk-score-meter"><span class="risk-score-fill ' + sev + '" style="width:' + score + '%"></span></span><span class="risk-score-num">' + score + '</span></span>' +
-            '<span class="status-badge ' + statusClass + '">' + statusKey + '</span>' +
+            '<span class="status-badge ' + statusClass + '">' + escapeHtml(statusKey) + '</span>' +
             '</div>' +
             '<div class="finding-card-title">' + title + '</div>' +
             '<div class="finding-summary">' + escapeHtml(summary) + '</div>' +
             '<div class="finding-card-meta">' +
             '<div class="meta-item"><span class="meta-label">Domain</span><span class="meta-value">' + domain + '</span></div>' +
+            (rec._pillar ? '<div class="meta-item"><span class="meta-label">Pillar</span><span class="meta-value">' + escapeHtml(rec._pillar) + '</span></div>' : '<div class="meta-item"><span class="meta-label">Category</span><span class="meta-value">' + escapeHtml(formatCategory(rec._category)) + '</span></div>') +
             '<div class="meta-item"><span class="meta-label">Firewall</span><span class="meta-value mono">' + fw + '</span></div>' +
             '<div class="meta-item"><span class="meta-label">Detected</span><span class="meta-value mono">' + detected + '</span></div>' +
             (isReviewed ? '<div class="meta-item"><span class="meta-label">Review</span><span class="meta-value ok">Reviewed</span></div>' : '') +
@@ -411,6 +424,16 @@
             '</div>';
     }
 
+    function groupKey(rec) {
+        if (rec._pillar) return rec._pillar;
+        return rec._group || formatCategory(rec._category);
+    }
+
+    function formatCategory(value) {
+        var text = String(value || "Uncategorised").replace(/_/g, " ").trim();
+        return text ? text.charAt(0).toUpperCase() + text.slice(1) : "Uncategorised";
+    }
+
     function renderGroups(records) {
         if (!root) return;
         var countEl = document.getElementById("findingsCount");
@@ -422,15 +445,16 @@
         }
 
         var groups = {};
-        CATEGORY_ORDER.forEach(function (c) { groups[c] = []; });
+        var order = [];
         records.forEach(function (r) {
-            var c = r._category || "Administration";
-            if (!groups[c]) groups[c] = [];
+            var c = groupKey(r);
+            if (!groups[c]) { groups[c] = []; order.push(c); }
             groups[c].push(r);
         });
+        order.sort();
 
         var html = "";
-        CATEGORY_ORDER.forEach(function (category) {
+        order.forEach(function (category) {
             var list = groups[category] || [];
             if (!list.length) return;
             var isCollapsed = !!state.collapsed[category];
@@ -472,12 +496,15 @@
     // FILTERS UI
     // ============================================================
 
-    function renderDomainChips() {
-        var el = document.getElementById("domainChips");
+    function renderScopeChips() {
+        var el = document.getElementById("scopeChips");
         if (!el) return;
-        var chips = '<button class="chip chip-domain is-active" data-value="all">All</button>';
-        CATEGORY_ORDER.forEach(function (c) {
-            chips += '<button class="chip chip-domain" data-value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</button>';
+        var domains = (state.facets && state.facets.domains) || [];
+        var chips = '<button class="chip chip-domain' + (state.filters.domain === "all" ? " is-active" : "") + '" data-value="all">All</button>';
+        domains.forEach(function (d) {
+            chips += '<button class="chip chip-domain' + (state.filters.domain === d.value ? " is-active" : "") +
+                '" data-value="' + escapeHtml(d.value) + '">' + escapeHtml(d.label || d.value) +
+                (d.count != null ? ' <span class="chip-count">' + d.count + "</span>" : "") + "</button>";
         });
         el.innerHTML = chips;
     }
@@ -487,23 +514,115 @@
         (state.inventory || []).forEach(function (e) {
             if (e && e.device_name && names.indexOf(e.device_name) === -1) names.push(e.device_name);
         });
-        if (state.data && state.data.firewalls) {
-            (state.data.firewalls || []).forEach(function (f) {
-                if (f && f.hostname && names.indexOf(f.hostname) === -1) names.push(f.hostname);
-            });
-        }
+        ((state.facets && state.facets.firewalls) || []).forEach(function (f) {
+            if (f && f.value && names.indexOf(f.value) === -1) names.push(f.value);
+        });
         return names;
     }
 
-    function populateFirewallSelect(firewalls) {
+    function populateFirewallSelect() {
         var el = document.getElementById("firewallSelect");
         if (!el) return;
-        var names = firewallOptionNames();
         var html = '<option value="all">All</option>';
-        names.forEach(function (n) {
+        firewallOptionNames().forEach(function (n) {
             html += '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + "</option>";
         });
         el.innerHTML = html;
+        el.value = state.filters.firewall || "all";
+    }
+
+    function fillSelect(id, options, current, allLabel) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var html = '<option value="all">' + escapeHtml(allLabel) + "</option>";
+        (options || []).forEach(function (o) {
+            var value = o.value != null ? o.value : o;
+            var label = o.label != null ? o.label : value;
+            var count = o.count != null ? " (" + o.count + ")" : "";
+            html += '<option value="' + escapeHtml(value) + '">' + escapeHtml(label) + count + "</option>";
+        });
+        el.innerHTML = html;
+        el.value = current || "all";
+        if (el.value !== (current || "all")) el.value = "all";
+    }
+
+    function populateDomainSelect() {
+        var facets = state.facets || {};
+        fillSelect("domainSelect", facets.domains || [], state.filters.domain, "All domains");
+    }
+
+    function populateAssessmentSelect() {
+        var facets = state.facets || {};
+        var options = (facets.assessments || []).map(function (a) {
+            var when = a.completed_at ? formatTs(a.completed_at) : "unknown";
+            return {
+                value: a.assessment_id,
+                label: (a.domain_label || a.domain) + " \u00b7 " + when + " \u00b7 " + a.total_findings + " findings"
+            };
+        });
+        fillSelect("assessmentSelect", options, state.filters.assessment, "Latest per scope");
+    }
+
+    function populatePillarSelect() {
+        var field = document.getElementById("pillarField");
+        var facets = state.facets || {};
+        var pillars = facets.pillars || [];
+        var show = state.filters.domain === "zero_trust" && pillars.length > 0;
+        if (field) field.hidden = !show;
+        if (!show) {
+            state.filters.pillar = "all";
+            return;
+        }
+        fillSelect("pillarSelect", pillars, state.filters.pillar, "All pillars");
+    }
+
+    function populateCategorySelect() {
+        var facets = state.facets || {};
+        var categories = facets.categories || [];
+        fillSelect("categorySelect", categories, state.filters.category, "All categories");
+    }
+
+    function domainStatusOptions() {
+        var vocab = state.statusVocabulary || {};
+        if (state.filters.domain !== "all" && vocab[state.filters.domain]) {
+            return vocab[state.filters.domain];
+        }
+        var seen = {};
+        var merged = [{ value: "open", label: "Open (all non-passing)" }];
+        Object.keys(vocab).forEach(function (domain) {
+            (vocab[domain] || []).forEach(function (o) {
+                if (!seen[o.value]) { seen[o.value] = true; merged.push(o); }
+            });
+        });
+        return merged;
+    }
+
+    function populateStatusSelect() {
+        var el = document.getElementById("statusSelect");
+        if (!el) return;
+        var options = domainStatusOptions();
+        var html = '<option value="all">All</option>';
+        options.forEach(function (o) {
+            html += '<option value="' + escapeHtml(o.value) + '">' + escapeHtml(o.label) + "</option>";
+        });
+        el.innerHTML = html;
+        el.value = state.filters.status || "all";
+        if (el.value !== (state.filters.status || "all")) {
+            state.filters.status = "all";
+            el.value = "all";
+        }
+    }
+
+    function populateDateSelect() {
+        var el = document.getElementById("dateSelect");
+        if (!el) return;
+        var facets = state.facets || {};
+        var html = '<option value="all">All dates</option>';
+        (facets.dates || []).forEach(function (d) {
+            html += '<option value="' + escapeHtml(d.value) + '">' + escapeHtml(d.value) + " (" + d.count + ")</option>";
+        });
+        el.innerHTML = html;
+        el.value = state.filters.date || "all";
     }
 
     function fwComboSource() {
@@ -557,11 +676,7 @@
     function handleFirewallChange(value) {
         value = value || "all";
         state.filters.firewall = value;
-        if (value === (state.loadedFirewall || "all")) {
-            applyFilters();
-            return;
-        }
-        loadData(value);
+        loadData();
     }
 
     function bindFirewallCombo() {
@@ -613,38 +728,28 @@
         });
     }
 
-    function populateDateSelect(history) {
-        var el = document.getElementById("dateSelect");
-        if (!el) return;
-        var html = '<option value="all">All dates</option>';
-        var seen = {};
-        (history || []).forEach(function (s) {
-            var key = dateKey(s.ts);
-            if (!key || seen[key]) return;
-            seen[key] = true;
-            html += '<option value="' + key + '">' + formatShortTs(s.ts) + '</option>';
-        });
-        el.innerHTML = html;
-    }
-
-    function dateKey(ts) {
-        var d = parseDate(ts);
-        if (!d) return null;
-        return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-    }
-
     function syncFilterChips() {
         var sev = document.getElementById("severitySelect");
         if (sev) sev.value = state.filters.severity;
         var st = document.getElementById("statusSelect");
         if (st) st.value = state.filters.status;
-        syncChipGroup("domainChips", state.filters.domain);
+        var dm = document.getElementById("domainSelect");
+        if (dm) dm.value = state.filters.domain;
+        var as = document.getElementById("assessmentSelect");
+        if (as) as.value = state.filters.assessment;
+        var pl = document.getElementById("pillarSelect");
+        if (pl) pl.value = state.filters.pillar;
+        var cat = document.getElementById("categorySelect");
+        if (cat) cat.value = state.filters.category;
+        syncChipGroup("scopeChips", state.filters.domain);
         var fw = document.getElementById("firewallSelect");
         if (fw) fw.value = state.filters.firewall;
         var rr = document.getElementById("riskRangeSelect");
         if (rr) rr.value = state.filters.riskRange;
         var dt = document.getElementById("dateSelect");
         if (dt) dt.value = state.filters.date;
+        var sortEl = document.getElementById("sortSelect");
+        if (sortEl) sortEl.value = state.filters.sort;
     }
 
     function syncChipGroup(id, value) {
@@ -664,20 +769,63 @@
             { key: "severity", label: "Severity" },
             { key: "status", label: "Status" },
             { key: "domain", label: "Domain" },
+            { key: "assessment", label: "Assessment" },
+            { key: "pillar", label: "Pillar" },
+            { key: "category", label: "Category" },
             { key: "firewall", label: "Firewall" },
             { key: "riskRange", label: "Risk", labels: { critical: "90\u2013100", high: "70\u201389", medium: "40\u201369", low: "0\u201339" } },
-            { key: "date", label: "Assessment" }
+            { key: "date", label: "Assessed" }
         ];
         defs.forEach(function (d) {
             var v = f[d.key];
             if (!v || v === "all") return;
             var label = d.labels && d.labels[v] ? d.labels[v] : v;
+            if (d.key === "domain") label = domainLabel(v);
+            if (d.key === "status") label = statusLabel(v);
+            if (d.key === "assessment") label = assessmentLabel(v);
+            if (d.key === "category") label = formatCategory(v);
             pills.push('<span class="active-pill" data-key="' + d.key + '"><span class="active-pill-label">' + d.label + ':</span> ' + escapeHtml(label) + '<button class="active-pill-x" type="button" aria-label="Remove filter">&times;</button></span>');
         });
         if (f.search) {
             pills.push('<span class="active-pill" data-key="search"><span class="active-pill-label">Search:</span> ' + escapeHtml(f.search) + '<button class="active-pill-x" type="button" aria-label="Remove filter">&times;</button></span>');
         }
         el.innerHTML = pills.join("");
+    }
+
+    function assessmentLabel(value) {
+        var list = (state.facets && state.facets.assessments) || [];
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].assessment_id === value) {
+                var when = list[i].completed_at ? formatTs(list[i].completed_at) : value;
+                return (list[i].domain_label || list[i].domain) + " \u00b7 " + when;
+            }
+        }
+        return value;
+    }
+
+    function assessmentDomain(value) {
+        var list = (state.facets && state.facets.assessments) || [];
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].assessment_id === value) return list[i].domain;
+        }
+        return null;
+    }
+
+    function domainLabel(value) {
+        var domains = (state.facets && state.facets.domains) || [];
+        for (var i = 0; i < domains.length; i++) {
+            if (domains[i].value === value) return domains[i].label;
+        }
+        return value;
+    }
+
+    function statusLabel(value) {
+        if (value === "open") return "Open";
+        var options = domainStatusOptions();
+        for (var i = 0; i < options.length; i++) {
+            if (options[i].value === value) return options[i].label;
+        }
+        return value;
     }
 
     function bindChips(id, key) {
@@ -687,7 +835,8 @@
             var chip = e.target.closest(".chip");
             if (!chip) return;
             state.filters[key] = chip.getAttribute("data-value") || "all";
-            applyFilters();
+            if (key === "domain") state.filters.pillar = "all";
+            loadData();
         });
     }
 
@@ -699,12 +848,10 @@
 
     function resetFilters() {
         state.filters = defaultFilters();
-        state.filters.firewall = state.loadedFirewall || "all";
         if (sortSelect) sortSelect.value = state.filters.sort;
         if (searchInput) searchInput.value = "";
         if (viewSelect) viewSelect.value = "all";
-        applyFilters();
-        reflectFirewallUI();
+        loadData();
     }
 
     // ============================================================
@@ -729,7 +876,7 @@
         state.filters = Object.assign(defaultFilters(), view.filters);
         if (sortSelect) sortSelect.value = state.filters.sort;
         if (searchInput) searchInput.value = state.filters.search || "";
-        applyFilters();
+        loadData();
     }
 
     function saveView() {
@@ -749,16 +896,24 @@
     // ============================================================
 
     function loadFilters() {
+        var defaults = defaultFilters();
         try {
             var saved = JSON.parse(localStorage.getItem(STORAGE_FILTERS) || "null");
-            if (saved && typeof saved === "object") state.filters = Object.assign(defaultFilters(), saved);
+            if (saved && typeof saved === "object") {
+                Object.keys(defaults).forEach(function (key) {
+                    if (saved[key] != null) defaults[key] = saved[key];
+                });
+            }
         } catch (e) { /* ignore */ }
+        state.filters = defaults;
+        state.filters.assessment = "all";
         try {
             var params = new URLSearchParams(window.location.search);
-            if (params.get("status")) state.filters.status = params.get("status");
-            if (params.get("domain")) state.filters.domain = params.get("domain");
-            if (params.get("severity")) state.filters.severity = params.get("severity");
-            if (params.get("search")) state.filters.search = params.get("search");
+            ["status", "domain", "severity", "search", "assessment", "pillar", "category", "date"].forEach(function (key) {
+                if (params.get(key)) state.filters[key] = params.get(key);
+            });
+            if (params.get("risk")) state.filters.riskRange = params.get("risk");
+            if (params.get("firewall")) state.filters.firewall = params.get("firewall");
         } catch (e) { /* ignore */ }
         try {
             state.reviewed = JSON.parse(localStorage.getItem(STORAGE_REVIEWED) || "{}") || {};
@@ -915,7 +1070,7 @@
 
     function handleOperationalAction(act, rec) {
         if (act === "device") {
-            if (window.showToast) window.showToast("Firewall: " + rec._firewall + " \u00b7 " + rec._model + " \u00b7 PAN-OS " + rec._version, "info");
+            if (window.showToast) window.showToast("Firewall: " + rec._firewall + " \u00b7 " + rec._domain, "info");
         } else if (act === "assign") {
             assignOwner(rec);
         } else if (act === "export") {
@@ -928,6 +1083,110 @@
         } else if (act === "review") {
             toggleReview(rec);
         }
+    }
+
+    // ============================================================
+    // EVIDENCE DRAWER
+    // ============================================================
+
+    var evidence = {
+        drawer: document.getElementById("evidenceDrawer"),
+        backdrop: document.getElementById("evidenceBackdrop"),
+        body: document.getElementById("evidenceBody"),
+        sub: document.getElementById("evidenceDrawerSub"),
+        current: null
+    };
+
+    function openEvidence(rec) {
+        if (!evidence.drawer) return;
+        evidence.current = rec;
+        if (evidence.sub) {
+            evidence.sub.textContent = (rec.control || "Finding") + " \u00b7 " + (rec._assessment || "assessment");
+        }
+        evidence.body.innerHTML = '<div class="section-loading"><span class="spinner"></span><span class="section-loading-text">Loading evidence\u2026</span></div>';
+        evidence.drawer.classList.add("open");
+        evidence.drawer.setAttribute("aria-hidden", "false");
+        if (evidence.backdrop) evidence.backdrop.classList.add("show");
+
+        var params = new URLSearchParams();
+        params.set("assessment", rec._assessment || "");
+        if (rec._pillar) params.set("pillar", rec._pillar);
+        fetch("/api/investigation/evidence?" + params.toString())
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data || data.error) throw new Error((data && data.error) || "Evidence unavailable");
+                renderEvidenceMenu(data, rec);
+            })
+            .catch(function (err) {
+                evidence.body.innerHTML = '<div class="empty-state card"><h4>No evidence available</h4><p>' +
+                    escapeHtml(err.message || "This assessment has no stored collector payloads.") + "</p></div>";
+            });
+    }
+
+    function closeEvidence() {
+        if (!evidence.drawer) return;
+        evidence.drawer.classList.remove("open");
+        evidence.drawer.setAttribute("aria-hidden", "true");
+        if (evidence.backdrop) evidence.backdrop.classList.remove("show");
+        evidence.current = null;
+    }
+
+    function renderEvidenceMenu(data, rec) {
+        var entries = data.entries || [];
+        var html = "";
+        if (!entries.length) {
+            html = '<div class="empty-state card"><h4>No collector evidence</h4>' +
+                '<p>This assessment was stored without collector payloads.</p></div>';
+        } else {
+            html = '<p class="evidence-drawer-note">' + entries.length + " collector payload" +
+                (entries.length === 1 ? "" : "s") + " stored for this assessment. Select one to inspect it.</p>" +
+                '<div class="evidence-entry-list">';
+            entries.forEach(function (entry, index) {
+                var label = entry.pillar ? entry.pillar + " \u00b7 " + entry.collector : entry.collector;
+                html += '<button class="evidence-entry" type="button" data-collector="' + escapeHtml(entry.collector || "") +
+                    '" data-pillar="' + escapeHtml(entry.pillar || "") + '" data-evidence="' + escapeHtml(entry.id || "") + '">' +
+                    '<span class="evidence-entry-name">' + escapeHtml(label || "Collector") + '</span>' +
+                    '<span class="evidence-entry-meta">' + escapeHtml(entry.evidence_type || "payload") +
+                    (entry.size ? " \u00b7 " + Math.round(entry.size / 102.4) / 10 + " KB" : "") +
+                    (entry.collected_at ? " \u00b7 " + formatTs(entry.collected_at) : "") + "</span>" +
+                    "</button>";
+            });
+            html += "</div><div class=\"evidence-payload\" id=\"evidencePayload\"></div>";
+        }
+        evidence.body.innerHTML = html;
+    }
+
+    function loadEvidencePayload(btn) {
+        if (!evidence.current) return;
+        var holder = document.getElementById("evidencePayload");
+        if (!holder) return;
+        holder.innerHTML = '<div class="section-loading"><span class="spinner"></span><span class="section-loading-text">Loading payload\u2026</span></div>';
+        var params = new URLSearchParams();
+        params.set("assessment", evidence.current._assessment || "");
+        if (btn.getAttribute("data-evidence")) params.set("evidence", btn.getAttribute("data-evidence"));
+        if (btn.getAttribute("data-collector")) params.set("collector", btn.getAttribute("data-collector"));
+        if (btn.getAttribute("data-pillar")) params.set("pillar", btn.getAttribute("data-pillar"));
+        fetch("/api/investigation/evidence?" + params.toString())
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data || !data.entry) throw new Error("Payload not found");
+                var payload = data.entry.payload;
+                if (typeof payload === "string") {
+                    holder.innerHTML = '<div class="evidence-payload-head"><strong>' +
+                        escapeHtml(data.entry.collector || "payload") + '</strong><span>' +
+                        escapeHtml(data.entry.evidence_type || "") + "</span></div>" +
+                        '<pre class="evidence-pre">' + escapeHtml(payload) + "</pre>";
+                } else {
+                    holder.innerHTML = '<div class="evidence-payload-head"><strong>' +
+                        escapeHtml(data.entry.collector || "payload") + '</strong><span>' +
+                        escapeHtml(data.entry.evidence_type || "") + "</span></div>" +
+                        '<pre class="evidence-pre">' + escapeHtml(JSON.stringify(payload, null, 2)) + "</pre>";
+                }
+            })
+            .catch(function (err) {
+                holder.innerHTML = '<div class="alert alert-error"><strong>Evidence</strong><span>' +
+                    escapeHtml(err.message || "Could not load payload.") + "</span></div>";
+            });
     }
 
     function assignOwner(rec) {
@@ -1052,6 +1311,8 @@
                 var act = actionBtn.getAttribute("data-act");
                 if (act === "copilot") {
                     openCopilot(rec);
+                } else if (act === "evidence") {
+                    openEvidence(rec);
                 } else {
                     handleOperationalAction(act, rec);
                 }
@@ -1100,7 +1361,50 @@
         if (sevSelect) {
             sevSelect.addEventListener("change", function () {
                 state.filters.severity = sevSelect.value;
-                applyFilters();
+                loadData();
+            });
+        }
+
+        var domainSelect = document.getElementById("domainSelect");
+        if (domainSelect) {
+            domainSelect.addEventListener("change", function () {
+                state.filters.domain = domainSelect.value;
+                state.filters.pillar = "all";
+                state.filters.status = "all";
+                var picked = state.filters.assessment;
+                if (picked !== "all" && domainSelect.value !== "all" && assessmentDomain(picked) !== domainSelect.value) {
+                    state.filters.assessment = "all";
+                }
+                loadData();
+            });
+        }
+
+        var assessmentSelect = document.getElementById("assessmentSelect");
+        if (assessmentSelect) {
+            assessmentSelect.addEventListener("change", function () {
+                state.filters.assessment = assessmentSelect.value;
+                var domain = assessmentDomain(assessmentSelect.value);
+                if (domain) {
+                    state.filters.domain = domain;
+                    state.filters.pillar = "all";
+                }
+                loadData();
+            });
+        }
+
+        var pillarSelect = document.getElementById("pillarSelect");
+        if (pillarSelect) {
+            pillarSelect.addEventListener("change", function () {
+                state.filters.pillar = pillarSelect.value;
+                loadData();
+            });
+        }
+
+        var categorySelect = document.getElementById("categorySelect");
+        if (categorySelect) {
+            categorySelect.addEventListener("change", function () {
+                state.filters.category = categorySelect.value;
+                loadData();
             });
         }
 
@@ -1108,7 +1412,7 @@
         if (stSelect) {
             stSelect.addEventListener("change", function () {
                 state.filters.status = stSelect.value;
-                applyFilters();
+                loadData();
             });
         }
 
@@ -1137,7 +1441,7 @@
         if (rrSelect) {
             rrSelect.addEventListener("change", function () {
                 state.filters.riskRange = rrSelect.value;
-                applyFilters();
+                loadData();
             });
         }
 
@@ -1145,7 +1449,7 @@
         if (dateSelect) {
             dateSelect.addEventListener("change", function () {
                 state.filters.date = dateSelect.value;
-                applyFilters();
+                loadData();
             });
         }
 
@@ -1158,7 +1462,8 @@
                 if (key === "search") state.filters.search = "";
                 else state.filters[key] = "all";
                 if (searchInput && key === "search") searchInput.value = "";
-                applyFilters();
+                if (key === "domain") state.filters.pillar = "all";
+                loadData();
             });
         }
 
@@ -1171,8 +1476,10 @@
             document.querySelectorAll(".group-section").forEach(function (s) { s.classList.remove("is-collapsed"); });
         });
         document.getElementById("btnCollapseAll").addEventListener("click", function () {
-            CATEGORY_ORDER.forEach(function (c) { state.collapsed[c] = true; });
-            document.querySelectorAll(".group-section").forEach(function (s) { s.classList.add("is-collapsed"); });
+            document.querySelectorAll(".group-section").forEach(function (s) {
+                state.collapsed[s.getAttribute("data-category")] = true;
+                s.classList.add("is-collapsed");
+            });
         });
         document.getElementById("btnExportReport").addEventListener("click", generateReport);
 
@@ -1184,14 +1491,27 @@
             runCopilot(chip.getAttribute("data-action"));
         });
 
+        if (evidence.drawer) {
+            document.getElementById("evidenceClose").addEventListener("click", closeEvidence);
+            if (evidence.backdrop) evidence.backdrop.addEventListener("click", closeEvidence);
+            evidence.body.addEventListener("click", function (e) {
+                var entry = e.target.closest(".evidence-entry");
+                if (!entry) return;
+                evidence.body.querySelectorAll(".evidence-entry").forEach(function (b) {
+                    b.classList.toggle("is-active", b === entry);
+                });
+                loadEvidencePayload(entry);
+            });
+        }
+
         document.addEventListener("keydown", function (e) {
-            if (e.key === "Escape") closeCopilot();
+            if (e.key === "Escape") { closeCopilot(); closeEvidence(); }
         });
     }
 
     function findRecord(cid, fw) {
         return state.records.find(function (r) {
-            return r.control === cid && (!fw || !isEstateView() || r._firewall === fw);
+            return r.control === cid && (!fw || r._firewall === fw);
         });
     }
 
@@ -1200,7 +1520,7 @@
     }
 
     function recKey(rec) {
-        return (isEstateView() ? (rec._firewall || "?") + "::" : "") + rec.control;
+        return (rec._assessment || "?") + "::" + (rec.control || "");
     }
 
     // ============================================================
@@ -1212,12 +1532,6 @@
         var d = parseDate(ts);
         if (!d) return String(ts).slice(0, 16);
         return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-    }
-
-    function formatShortTs(ts) {
-        var d = parseDate(ts);
-        if (!d) return "";
-        return d.toLocaleString(undefined, { month: "short", day: "numeric" });
     }
 
     function parseDate(ts) {
@@ -1235,105 +1549,75 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 state.inventory = (data && data.firewalls) || [];
-                var names = (state.inventory || []).map(function (e) { return e.device_name; }).filter(Boolean);
-                var params = new URLSearchParams(window.location.search);
-                var stored = (state.filters.firewall && state.filters.firewall !== "all") ? state.filters.firewall : null;
-                var fw = params.get("firewall") || stored || names[0] || "vmpafw01";
-                if (fw !== "all" && names.length && names.indexOf(fw) === -1) fw = "all";
-                return loadData(fw);
             })
-            .catch(function () {
-                state.inventory = [];
+            .catch(function () { state.inventory = []; })
+            .finally(function () {
                 var params = new URLSearchParams(window.location.search);
-                return loadData(params.get("firewall") || "all");
+                var presetFirewall = params.get("firewall");
+                if (presetFirewall && presetFirewall !== "all") state.filters.firewall = presetFirewall;
+                if (state.filters.domain === "all" && params.get("domain")) {
+                    state.filters.domain = params.get("domain");
+                }
+                loadData();
             });
     }
 
-    function loadData(fw) {
-        state.loadedFirewall = fw || "all";
-        state.filters.firewall = state.loadedFirewall;
-        if (root && window.loadingHtml) {
-            root.innerHTML = '<div class="empty-state card">' + window.loadingHtml("Loading findings…") + "</div>";
+    function queryString() {
+        var f = state.filters;
+        var params = new URLSearchParams();
+        ["domain", "assessment", "pillar", "category", "firewall", "severity", "riskRange", "date", "search"].forEach(function (key) {
+            var value = f[key];
+            if (value && value !== "all") params.set(key === "riskRange" ? "risk" : key, value);
+        });
+        if (f.sort) params.set("sort", f.sort);
+        return params.toString();
+    }
+
+    function loadData() {
+        state.loadedFirewall = state.filters.firewall || "all";
+        if (root) {
+            root.innerHTML = '<div class="empty-state card"><div class="section-loading"><span class="spinner"></span>' +
+                '<span class="section-loading-text">Loading findings\u2026</span></div></div>';
         }
-        var req = state.loadedFirewall === "all"
-            ? "/api/estate/assessment"
-            : "/api/findings?firewall=" + encodeURIComponent(state.loadedFirewall);
-        fetch(req)
+        var qs = queryString();
+        fetch("/api/investigation/findings" + (qs ? "?" + qs : ""))
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (!data || data.error) {
-                    if (root) root.innerHTML = '<div class="empty-state card"><h4>No findings available</h4><p>Run an assessment from the AI Workspace to populate findings.</p></div>';
+                    showEmpty("No findings available", "Run an assessment from the AI Workspace or Automation to populate findings.");
                     reflectFirewallUI();
                     return;
                 }
-                if (state.loadedFirewall === "all") renderEstateFindings(data);
-                else renderPostureFindings(data);
+                renderRecords(data);
             })
             .catch(function () {
-                if (root) root.innerHTML = '<div class="empty-state card"><h4>Unable to load findings</h4></div>';
+                showEmpty("Unable to load findings", "The investigation store could not be reached.");
                 reflectFirewallUI();
             });
     }
 
-    function renderPostureFindings(data) {
-        state.data = data;
-        var posture = data.posture || {};
-        var ctx = {
-            detected: data._collected_at ? String(data._collected_at).slice(0, 10) : new Date().toISOString().slice(0, 10),
-            collected_at: data._collected_at || posture.collected_at,
-            run_id: posture.run_id || "\u2014",
-            firewall: data.firewall || { hostname: "edge-fw-01", model: "", version: "" }
-        };
-        var findingMap = {};
-        (data.findings || []).forEach(function (f) { findingMap[(f.control || "").toUpperCase()] = f; });
-        state.records = (data.assessment || []).map(function (r) {
-            return enrich(r, findingMap[(r.control || "").toUpperCase()], null, ctx);
-        });
-        finishFindingsRender();
+    function showEmpty(title, body) {
+        if (!root) return;
+        root.innerHTML = '<div class="empty-state card"><h3>' + escapeHtml(title) + "</h3><p>" + escapeHtml(body) + "</p></div>";
     }
 
-    function renderEstateFindings(data) {
-        var devices = data.devices || [];
-        var cumulative = data.cumulative || {};
-        var detected = data._collected_at ? String(data._collected_at).slice(0, 10) : new Date().toISOString().slice(0, 10);
-        var records = [];
-        devices.forEach(function (dev) {
-            var ctx = {
-                detected: detected,
-                collected_at: dev.collected_at,
-                run_id: "Estate",
-                firewall: { hostname: dev.device, model: "", version: "" }
-            };
-            var map = {};
-            (dev.findings || []).forEach(function (f) { map[(f.control || "").toUpperCase()] = f; });
-            (dev.assessment || []).forEach(function (r) {
-                records.push(enrich(r, map[(r.control || "").toUpperCase()], null, ctx));
-            });
-        });
-        state.records = records;
-        state.data = {
-            posture: {
-                run_id: "Estate",
-                compliance_pct: cumulative.compliance_score_pct,
-                compliant: cumulative.total_compliant,
-                non_compliant: cumulative.total_non_compliant,
-                not_assessed: cumulative.total_not_assessed,
-                total_controls: cumulative.total_controls
-            },
-            firewall: { hostname: "All devices", model: "", version: "" },
-            firewalls: devices.map(function (d) { return { hostname: d.device, model: "", version: "" }; }),
-            findings: [],
-            assessment: [],
-            history: [],
-            _collected_at: data._collected_at
-        };
+    function renderRecords(data) {
+        state.facets = data.facets || {};
+        state.statusVocabulary = data.status_vocabulary || {};
+        state.summary = data.summary || {};
+        state.records = (data.records || []).map(enrich);
         finishFindingsRender();
     }
 
     function finishFindingsRender() {
-        renderDomainChips();
-        populateFirewallSelect(state.data ? state.data.firewalls : []);
-        populateDateSelect((state.data && state.data.history) || []);
+        renderScopeChips();
+        populateDomainSelect();
+        populateAssessmentSelect();
+        populatePillarSelect();
+        populateCategorySelect();
+        populateStatusSelect();
+        populateFirewallSelect();
+        populateDateSelect();
         populateViewSelect();
         if (sortSelect) sortSelect.value = state.filters.sort;
         if (searchInput) searchInput.value = state.filters.search || "";
@@ -1345,7 +1629,7 @@
 
     loadFilters();
     loadSavedViews();
-    bindChips("domainChips", "domain");
+    bindChips("scopeChips", "domain");
     bindEvents();
     bindFirewallCombo();
     load();

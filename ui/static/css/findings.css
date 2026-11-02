@@ -163,6 +163,14 @@
 }
 .toolbar-row { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
 
+.findings-toolbar.is-zt .toolbar-row { display: flex; }
+.findings-toolbar.is-zt #searchField { order: 1; }
+.findings-toolbar.is-zt #statusField { order: 2; }
+.findings-toolbar.is-zt #riskField { order: 3; }
+.findings-toolbar.is-zt #dateField { order: 4; }
+.findings-toolbar.is-zt #assessmentField { order: 5; }
+.findings-toolbar.is-zt #pillarField { order: 6; }
+
 .toolbar-row > .toolbar-field {
     flex: 1 1 0;
     min-width: 0;

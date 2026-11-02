@@ -83,9 +83,9 @@
 <div class="alert alert-error"><strong>Error</strong><span>{{ error }}</span></div>
 {% endif %}
 
-<section class="findings-toolbar card" id="toolbarFilters">
+<section class="findings-toolbar card{% if findings_view == 'zero_trust' %} is-zt{% endif %}" id="toolbarFilters">
     <div class="toolbar-row">
-        <div class="filter-group toolbar-field">
+        <div class="filter-group toolbar-field" id="searchField">
             <label class="filter-label" for="findingsSearch">Findings</label>
             <div class="toolbar-search">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
@@ -98,13 +98,13 @@
                 <option value="all">All domains</option>
             </select>
         </div>
-        <div class="filter-group toolbar-field">
+        <div class="filter-group toolbar-field" id="assessmentField">
             <label class="filter-label" for="assessmentSelect">Assessment</label>
             <select id="assessmentSelect" class="filter-select">
                 <option value="all">Latest per scope</option>
             </select>
         </div>
-        <div class="filter-group toolbar-field" id="pillarField" hidden>
+        <div class="filter-group toolbar-field" id="pillarField"{% if findings_view != 'zero_trust' %} hidden{% endif %}>
             <label class="filter-label" for="pillarSelect">Pillar</label>
             <select id="pillarSelect" class="filter-select">
                 <option value="all">All pillars</option>
@@ -272,6 +272,6 @@
 {% block scripts %}
 {% if not assessment_blocked %}
 <script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=8"></script>
-<script src="{{ url_for('static', filename='js/findings.js') }}?v=18"></script>
+<script src="{{ url_for('static', filename='js/findings.js') }}?v=19"></script>
 {% endif %}
 {% endblock %}

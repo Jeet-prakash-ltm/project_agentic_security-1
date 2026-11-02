@@ -583,11 +583,20 @@
         var field = document.getElementById("pillarField");
         var facets = state.facets || {};
         var pillars = facets.pillars || [];
-        var show = false;
+        var show = PAGE_DOMAIN === "zero_trust";
         if (field) field.hidden = !show;
         if (!show) {
             state.filters.pillar = "all";
             return;
+        }
+        if (!pillars.length) {
+            pillars = [
+                { value: "Identity", label: "Identity" },
+                { value: "Devices", label: "Endpoint Device" },
+                { value: "Network", label: "Network" },
+                { value: "Data", label: "Data" },
+                { value: "Infrastructure", label: "Infrastructure" }
+            ];
         }
         fillSelect("pillarSelect", pillars, state.filters.pillar, "All pillars");
     }
@@ -1664,14 +1673,15 @@
 
     function reflectTabUI() {
         var zt = PAGE_DOMAIN === "zero_trust";
-        ["categoryField", "severityField", "sortField", "viewField", "resetField", "pillarField"].forEach(function (id) {
+        ["categoryField", "severityField", "sortField", "viewField", "resetField"].forEach(function (id) {
             var el = document.getElementById(id);
             if (el) el.hidden = zt;
         });
+        var pillarField = document.getElementById("pillarField");
+        if (pillarField) pillarField.hidden = !zt;
         var fwField = document.querySelector(".fw-combo-group");
         if (fwField) fwField.hidden = zt;
         if (zt) {
-            state.filters.pillar = "all";
             state.filters.category = "all";
             state.filters.severity = "all";
             state.filters.firewall = "all";

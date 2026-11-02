@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='LTM_LOGO.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=31">
     {% if page_css %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=107">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/' ~ page_css) }}?v=108">
     {% endif %}
     {% block head_extra %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v=9">
@@ -93,7 +93,7 @@
                     </a>
                 </div>
             </div>
-            <a href="{{ url_for('findings') }}" class="nav-link {{ 'active' if request.endpoint in ['findings', 'run_assessment'] else '' }}" data-label="Investigation Centre">
+            <a href="{{ url_for('findings') }}" class="nav-link {{ 'active' if request.endpoint in ['findings', 'findings_tab', 'run_assessment'] else '' }}" data-label="Investigation Centre">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><circle cx="12" cy="17" r="1"/></svg>
                 <span>Investigation Centre</span>
             </a>

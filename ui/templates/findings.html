@@ -1,28 +1,58 @@
 {% extends "base.html" %}
 
-{% block title %}Investigation Centre — HeimDRIX AI Agentic Security Platform{% endblock %}
+{% set findings_view = findings_view or 'firewall_audit' %}
+{% set findings_tabs = [
+    ('firewall_audit', 'Firewall Audit Assessment'),
+    ('zero_trust', 'Zero Trust Assessment')
+] %}
+{% set findings_page_labels = {
+    'firewall_audit': 'Firewall Audit Assessment',
+    'zero_trust': 'Zero Trust Assessment'
+} %}
+{% set findings_page_label = findings_page_labels.get(findings_view, 'Firewall Audit Assessment') %}
+
+{% block title %}Investigation Centre — {{ findings_page_label }} — HeimDRIX AI Agentic Security Platform{% endblock %}
 
 {% block page_title %}Investigation Centre{% endblock %}
 
-{% block hero_eyebrow %}Persisted findings across Network Security and Zero Trust{% endblock %}
+{% block hero_eyebrow %}Investigation Centre / {{ findings_page_label }}{% endblock %}
 
 {% block content %}
 
+<nav class="zt-page-tabs findings-page-tabs" id="findingsPageTabs" role="tablist" aria-label="Investigation Centre views">
+    {% for key, label in findings_tabs %}
+    <a href="{{ url_for('findings', view=key) }}"
+       role="tab"
+       class="zt-page-tab {{ 'is-active' if findings_view == key else '' }}"
+       aria-selected="{{ 'true' if findings_view == key else 'false' }}"
+       data-tab="{{ key }}">{{ label }}</a>
+    {% endfor %}
+</nav>
+
 <div class="findings-header">
     <div>
-        <h1>Investigation Centre</h1>
+        <h1>{{ findings_page_label }}</h1>
     </div>
     <div class="findings-header-actions">
         <button class="btn btn-ghost" id="btnExportReport" type="button">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
             Export Report
         </button>
+        {% if findings_view == 'firewall_audit' %}
         <a href="{{ url_for('run_assessment') }}" class="btn btn-primary" id="btnRunAssessment">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"/></svg>
             Run Assessment
         </a>
+        {% else %}
+        <a href="{{ url_for('dashboard_cloud_security') }}" class="btn btn-primary" id="btnRunAssessment">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"/></svg>
+            Run Assessment
+        </a>
+        {% endif %}
     </div>
 </div>
+
+<div id="findingsApp" data-view="{{ findings_view }}" hidden></div>
 
 {% if assessment_blocked and error %}
 <div class="assessment-unavailable card">
@@ -53,7 +83,7 @@
                 <input type="text" id="findingsSearch" placeholder="Search findings..." aria-label="Search findings">
             </div>
         </div>
-        <div class="filter-group toolbar-field">
+        <div class="filter-group toolbar-field" id="domainField" hidden>
             <label class="filter-label" for="domainSelect">Domain</label>
             <select id="domainSelect" class="filter-select">
                 <option value="all">All domains</option>
@@ -93,7 +123,7 @@
                 <option value="all">All</option>
             </select>
         </div>
-        <div class="filter-group toolbar-field fw-combo-group">
+        <div class="filter-group toolbar-field fw-combo-group"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
             <label class="filter-label" for="fwSearchInput">Firewall</label>
             <div class="fw-combobox" id="fwCombobox">
                 <svg class="fw-combo-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
@@ -127,8 +157,8 @@
                 <option value="riskAsc">Risk score (low to high)</option>
                 <option value="recent">Most recent</option>
                 <option value="oldest">Oldest</option>
-                <option value="domain">Domain / pillar</option>
-                <option value="firewall">Firewall</option>
+                <option value="domain">{{ 'Pillar' if findings_view == 'zero_trust' else 'Category' }}</option>
+                <option value="firewall"{% if findings_view == 'zero_trust' %} hidden{% endif %}>Firewall</option>
                 <option value="control">Control</option>
             </select>
         </div>
@@ -142,7 +172,7 @@
             <button class="btn btn-ghost btn-sm" id="btnResetFilters" type="button">Reset</button>
         </div>
     </div>
-    <div class="toolbar-filters">
+    <div class="toolbar-filters" id="scopeFilters" hidden>
         <div class="filter-group">
             <span class="filter-label">Scope</span>
             <div class="filter-chips" id="scopeChips"></div>
@@ -210,6 +240,6 @@
 {% block scripts %}
 {% if not assessment_blocked %}
 <script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=8"></script>
-<script src="{{ url_for('static', filename='js/findings.js') }}?v=16"></script>
+<script src="{{ url_for('static', filename='js/findings.js') }}?v=17"></script>
 {% endif %}
 {% endblock %}

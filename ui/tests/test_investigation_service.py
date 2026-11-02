@@ -17,9 +17,11 @@ from database.repositories.investigation_repository import (  # noqa: E402
     status_label,
 )
 from services.investigation_service import (  # noqa: E402
+    FINDINGS_VIEW_DOMAINS,
     STATUS_VOCABULARY,
     _clean_filters,
     get_evidence,
+    resolve_findings_view,
 )
 
 
@@ -56,6 +58,15 @@ class StatusVocabularyTests(unittest.TestCase):
     def test_domain_labels(self):
         self.assertEqual(domain_label("network_security"), "Network Security")
         self.assertEqual(domain_label("zero_trust"), "Zero Trust")
+
+    def test_findings_tabs_map_to_domains(self):
+        self.assertEqual(resolve_findings_view(), "firewall_audit")
+        self.assertEqual(resolve_findings_view("firewall-audit"), "firewall_audit")
+        self.assertEqual(resolve_findings_view("zero_trust"), "zero_trust")
+        self.assertEqual(resolve_findings_view(domain="zero_trust"), "zero_trust")
+        self.assertEqual(resolve_findings_view("unknown", domain="network_security"), "firewall_audit")
+        self.assertEqual(FINDINGS_VIEW_DOMAINS["firewall_audit"], "network_security")
+        self.assertEqual(FINDINGS_VIEW_DOMAINS["zero_trust"], "zero_trust")
 
 
 class FilterNormalisationTests(unittest.TestCase):

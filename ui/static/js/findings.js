@@ -5,23 +5,31 @@
     var searchInput = document.getElementById("findingsSearch");
     var sortSelect = document.getElementById("sortSelect");
     var viewSelect = document.getElementById("viewSelect");
+    var findingsApp = document.getElementById("findingsApp");
+    var PAGE_VIEW = (findingsApp && findingsApp.getAttribute("data-view")) || "firewall_audit";
+    var PAGE_DOMAIN = PAGE_VIEW === "zero_trust" ? "zero_trust" : "network_security";
 
-    var PRESET_VIEWS = [
-        { id: "all", name: "All Findings", filters: { severity: "all", status: "all", domain: "all", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" } },
-        { id: "critical", name: "Critical Only", filters: { severity: "critical", status: "all", domain: "all", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" } },
-        { id: "high", name: "High Risk", filters: { severity: "high", status: "all", domain: "all", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "risk" } },
-        { id: "network", name: "Network Security", filters: { severity: "all", status: "all", domain: "network_security", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" } },
-        { id: "zero-trust", name: "Zero Trust", filters: { severity: "all", status: "all", domain: "zero_trust", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" } },
-        { id: "open", name: "Open Issues", filters: { severity: "all", status: "open", domain: "all", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "risk" } }
-    ];
+    var PRESET_VIEWS = PAGE_DOMAIN === "zero_trust"
+        ? [
+            { id: "all", name: "All Findings", filters: { severity: "all", status: "all", domain: "zero_trust", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" } },
+            { id: "critical", name: "Critical Only", filters: { severity: "critical", status: "all", domain: "zero_trust", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" } },
+            { id: "high", name: "High Risk", filters: { severity: "high", status: "all", domain: "zero_trust", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "risk" } },
+            { id: "open", name: "Open Issues", filters: { severity: "all", status: "open", domain: "zero_trust", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "risk" } }
+        ]
+        : [
+            { id: "all", name: "All Findings", filters: { severity: "all", status: "all", domain: "network_security", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" } },
+            { id: "critical", name: "Critical Only", filters: { severity: "critical", status: "all", domain: "network_security", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" } },
+            { id: "high", name: "High Risk", filters: { severity: "high", status: "all", domain: "network_security", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "risk" } },
+            { id: "open", name: "Open Issues", filters: { severity: "all", status: "open", domain: "network_security", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "risk" } }
+        ];
 
-    var STORAGE_FILTERS = "findings.filters.v2";
-    var STORAGE_VIEWS = "findings.views.v2";
+    var STORAGE_FILTERS = "findings.filters." + PAGE_VIEW + ".v3";
+    var STORAGE_VIEWS = "findings.views." + PAGE_VIEW + ".v3";
     var STORAGE_REVIEWED = "findings.reviewed.v1";
     var STORAGE_ASSIGNEES = "findings.assignees.v1";
 
     function defaultFilters() {
-        return { severity: "all", status: "all", domain: "all", assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" };
+        return { severity: "all", status: "all", domain: PAGE_DOMAIN, assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" };
     }
 
     var state = {
@@ -37,6 +45,11 @@
         inventory: [],
         loadedFirewall: null
     };
+
+    function lockDomain() {
+        state.filters.domain = PAGE_DOMAIN;
+        if (PAGE_DOMAIN !== "zero_trust") state.filters.pillar = "all";
+    }
 
     function escapeHtml(v) {
         var d = document.createElement("div");
@@ -188,6 +201,7 @@
                 return false;
             }
         }
+        if (rec._domain_key && rec._domain_key !== PAGE_DOMAIN) return false;
         if (f.domain !== "all" && rec._domain_key !== f.domain) return false;
         if (f.assessment !== "all" && rec._assessment !== f.assessment) return false;
         if (f.pillar !== "all" && (rec._pillar || "") !== f.pillar) return false;
@@ -553,7 +567,9 @@
 
     function populateAssessmentSelect() {
         var facets = state.facets || {};
-        var options = (facets.assessments || []).map(function (a) {
+        var options = (facets.assessments || []).filter(function (a) {
+            return !a.domain || a.domain === PAGE_DOMAIN;
+        }).map(function (a) {
             var when = a.completed_at ? formatTs(a.completed_at) : "unknown";
             return {
                 value: a.assessment_id,
@@ -567,7 +583,7 @@
         var field = document.getElementById("pillarField");
         var facets = state.facets || {};
         var pillars = facets.pillars || [];
-        var show = state.filters.domain === "zero_trust" && pillars.length > 0;
+        var show = PAGE_DOMAIN === "zero_trust" && pillars.length > 0;
         if (field) field.hidden = !show;
         if (!show) {
             state.filters.pillar = "all";
@@ -680,6 +696,7 @@
     }
 
     function bindFirewallCombo() {
+        if (PAGE_DOMAIN === "zero_trust") return;
         var input = document.getElementById("fwSearchInput");
         var list = document.getElementById("fwSearchList");
         var clear = document.getElementById("fwSearchClear");
@@ -768,7 +785,6 @@
         var defs = [
             { key: "severity", label: "Severity" },
             { key: "status", label: "Status" },
-            { key: "domain", label: "Domain" },
             { key: "assessment", label: "Assessment" },
             { key: "pillar", label: "Pillar" },
             { key: "category", label: "Category" },
@@ -834,8 +850,11 @@
         el.addEventListener("click", function (e) {
             var chip = e.target.closest(".chip");
             if (!chip) return;
-            state.filters[key] = chip.getAttribute("data-value") || "all";
-            if (key === "domain") state.filters.pillar = "all";
+            if (key === "domain") {
+                lockDomain();
+            } else {
+                state.filters[key] = chip.getAttribute("data-value") || "all";
+            }
             loadData();
         });
     }
@@ -848,6 +867,7 @@
 
     function resetFilters() {
         state.filters = defaultFilters();
+        lockDomain();
         if (sortSelect) sortSelect.value = state.filters.sort;
         if (searchInput) searchInput.value = "";
         if (viewSelect) viewSelect.value = "all";
@@ -874,6 +894,7 @@
 
     function applyView(view) {
         state.filters = Object.assign(defaultFilters(), view.filters);
+        lockDomain();
         if (sortSelect) sortSelect.value = state.filters.sort;
         if (searchInput) searchInput.value = state.filters.search || "";
         loadData();
@@ -909,12 +930,13 @@
         state.filters.assessment = "all";
         try {
             var params = new URLSearchParams(window.location.search);
-            ["status", "domain", "severity", "search", "assessment", "pillar", "category", "date"].forEach(function (key) {
+            ["status", "severity", "search", "assessment", "pillar", "category", "date"].forEach(function (key) {
                 if (params.get(key)) state.filters[key] = params.get(key);
             });
             if (params.get("risk")) state.filters.riskRange = params.get("risk");
             if (params.get("firewall")) state.filters.firewall = params.get("firewall");
         } catch (e) { /* ignore */ }
+        lockDomain();
         try {
             state.reviewed = JSON.parse(localStorage.getItem(STORAGE_REVIEWED) || "{}") || {};
         } catch (e) { state.reviewed = {}; }
@@ -1368,11 +1390,11 @@
         var domainSelect = document.getElementById("domainSelect");
         if (domainSelect) {
             domainSelect.addEventListener("change", function () {
-                state.filters.domain = domainSelect.value;
+                lockDomain();
                 state.filters.pillar = "all";
                 state.filters.status = "all";
                 var picked = state.filters.assessment;
-                if (picked !== "all" && domainSelect.value !== "all" && assessmentDomain(picked) !== domainSelect.value) {
+                if (picked !== "all" && assessmentDomain(picked) !== PAGE_DOMAIN) {
                     state.filters.assessment = "all";
                 }
                 loadData();
@@ -1384,10 +1406,10 @@
             assessmentSelect.addEventListener("change", function () {
                 state.filters.assessment = assessmentSelect.value;
                 var domain = assessmentDomain(assessmentSelect.value);
-                if (domain) {
-                    state.filters.domain = domain;
-                    state.filters.pillar = "all";
+                if (domain && domain !== PAGE_DOMAIN) {
+                    state.filters.assessment = "all";
                 }
+                lockDomain();
                 loadData();
             });
         }
@@ -1462,7 +1484,7 @@
                 if (key === "search") state.filters.search = "";
                 else state.filters[key] = "all";
                 if (searchInput && key === "search") searchInput.value = "";
-                if (key === "domain") state.filters.pillar = "all";
+                lockDomain();
                 loadData();
             });
         }
@@ -1545,27 +1567,34 @@
     // ============================================================
 
     function load() {
+        var start = function () {
+            var params = new URLSearchParams(window.location.search);
+            var presetFirewall = params.get("firewall");
+            if (presetFirewall && presetFirewall !== "all" && PAGE_DOMAIN !== "zero_trust") {
+                state.filters.firewall = presetFirewall;
+            }
+            lockDomain();
+            loadData();
+        };
+        if (PAGE_DOMAIN === "zero_trust") {
+            state.inventory = [];
+            start();
+            return;
+        }
         fetch("/api/firewall-inventory")
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 state.inventory = (data && data.firewalls) || [];
             })
             .catch(function () { state.inventory = []; })
-            .finally(function () {
-                var params = new URLSearchParams(window.location.search);
-                var presetFirewall = params.get("firewall");
-                if (presetFirewall && presetFirewall !== "all") state.filters.firewall = presetFirewall;
-                if (state.filters.domain === "all" && params.get("domain")) {
-                    state.filters.domain = params.get("domain");
-                }
-                loadData();
-            });
+            .finally(start);
     }
 
     function queryString() {
         var f = state.filters;
         var params = new URLSearchParams();
         ["domain", "assessment", "pillar", "category", "firewall", "severity", "riskRange", "date", "search"].forEach(function (key) {
+            if (key === "firewall" && PAGE_DOMAIN === "zero_trust") return;
             var value = f[key];
             if (value && value !== "all") params.set(key === "riskRange" ? "risk" : key, value);
         });
@@ -1574,6 +1603,7 @@
     }
 
     function loadData() {
+        lockDomain();
         state.loadedFirewall = state.filters.firewall || "all";
         if (root) {
             root.innerHTML = '<div class="empty-state card"><div class="section-loading"><span class="spinner"></span>' +
@@ -1605,11 +1635,14 @@
         state.facets = data.facets || {};
         state.statusVocabulary = data.status_vocabulary || {};
         state.summary = data.summary || {};
-        state.records = (data.records || []).map(enrich);
+        state.records = (data.records || []).map(enrich).filter(function (rec) {
+            return !rec._domain_key || rec._domain_key === PAGE_DOMAIN;
+        });
         finishFindingsRender();
     }
 
     function finishFindingsRender() {
+        lockDomain();
         renderScopeChips();
         populateDomainSelect();
         populateAssessmentSelect();
@@ -1624,7 +1657,20 @@
         syncFilterChips();
         saveFilters();
         reflectFirewallUI();
+        reflectTabUI();
         renderAll();
+    }
+
+    function reflectTabUI() {
+        var fwField = document.querySelector(".fw-combo-group");
+        if (fwField) fwField.hidden = PAGE_DOMAIN === "zero_trust";
+        var sortDomain = document.querySelector('#sortSelect option[value="domain"]');
+        if (sortDomain) sortDomain.textContent = PAGE_DOMAIN === "zero_trust" ? "Pillar" : "Category";
+        var sortFw = document.querySelector('#sortSelect option[value="firewall"]');
+        if (sortFw) sortFw.hidden = PAGE_DOMAIN === "zero_trust";
+        if (PAGE_DOMAIN === "zero_trust" && state.filters.firewall !== "all") {
+            state.filters.firewall = "all";
+        }
     }
 
     loadFilters();

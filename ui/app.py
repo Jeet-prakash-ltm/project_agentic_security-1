@@ -616,14 +616,31 @@ def workspace():
 # FINDINGS
 # --------------------------------------------------
 
+def _findings_page(view=None, **extra):
+    return render_with_css(
+        "findings.html",
+        findings_view=investigation_service.resolve_findings_view(
+            view, extra.pop("domain", None) or request.args.get("domain")
+        ),
+        firewall_id=extra.pop("firewall_id", _firewall_param()),
+        **extra
+    )
+
+
 @app.route("/findings")
 @login_required
 def findings():
 
-    return render_with_css(
-        "findings.html",
-        firewall_id=_firewall_param()
-    )
+    return _findings_page(request.args.get("view"))
+
+
+@app.route("/findings/<view>")
+@login_required
+def findings_tab(view):
+    """Keep Investigation Centre tab URLs stable by redirecting into the tabbed page."""
+
+    resolved = investigation_service.resolve_findings_view(view)
+    return redirect(url_for("findings", view=resolved))
 
 # --------------------------------------------------
 # RUN ASSESSMENT
@@ -644,22 +661,19 @@ def run_assessment():
             )
         )
 
-        return render_with_css(
-            "findings.html",
-
+        return _findings_page(
+            "firewall_audit",
             assessment_source=(
                 data.get("_source", "live")
             ),
-            firewall_id=_firewall_param()
         )
 
     except assessment_service.AssessmentUnavailableError as e:
 
         # Firewall is down (e.g. the VM is stopped): tell the user clearly and
         # render a lightweight page that does not keep polling for findings.
-        return render_with_css(
-            "findings.html",
-
+        return _findings_page(
+            "firewall_audit",
             assessment_blocked=True,
             firewall_name=_firewall_param(),
             error=str(e),
@@ -667,10 +681,9 @@ def run_assessment():
 
     except Exception as e:
 
-        return render_with_css(
-            "findings.html",
-
-            error=str(e)
+        return _findings_page(
+            "firewall_audit",
+            error=str(e),
         )
 
 # --------------------------------------------------

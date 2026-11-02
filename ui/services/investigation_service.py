@@ -25,6 +25,23 @@ log = logging.getLogger(__name__)
 DEFAULT_LIMIT = 2000
 MAX_LIMIT = 10000
 
+FINDINGS_VIEWS = ("firewall_audit", "zero_trust")
+FINDINGS_VIEW_DOMAINS = {
+    "firewall_audit": "network_security",
+    "zero_trust": "zero_trust",
+}
+
+
+def resolve_findings_view(view=None, domain=None):
+    """Map Investigation Centre tabs onto persisted assessment domains."""
+    view = str(view or "").strip().lower().replace("-", "_")
+    if view in FINDINGS_VIEWS:
+        return view
+    domain = str(domain or "").strip().lower().replace("-", "_")
+    if domain == "zero_trust":
+        return "zero_trust"
+    return "firewall_audit"
+
 STATUS_VOCABULARY = {
     "network_security": [
         {"value": "compliant", "label": "Compliant"},

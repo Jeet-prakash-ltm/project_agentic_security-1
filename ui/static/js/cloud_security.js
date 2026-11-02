@@ -356,7 +356,10 @@
         if (filterBtn) filterBtn.hidden = state.view === "overview";
         if (state.view === "overview") closeFilter();
         var topnav = document.getElementById("ztTopNav");
-        if (topnav) topnav.classList.toggle("is-compact", state.view !== "overview");
+        if (topnav) {
+            topnav.hidden = state.view !== "overview";
+            topnav.classList.toggle("is-compact", state.view !== "overview");
+        }
         syncPageTabs();
     }
 

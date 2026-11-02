@@ -45,7 +45,7 @@
                data-tab="{{ key }}">{{ label }}</a>
             {% endfor %}
         </nav>
-        <header class="zt-topnav" id="ztTopNav">
+        <header class="zt-topnav" id="ztTopNav"{% if zt_view != 'overview' %} hidden{% endif %}>
             <div class="zt-top-lead">
                 <button type="button" class="reports-filter-btn" id="ztTenantBtn" aria-label="Tenant information" aria-haspopup="dialog" aria-expanded="false" aria-controls="ztTenantPop">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-8h6v8"/><path d="M9 9h.01M15 9h.01M9 13h.01M15 13h.01"/></svg>

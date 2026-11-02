@@ -353,59 +353,34 @@
         state.busy = true;
         commitBtn.disabled = true;
         setDownloadBusy(true);
-        setStatus("Executing", "run");
+        setStatus("Preparing", "run");
         line("Execute", "head");
-        line("Running uploaded sheets against the firewall.", "muted");
+        line("Preparing a bulk firewall job. Nothing is written until you approve it on Jobs.", "muted");
         blank();
 
-        var operations = [];
-        var chain = Promise.resolve();
-        state.matches.forEach(function (item) {
-            chain = chain.then(function () {
-                return runPlaybook(item).then(function (op) {
-                    operations.push(op);
-                });
-            });
-        });
-        chain.then(function () {
-            var failed = operations.some(function (op) { return op.status === "failed"; });
-            var payload = {
-                firewall_name: (state.info && state.info.host) || "",
-                security_domain: "Network security",
-                workbook_name: state.workbookName || "",
-                actions: unique(operations.reduce(function (all, op) {
-                    return all.concat(op.actions || []);
-                }, [])),
-                playbooks: unique(operations.map(function (op) { return op.playbook_title; })),
-                sheets: unique(operations.map(function (op) { return op.sheet; })),
-                status: failed ? "failed" : "successful",
-                operations: operations
-            };
-            return fetch(URLS.jobs, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            }).then(function (r) {
-                return r.json().then(function (d) { return { ok: r.ok, data: d }; });
-            }).then(function (res) {
-                if (res.ok && res.data && res.data.job) {
-                    line("Stored as " + res.data.job.job_number + " on Automation Hub · Jobs.", "muted");
-                }
-                return failed;
-            }).catch(function () {
-                line("Job could not be stored in Automation · Jobs.", "warn");
-                return failed;
-            });
-        }).then(function (failed) {
-            if (!failed) {
-                line("Operations completed.", "ok");
-                setStatus("Completed", "ok");
-                if (window.showToast) window.showToast("Operations completed.", "success");
-            } else {
-                line("Operations finished with errors.", "err");
-                setStatus("Failed", "err");
-                if (window.showToast) window.showToast("Operations finished with errors.");
-            }
+        fetch(URLS.run, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                playbook_id: (state.matches[0] && state.matches[0].playbook && state.matches[0].playbook.id) || "",
+                source_type: "automation_hub",
+                source_name: state.workbookName || "Automation Hub"
+            })
+        }).then(function (r) {
+            return r.json().then(function (d) { return { ok: r.ok, data: d }; });
+        }).then(function (res) {
+            if (!res.ok) throw new Error((res.data && res.data.error) || "Prepare failed");
+            var data = res.data || {};
+            var jobNumber = data.job_number || "";
+            var ops = (data.rows || []).length || ((data.counts && (data.counts.created + data.counts.updated + data.counts.deleted)) || 0);
+            line("Prepared " + ops + " operation(s) as " + (jobNumber || "a Jobs entry") + ".", "ok");
+            line("Open Automation Hub · Jobs and approve the job to apply it on the firewall.", "muted");
+            setStatus("Awaiting approval", "ok");
+            if (window.showToast) window.showToast("Job prepared. Approve it on the Jobs page.", "success");
+        }).catch(function (err) {
+            line("The workbook job could not be prepared. " + (err.message || "Prepare failed."), "err");
+            setStatus("Failed", "err");
+            if (window.showToast) window.showToast(err.message || "Prepare failed.");
         }).finally(function () {
             state.busy = false;
             setDownloadBusy(false);

@@ -1534,24 +1534,27 @@ def api_netsec_workbook_get():
 @app.route("/api/netsec/playbooks/run", methods=["POST"])
 @login_required
 def api_netsec_playbooks_run():
-    """Execute a playbook against the firewall and return per-row results."""
+    """Prepare a bulk workbook job. Execution waits for Jobs-page approval."""
 
+    from services import firewall_jobs_service
     from services import netsec_service
 
     payload = request.get_json(silent=True) or {}
     playbook_id = (payload.get("playbook_id") or "").strip()
-    if not playbook_id:
-        return jsonify({"error": "playbook_id is required."}), 400
+    source_type = (payload.get("source_type") or "automation_hub").strip()
+    source_name = (payload.get("source_name") or "").strip()
     try:
-        commit_flag = payload.get("commit")
-        if commit_flag is not None:
-            commit_flag = bool(commit_flag)
         result = netsec_service.run_playbook(
-            current_user_id(), playbook_id, commit=commit_flag
+            current_user_id(),
+            playbook_id,
+            source_type=source_type,
+            source_name=source_name,
         )
         return jsonify(result)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    except firewall_jobs_service.FirewallJobsError as e:
+        return jsonify({"error": str(e)}), e.status_code
     except Exception as e:
         return jsonify({"error": str(e)}), 502
 
@@ -1567,23 +1570,20 @@ def api_automation_jobs_list():
 @app.route("/api/automation/jobs", methods=["POST"])
 @login_required
 def api_automation_jobs_create():
-    from services import automation_jobs_service
-
-    payload = request.get_json(silent=True) or {}
-    try:
-        job = automation_jobs_service.create_job(current_user_id(), payload)
-        return jsonify({"job": job}), 201
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({
+        "error": (
+            "Firewall jobs are prepared by POST /api/firewall/jobs. "
+            "Approve them on the Jobs page."
+        )
+    }), 409
 
 
 @app.route("/api/netsec/manual", methods=["POST"])
 @login_required
 def api_netsec_manual():
-    """Execute a single manual operation described by a chat row form."""
+    """Prepare a single manual change. Execution waits for Jobs-page approval."""
 
+    from services import firewall_jobs_service
     from services import netsec_service
 
     payload = request.get_json(silent=True) or {}
@@ -1592,15 +1592,14 @@ def api_netsec_manual():
     if not playbook_id:
         return jsonify({"error": "playbook_id is required."}), 400
     try:
-        commit_flag = payload.get("commit")
-        if commit_flag is not None:
-            commit_flag = bool(commit_flag)
         result = netsec_service.run_row(
-            playbook_id, row or {}, commit=commit_flag
+            current_user_id(), playbook_id, row or {}
         )
         return jsonify(result)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    except firewall_jobs_service.FirewallJobsError as e:
+        return jsonify({"error": str(e)}), e.status_code
     except Exception as e:
         return jsonify({"error": str(e)}), 502
 

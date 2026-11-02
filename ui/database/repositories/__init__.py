@@ -20,6 +20,7 @@ from database.repositories.firewall_jobs_repository import FirewallJobsRepositor
 from database.repositories.insights_repository import InsightsRepository
 from database.repositories.managed_firewalls_repository import ManagedFirewallsRepository
 from database.repositories.reports_repository import ReportsRepository
+from database.repositories.security_jobs_repository import SecurityJobsRepository
 from database.repositories.telemetry_repository import TelemetryRepository
 from database.repositories.users_repository import UsersRepository
 from database.repositories.zero_trust_repository import ZeroTrustRepository
@@ -37,6 +38,7 @@ __all__ = [
     "InsightsRepository",
     "ManagedFirewallsRepository",
     "ReportsRepository",
+    "SecurityJobsRepository",
     "TelemetryRepository",
     "UsersRepository",
     "ZeroTrustRepository",

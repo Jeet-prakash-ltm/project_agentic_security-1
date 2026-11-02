@@ -238,51 +238,17 @@
         return !!(data && (data.commit_error || ((data.counts || {}).errors)));
     }
 
-    function announceJobRegistered() {
+    function announceJobRegistered(data) {
         var bridge = chat();
         if (!bridge) return Promise.resolve();
-        return persist([bridge.assistantText("New Job registered in Job Section")]);
+        var label = (data && (data.job_number || data.job_id)) || "Jobs";
+        return persist([bridge.assistantText("Job " + label + " is registered in the Jobs section and awaiting approval.")]);
     }
 
     function registerJob(data, pb, extras) {
         extras = extras || {};
-        var failed = jobFailed(data) || !!extras.error;
-        var title = (data && data.playbook_title) || (pb && pb.title) || extras.playbook_id || "";
-        var payload = {
-            firewall_name: (data && data.host) || (state.info && state.info.host) || "",
-            security_domain: "Network security",
-            workbook_name: extras.workbook_name || state.workbookName || "Workspace chat",
-            actions: opActions(data).length ? opActions(data) : unique([extras.action]),
-            playbooks: unique([title]),
-            sheets: unique([(data && data.sheet) || (pb && pb.sheet) || ""]),
-            status: failed ? "failed" : "successful",
-            operations: [{
-                playbook_id: (data && data.playbook_id) || (pb && pb.id) || extras.playbook_id || "",
-                playbook_title: title,
-                sheet: (data && data.sheet) || (pb && pb.sheet) || "",
-                actions: opActions(data).length ? opActions(data) : unique([extras.action]),
-                counts: (data && data.counts) || (failed ? { errors: 1 } : {}),
-                committed: !!(data && data.committed),
-                commit_error: (data && data.commit_error) || extras.error || "",
-                summary: (data && data.summary) || extras.error || "",
-                row_errors: rowErrors(data),
-                error_reason: failed ? ((data && data.commit_error) || extras.error || "") : "",
-                executed_at: new Date().toISOString(),
-                status: failed ? "failed" : "successful"
-            }]
-        };
-        return fetch("/api/automation/jobs", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        }).then(function (r) {
-            return r.json().then(function (d) { return { ok: r.ok, data: d }; });
-        }).then(function (res) {
-            if (res.ok && res.data && res.data.job) {
-                return announceJobRegistered().then(function () { return res.data.job; });
-            }
-            return null;
-        }).catch(function () { return null; });
+        if (extras.error || jobFailed(data)) return Promise.resolve(null);
+        return announceJobRegistered(data);
     }
 
     function opWord(op) {
@@ -308,8 +274,9 @@
     function resultsHtml(data) {
         var c = data.counts || {};
         var dry = !!data.dry_run;
-        var badgeClass = dry ? "netsec-ok" : (c.errors ? "netsec-partial" : "netsec-ok");
-        var pill = dry ? "Dry-run" : (c.errors ? "Applied with errors" : "Applied");
+        var awaiting = !!(data.awaiting_approval || data.status === "awaiting_approval");
+        var badgeClass = awaiting ? "netsec-ok" : (dry ? "netsec-ok" : (c.errors ? "netsec-partial" : "netsec-ok"));
+        var pill = awaiting ? "Awaiting approval" : (dry ? "Dry-run" : (c.errors ? "Applied with errors" : "Applied"));
 
         var html = '<div class="netsec-result-card">' +
             '<div class="netsec-result-head"><span class="netsec-result-title">' + esc(data.playbook_title || data.playbook_id || "Playbook") + "</span>" +
@@ -319,11 +286,13 @@
             countChip(c.deleted, "deleted", false) + countChip(c.errors, "errors", true) +
             "</div>" +
             (data.summary ? "<p class=\"netsec-result-summary\">" + esc(data.summary) + "</p>" : "") +
-            (data.committed
+            (awaiting
+                ? '<p class="netsec-commit netsec-commit-ok">Prepared as ' + esc(data.job_number || data.job_id || "a job") + '. Approve it on the Jobs page to apply the firewall change.</p>'
+                : (data.committed
                 ? '<p class="netsec-commit netsec-commit-ok">Changes committed to the running firewall configuration.</p>'
                 : (data.commit_error
                     ? '<p class="netsec-commit netsec-commit-err">Commit failed: ' + esc(data.commit_error) + "</p>"
-                    : "")) +
+                    : ""))) +
             (data.host ? '<p class="netsec-result-meta">Firewall: ' + esc(data.host) + "</p>" : "") +
             "</div>";
 
@@ -487,7 +456,7 @@
             '<div class="ns-fields">' + fields + "</div>" +
             "</div>" +
             '<div class="ns-form-foot">' +
-            '<button type="button" class="ws-cloud-run ns-run" data-ns-run="manual">' + ICON_RUN + "Run on firewall</button>" +
+            '<button type="button" class="ws-cloud-run ns-run" data-ns-run="manual">' + ICON_RUN + "Prepare job</button>" +
             "</div>" +
             backControlHtml() + "</div>";
         return html;
@@ -714,7 +683,7 @@
             '<select class="ws-cloud-input ns-select" data-ns-pb>' + options + "</select>" +
             "</div>" +
             '<div class="ns-form-foot">' +
-            '<button type="button" class="ws-cloud-run ns-run" data-ns-run="bulk">' + ICON_RUN + "Run playbook</button>" +
+            '<button type="button" class="ws-cloud-run ns-run" data-ns-run="bulk">' + ICON_RUN + "Prepare job</button>" +
             "</div>" + backControlHtml() + "</div>";
         return html;
     }
@@ -737,7 +706,11 @@
             fetch(URLS.run, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ playbook_id: pbId })
+                body: JSON.stringify({
+                    playbook_id: pbId,
+                    source_type: "ai_workspace",
+                    source_name: state.workbookName || "AI Workspace"
+                })
             })
                 .then(function (r) {
                     return r.json().then(function (d) { return { ok: r.ok, data: d }; });

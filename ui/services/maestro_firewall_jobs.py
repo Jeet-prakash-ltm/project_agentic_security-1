@@ -1,9 +1,8 @@
 """Route Maestro chat approvals onto the Firewall Execution Agent job pipeline.
 
-Maestro collects and confirms the change in AI Workspace. After one Approve
-the platform creates a ``firewall_jobs`` row, auto-approves it (the chat
-confirm *is* the approval), and FEAT's Service Bus worker applies, commits
-and polls PAN-OS. The Jobs page reads that ledger for live status.
+Maestro collects and confirms the change in AI Workspace. Chat confirm
+prepares a canonical ``security_jobs`` row (awaiting_approval). Execution
+happens only after a Jobs-page approve.
 """
 
 import logging
@@ -11,7 +10,6 @@ import re
 import time
 
 from gateway import interactive_blocks
-from services import automation_jobs_service
 from services import firewall_jobs_service
 
 logger = logging.getLogger("maestro.firewall.jobs")
@@ -754,42 +752,6 @@ def _confirm_blocks(change):
     ]
 
 
-def _register_automation_job(user_id, change, job):
-    status = (job.get("status") or "QUEUED").upper()
-    ui_status = automation_jobs_service.feat_ui_status(status)
-    title = automation_jobs_service.category_title(change["category"])
-    payload = {
-        "firewall_name": job.get("firewall_host") or "",
-        "security_domain": "Network security",
-        "workbook_name": "Maestro AI",
-        "actions": [change["action"]],
-        "playbooks": [title],
-        "sheets": [title],
-        "status": ui_status,
-        "operations": [
-            {
-                "playbook_id": change["category"],
-                "playbook_title": title,
-                "sheet": title,
-                "actions": [change["action"]],
-                "counts": automation_jobs_service.change_counts(
-                    change["action"], ui_status, summary=change["summary"]
-                ),
-                "committed": ui_status == "successful",
-                "task_id": job.get("task_id") or "",
-                "status": ui_status,
-                "summary": change["summary"],
-                "executed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            }
-        ],
-    }
-    try:
-        return automation_jobs_service.create_job(user_id, payload)
-    except Exception:
-        logger.exception("Failed to register Maestro job on the Jobs page")
-        return None
-
-
 def _submit_change(user_id, change):
     preflight = firewall_jobs_service.preflight(user_id)
     if not preflight.get("live"):
@@ -797,19 +759,37 @@ def _submit_change(user_id, change):
             preflight.get("message") or FIREWALL_DOWN_MESSAGE,
             409,
         )
+    fields = dict(change.get("fields") or {})
+    if change.get("name"):
+        fields.setdefault("Name", change["name"])
     body = {
         "operation": "apply_change",
+        "source_type": "ai_workspace",
+        "source_name": "AI Workspace",
         "device_group": "vsys1",
         "firewall_host": preflight.get("host") or "",
-        "requested_payload": build_requested_payload(change),
+        "changes": [
+            {
+                "category": change["category"],
+                "action": change["action"],
+                "name": change.get("name") or "",
+                "fields": fields,
+            }
+        ],
+        "requested_payload": {
+            "category": change["category"],
+            "action": change["action"],
+            "name": change.get("name") or "",
+            "fields": fields,
+            "summary": change.get("summary") or "",
+        },
     }
     job = firewall_jobs_service.create_job(user_id, body)
-    if not job or not job.get("task_id"):
+    if not job or not (job.get("job_id") or job.get("task_id")):
         raise firewall_jobs_service.FirewallJobsError(
             "Firewall Execution Agent did not return a job id.",
             502,
         )
-    job = firewall_jobs_service.approve_job(user_id, job["task_id"], approve=True)
     return job
 
 
@@ -864,13 +844,13 @@ def try_handle(agent, user_id, message, messages=None):
                 {"type": "callout", "tone": "danger", "text": str(exc)[:400]},
             ], started=started)
 
-        auto_job = _register_automation_job(user_id, change, job)
-        job_label = (auto_job or {}).get("job_number") or job.get("task_id")
-        status = job.get("status") or "QUEUED"
+        job_id = job.get("job_id") or job.get("task_id") or ""
+        job_label = "JOB-{0}".format(str(job_id)[:8].upper()) if job_id else "job"
+        status = job.get("status") or "awaiting_approval"
         reply = (
-            "{0}. Job {1} ({2}) is {3}. "
-            "Track execution status on the Jobs page."
-        ).format(JOBS_NOTICE, job_label, change["summary"], status.replace("_", " ").lower())
+            "{0}. Job {1} ({2}) is awaiting approval. "
+            "Open the Jobs page to approve or reject before the firewall is changed."
+        ).format(JOBS_NOTICE, job_label, change["summary"])
         blocks = [
             {
                 "type": "card",
@@ -878,7 +858,7 @@ def try_handle(agent, user_id, message, messages=None):
                 "items": [
                     {"label": "Job", "value": str(job_label)},
                     {"label": "Change", "value": change["summary"]},
-                    {"label": "Status", "value": str(status)},
+                    {"label": "Status", "value": str(status).replace("_", " ")},
                 ],
             }
         ]
@@ -915,8 +895,8 @@ def try_handle(agent, user_id, message, messages=None):
         ], started=started)
 
     lead = (
-        "I can {0}. This change is sent to the Firewall Execution Agent "
-        "only after you approve it."
+        "I can {0}. Confirming prepares a Jobs-page entry; "
+        "the firewall is changed only after you approve it there."
     ).format(change["summary"].lower())
     return _result(lead, _confirm_blocks(change), started=started)
 

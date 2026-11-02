@@ -1,56 +1,61 @@
 """Firewall job lifecycle constants (execution-agent copy).
 
-Keep in sync with ``ui/database/firewall_job_lifecycle.py``. PostgreSQL is the
-source of truth; Service Bus delivers work, Durable Functions orchestrate the
-long-running execution and SignalR pushes transitions to the browser.
+Canonical statuses live on ``security_jobs`` / ``security_job_operations``.
+PostgreSQL is the source of truth; Service Bus delivers work and SignalR
+wakes the Jobs page.
 """
 
-PENDING_APPROVAL = "PENDING_APPROVAL"
-APPROVED = "APPROVED"
-QUEUED = "QUEUED"
-STARTING = "STARTING"
-APPLYING_CONFIG = "APPLYING_CONFIG"
-COMMITTING = "COMMITTING"
-RUNNING = "RUNNING"
-POST_VALIDATION = "POST_VALIDATION"
-SUCCEEDED = "SUCCEEDED"
-FAILED = "FAILED"
-CANCELLED = "CANCELLED"
-TIMEOUT = "TIMEOUT"
+AWAITING_APPROVAL = "awaiting_approval"
+QUEUED = "queued"
+RUNNING = "running"
+COMMITTING = "committing"
+COMPLETED = "completed"
+FAILED = "failed"
+CANCELLED = "cancelled"
+TIMEOUT = "timeout"
+REJECTED_STATUS = "rejected"
+
+PENDING_APPROVAL = AWAITING_APPROVAL
+APPROVED = QUEUED
+STARTING = RUNNING
+APPLYING_CONFIG = RUNNING
+POST_VALIDATION = RUNNING
+SUCCEEDED = COMPLETED
 
 ACTIVE_STATUSES = frozenset(
     {
-        APPROVED,
         QUEUED,
-        STARTING,
-        APPLYING_CONFIG,
-        COMMITTING,
         RUNNING,
-        POST_VALIDATION,
+        COMMITTING,
     }
 )
 
-TERMINAL_STATUSES = frozenset({SUCCEEDED, FAILED, CANCELLED, TIMEOUT})
+TERMINAL_STATUSES = frozenset(
+    {COMPLETED, FAILED, CANCELLED, TIMEOUT, REJECTED_STATUS}
+)
 
 ALL_STATUSES = (
-    PENDING_APPROVAL,
-    APPROVED,
+    AWAITING_APPROVAL,
     QUEUED,
-    STARTING,
-    APPLYING_CONFIG,
-    COMMITTING,
     RUNNING,
-    POST_VALIDATION,
-    SUCCEEDED,
+    COMMITTING,
+    COMPLETED,
     FAILED,
     CANCELLED,
     TIMEOUT,
+    REJECTED_STATUS,
 )
 
-PENDING = "PENDING"
-APPROVED_APPROVAL = "APPROVED"
-REJECTED = "REJECTED"
+PENDING = "pending"
+APPROVED_APPROVAL = "approved"
+REJECTED = "rejected"
 
 APPROVAL_STATUSES = (PENDING, APPROVED_APPROVAL, REJECTED)
+
+OP_PENDING = "pending"
+OP_RUNNING = "running"
+OP_SUCCESS = "success"
+OP_FAILED = "failed"
+OP_SKIPPED = "skipped"
 
 FIREWALL_DOWN_MESSAGE = "cannot proceed firewall is down"

@@ -8,6 +8,10 @@ from workbook.xmlutil import entry_xml, member_list_xml, xml_escape
 # as one of these operations against the firewall candidate configuration.
 ACTIONS = ("create", "update", "delete")
 
+# Values that mean "this is a security rule's permit/deny action", not the CRUD
+# operation, when found in a column named ``Action``.
+RULE_ACTIONS = ("allow", "deny", "drop", "reset-client", "reset-server", "reset-both")
+
 _XPATH_BASE = (
     "/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='vsys1']"
 )
@@ -60,6 +64,24 @@ def normalize_action(value, default="create"):
             to_text(value)
         )
     )
+
+
+def resolve_action(category, value, row=None):
+    """Resolve a sheet's action cell to a CRUD operation.
+
+    A security-rule sheet may carry a column literally called ``Action`` that
+    actually holds the rule's permit/deny action. When the value is a known rule
+    action it is treated as such (captured under ``Rule Action``) and the CRUD
+    operation defaults to ``create``.
+    """
+    text = to_text(value)
+    if not text:
+        return "create"
+    if category == "security_rule" and text.lower() in RULE_ACTIONS:
+        if row is not None:
+            row.setdefault("Rule Action", text)
+        return "create"
+    return normalize_action(text)
 
 
 def csv_list(value):

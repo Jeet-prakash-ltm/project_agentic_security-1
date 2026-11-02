@@ -5,14 +5,16 @@ Flow enforced here:
 1. ``preflight`` / ``create`` check that the firewall answers on the XML API.
    If it is down the request fails with ``cannot proceed firewall is down``
    and no job is created or queued.
-2. A created job waits in ``PENDING_APPROVAL``; nothing is applied until a
+2. A created job waits in ``awaiting_approval``; nothing is applied until a
    user explicitly approves it.
-3. ``approve`` re-checks the firewall, marks the job ``QUEUED`` and publishes
+3. ``approve`` re-checks the firewall, marks the job ``queued`` and publishes
    it to the session-enabled Service Bus queue.
-4. The queue worker applies staged configuration, commits, polls the PAN-OS
-   job (PEND -> ACT -> FIN) and records every transition in PostgreSQL.
+4. The queue worker applies every ``security_job_operations`` row, commits
+   once, polls the PAN-OS job and records every transition in PostgreSQL.
 """
 
+import hashlib
+import json
 import logging
 import os
 import re
@@ -22,33 +24,37 @@ from xml.etree import ElementTree
 
 from connectors.panos_client import PanosClient
 
+from services import job_planner
 from services import job_queue
 from services import job_store
 from services.audit import audit
 from services.firewall_job_lifecycle import (
-    APPLYING_CONFIG,
     APPROVED_APPROVAL,
+    AWAITING_APPROVAL,
     CANCELLED,
     COMMITTING,
+    COMPLETED,
     FAILED,
     FIREWALL_DOWN_MESSAGE,
+    OP_FAILED,
+    OP_PENDING,
+    OP_RUNNING,
+    OP_SKIPPED,
+    OP_SUCCESS,
     PENDING,
-    PENDING_APPROVAL,
-    POST_VALIDATION,
     QUEUED,
     REJECTED,
+    REJECTED_STATUS,
     RUNNING,
-    STARTING,
-    SUCCEEDED,
+    TERMINAL_STATUSES,
     TIMEOUT,
 )
+from services.job_planner import JobValidationError
 from services.settings import Settings
 
 logger = logging.getLogger("firewall.jobs")
 
-ALLOWED_OPERATIONS = ("commit", "apply_change")
-
-ALLOWED_ACTIONS = ("set", "edit", "delete")
+ALLOWED_OPERATIONS = ("commit", "apply_change", "apply_bulk")
 
 POLL_INTERVAL = int(os.environ.get("FIREWALL_JOB_POLL_SECONDS") or "5")
 JOB_TIMEOUT = int(os.environ.get("FIREWALL_JOB_TIMEOUT_SECONDS") or "900")
@@ -67,10 +73,6 @@ class JobNotFound(LookupError):
 
 
 class JobConflict(RuntimeError):
-    pass
-
-
-class JobValidationError(ValueError):
     pass
 
 
@@ -155,79 +157,125 @@ def _clean(value, limit=255):
     return str(value or "").strip()[:limit]
 
 
-def _validate(payload):
-    operation = _clean(payload.get("operation"), 64).lower()
-    if operation not in ALLOWED_OPERATIONS:
-        raise JobValidationError(
-            "operation must be one of: {0}.".format(", ".join(ALLOWED_OPERATIONS))
-        )
-    device_group = _clean(payload.get("device_group"), 255)
-    if not device_group:
-        raise JobValidationError("device_group is required.")
-
-    requested = payload.get("requested_payload") or {}
-    if not isinstance(requested, dict):
-        raise JobValidationError("requested_payload must be an object.")
-
-    if operation == "apply_change":
-        action = _clean(requested.get("action"), 16).lower()
-        if action not in ALLOWED_ACTIONS:
-            raise JobValidationError(
-                "requested_payload.action must be one of: {0}.".format(
-                    ", ".join(ALLOWED_ACTIONS)
-                )
-            )
-        if not _clean(requested.get("xpath"), 2048):
-            raise JobValidationError("requested_payload.xpath is required.")
-        if action in ("set", "edit") and not requested.get("element"):
-            raise JobValidationError(
-                "requested_payload.element is required for {0}.".format(action)
-            )
-
-    return operation, device_group, requested
+def _hash_payload(value):
+    blob = json.dumps(value or {}, sort_keys=True, default=str)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
-def create_job(user_id, payload):
-    operation, device_group, requested = _validate(payload or {})
+def _source_type(payload):
+    value = _clean(payload.get("source_type"), 64).lower().replace(" ", "_")
+    aliases = {
+        "ai_workspace": "ai_workspace",
+        "aiworkspace": "ai_workspace",
+        "workspace": "ai_workspace",
+        "conversation": "ai_workspace",
+        "maestro": "ai_workspace",
+        "automation_hub": "automation_hub",
+        "automationhub": "automation_hub",
+        "automation": "automation_hub",
+        "workbook": "automation_hub",
+    }
+    mapped = aliases.get(value.replace("-", ""), aliases.get(value, value))
+    if mapped in ("ai_workspace", "automation_hub"):
+        return mapped
+    if payload.get("source_file_id") or payload.get("conversation_id"):
+        return "ai_workspace"
+    if payload.get("operation") == "apply_bulk" or payload.get("workbook_base64"):
+        return "automation_hub"
+    return "ai_workspace"
+
+
+def create_job(user_id, payload, workbook_bytes=None):
+    payload = payload or {}
+    device_group = _clean(payload.get("device_group"), 255) or "vsys1"
     firewall_host = _clean(payload.get("firewall_host"), 255) or (
         Settings.FW_HOST or ""
     )
 
     _require_live()
 
-    task_id = str(uuid.uuid4())
+    from workbook.adapter import WorkbookPanosClient
+    from workbook.dependencies import Inventory
+
+    inventory = Inventory(client_factory=lambda: WorkbookPanosClient())
+    plan = job_planner.build_plan(
+        payload,
+        workbook_bytes=workbook_bytes,
+        inventory=inventory,
+        auto_create=_truthy(payload.get("auto_create"), default=True),
+    )
+    operation = plan["operation"]
+    operations = plan["operations"]
+    if not operations and operation != "commit":
+        raise JobValidationError("Job has no operations to execute.")
+
+    job_id = str(uuid.uuid4())
     session_id = job_queue.session_id_for(firewall_host, device_group)
+    source_type = _source_type(payload)
+    requested_payload = payload.get("requested_payload")
+    if not isinstance(requested_payload, dict):
+        requested_payload = {
+            "operation": operation,
+            "changes": payload.get("changes") or [],
+            "source_type": source_type,
+        }
     job = job_store.create_job(
         {
-            "task_id": task_id,
+            "job_id": job_id,
             "user_id": user_id,
-            "session_id": session_id,
+            "agent_id": _clean(payload.get("agent_id"), 64) or "firewall-execution-agent",
+            "conversation_id": _clean(payload.get("conversation_id"), 64) or None,
+            "security_domain": _clean(payload.get("security_domain"), 64)
+            or "network_security",
+            "job_type": _clean(payload.get("job_type"), 64) or "firewall_change",
+            "operation": operation,
+            "source_type": source_type,
+            "source_name": _clean(payload.get("source_name"), 255)
+            or ("AI Workspace" if source_type == "ai_workspace" else "Automation Hub"),
+            "source_file_id": _clean(payload.get("source_file_id"), 64) or None,
+            "target_asset_id": _clean(payload.get("target_asset_id"), 64) or None,
             "firewall_host": firewall_host,
             "device_group": device_group,
-            "operation": operation,
-            "status": PENDING_APPROVAL,
-            "requested_payload": requested,
+            "status": AWAITING_APPROVAL,
             "approval_status": PENDING,
-        }
+            "requested_payload": requested_payload,
+            "normalized_payload": plan["normalized_payload"],
+            "execution_plan": plan["execution_plan"],
+            "payload_hash": _hash_payload(requested_payload),
+            "plan_hash": _hash_payload(plan["execution_plan"]),
+            "requested_by": user_id,
+        },
+        operations=operations,
     )
+    job["session_id"] = session_id
     audit(
         operation="createFirewallJob",
-        description="task_id={0} op={1}".format(task_id, operation),
+        description="job_id={0} op={1} ops={2}".format(
+            job_id, operation, len(operations)
+        ),
         xpath=device_group,
-        result=PENDING_APPROVAL,
+        result=AWAITING_APPROVAL,
     )
     return job
 
 
-def get_job(task_id):
-    job = job_store.get_job(task_id)
+def _truthy(value, default=False):
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in ("1", "true", "yes", "on")
+
+
+def get_job(job_id, include_operations=True):
+    job = job_store.get_job(job_id, include_operations=include_operations)
     if job is None:
         raise JobNotFound("Firewall job not found.")
     return job
 
 
-def approve_job(task_id, user_id, approve=True):
-    job = job_store.get_job(task_id)
+def approve_job(job_id, user_id, approve=True):
+    job = job_store.get_job(job_id)
     if job is None:
         raise JobNotFound("Firewall job not found.")
     if (job.get("user_id") or "anonymous") != (user_id or "anonymous"):
@@ -240,14 +288,14 @@ def approve_job(task_id, user_id, approve=True):
 
     if not approve:
         job = job_store.update_job(
-            task_id,
+            job_id,
             approval_status=REJECTED,
-            status=CANCELLED,
+            status=REJECTED_STATUS,
             completed_at="now()",
         )
         audit(
             operation="rejectFirewallJob",
-            description="task_id={0}".format(task_id),
+            description="job_id={0}".format(job_id),
             result=CANCELLED,
         )
         return job
@@ -255,14 +303,16 @@ def approve_job(task_id, user_id, approve=True):
     _require_live()
 
     job = job_store.update_job(
-        task_id,
+        job_id,
         approval_status=APPROVED_APPROVAL,
         status=QUEUED,
+        approved_by=user_id,
+        approved_at="now()",
     )
 
     if not job_queue.is_configured():
         job = job_store.update_job(
-            task_id,
+            job_id,
             status=FAILED,
             error_message="SERVICEBUS_CONNECTION is not configured.",
         )
@@ -271,9 +321,9 @@ def approve_job(task_id, user_id, approve=True):
     try:
         job_queue.publish(job)
     except Exception as exc:
-        logger.exception("Failed to publish firewall job %s", task_id)
+        logger.exception("Failed to publish firewall job %s", job_id)
         job_store.update_job(
-            task_id,
+            job_id,
             status=FAILED,
             error_message="Queue publish failed: {0}".format(str(exc)[:300]),
         )
@@ -281,10 +331,10 @@ def approve_job(task_id, user_id, approve=True):
 
     audit(
         operation="approveFirewallJob",
-        description="task_id={0}".format(task_id),
+        description="job_id={0}".format(job_id),
         result=QUEUED,
     )
-    return job_store.get_job(task_id)
+    return job_store.get_job(job_id, include_operations=True)
 
 
 def _parse_job_id(xml):
@@ -296,6 +346,8 @@ def _parse_job_id(xml):
 
 
 def _require_success(xml, action):
+    if isinstance(xml, dict):
+        return xml
     status = _response_status(xml)
     if status == "error":
         raise RuntimeError(
@@ -349,90 +401,171 @@ def _wait_for_panos_job(client, panos_job_id):
     )
 
 
-def _apply_change(client, requested):
-    action = _clean(requested.get("action"), 16).lower()
-    xpath = requested.get("xpath")
-    element = requested.get("element")
-    if action == "set":
-        return client.set(xpath, element)
-    if action == "edit":
-        return client.edit(xpath, element)
-    return client.delete(xpath)
-
-
-def execute_job(task_id):
+def execute_job(job_id):
     """Run one approved job. Called by the Service Bus queue trigger."""
-    job = job_store.get_job(task_id)
+    job = job_store.get_job(job_id, include_operations=True)
     if job is None:
-        logger.warning("Job %s no longer exists; dropping message.", task_id)
+        logger.warning("Job %s no longer exists; dropping message.", job_id)
         return None
     if job.get("approval_status") != APPROVED_APPROVAL:
         logger.warning(
             "Job %s is not approved (%s); refusing to execute.",
-            task_id,
+            job_id,
             job.get("approval_status"),
         )
         return job
 
+    status = (job.get("status") or "").lower()
+    if status in TERMINAL_STATUSES:
+        logger.info("Job %s already %s; dropping duplicate delivery.", job_id, status)
+        return job
+    if status in (RUNNING, COMMITTING):
+        logger.warning(
+            "Job %s is already %s; refusing duplicate execution.",
+            job_id,
+            status,
+        )
+        return job
+    if status != QUEUED:
+        logger.warning(
+            "Job %s is %s; refusing to execute until it is queued.",
+            job_id,
+            status,
+        )
+        return job
+
+    operations = job.get("operations") or job_store.list_operations(job_id)
     try:
-        job_store.update_job(task_id, status=STARTING, started_at="now()")
-        client = _client(timeout=Settings.TIMEOUT)
-        requested = job.get("requested_payload") or {}
-        operation = job.get("operation")
+        job_store.update_job(job_id, status=RUNNING, started_at="now()")
+        from workbook.adapter import WorkbookPanosClient
+        from workbook.dependencies import Inventory
 
-        if operation == "apply_change":
-            job_store.update_job(task_id, status=APPLYING_CONFIG)
-            _require_success(_apply_change(client, requested), "configuration change")
+        client = WorkbookPanosClient()
+        inventory = Inventory(client_factory=lambda: client)
+        succeeded = 0
+        failed = 0
+        results = []
 
-        job_store.update_job(task_id, status=COMMITTING)
-        commit_xml = _require_success(client.commit(), "commit")
+        for item in operations:
+            sequence = item.get("sequence")
+            job_store.update_operation(
+                job_id, sequence, status=OP_RUNNING, started_at="now()"
+            )
+            try:
+                outcome = job_planner.apply_operation(
+                    client, item, inventory=inventory, auto_create=True
+                )
+                job_store.update_operation(
+                    job_id,
+                    sequence,
+                    status=OP_SUCCESS,
+                    result=outcome if isinstance(outcome, dict) else {"raw": str(outcome)[:500]},
+                    completed_at="now()",
+                    error_message=None,
+                )
+                succeeded += 1
+                results.append(
+                    {
+                        "sequence": sequence,
+                        "status": OP_SUCCESS,
+                        "object_name": item.get("object_name"),
+                        "category": item.get("category"),
+                        "action": item.get("action"),
+                    }
+                )
+            except Exception as exc:
+                failed += 1
+                message = str(exc)[:500]
+                job_store.update_operation(
+                    job_id,
+                    sequence,
+                    status=OP_FAILED,
+                    error_code="PANOS_OP_FAILED",
+                    error_message=message,
+                    completed_at="now()",
+                )
+                results.append(
+                    {
+                        "sequence": sequence,
+                        "status": OP_FAILED,
+                        "object_name": item.get("object_name"),
+                        "error": message,
+                    }
+                )
+                logger.exception(
+                    "Firewall job %s operation %s failed", job_id, sequence
+                )
+                break
+
+        if failed:
+            for item in operations:
+                if item.get("sequence") in {row.get("sequence") for row in results}:
+                    continue
+                job_store.update_operation(
+                    job_id,
+                    item.get("sequence"),
+                    status=OP_SKIPPED,
+                    error_code="SKIPPED",
+                    error_message="Skipped because a prior operation failed.",
+                    completed_at="now()",
+                )
+            job_store.update_job(
+                job_id,
+                status=FAILED,
+                error_message="{0} operation(s) failed; commit was not attempted.".format(
+                    failed
+                ),
+                result={"operations": results, "succeeded": succeeded, "failed": failed},
+                completed_at="now()",
+            )
+            return job_store.get_job(job_id, include_operations=True)
+
+        job_store.update_job(job_id, status=COMMITTING)
+        panos_client = _client(timeout=Settings.TIMEOUT)
+        commit_xml = _require_success(panos_client.commit(), "commit")
         panos_job_id = _parse_job_id(commit_xml)
         if not panos_job_id:
             raise RuntimeError("PAN-OS did not return a commit job id.")
-        job_store.update_job(
-            task_id, status=RUNNING, panos_job_id=panos_job_id
-        )
-        panos_result = None
-        if panos_job_id:
-            panos_result = _wait_for_panos_job(client, panos_job_id)
-
-        job_store.update_job(task_id, status=POST_VALIDATION)
-        _require_success(client.test_connection(), "post-commit check")
+        panos_result = _wait_for_panos_job(panos_client, panos_job_id)
+        _require_success(panos_client.test_connection(), "post-commit check")
 
         result = {
-            "operation": operation,
+            "operation": job.get("operation"),
             "panos_job_id": panos_job_id,
             "panos_result": panos_result,
             "device_group": job.get("device_group"),
+            "succeeded": succeeded,
+            "failed": failed,
+            "operations": results,
         }
         job_store.update_job(
-            task_id,
-            status=SUCCEEDED,
+            job_id,
+            status=COMPLETED,
             result=result,
             completed_at="now()",
             error_message=None,
         )
         audit(
             operation="executeFirewallJob",
-            description="task_id={0}".format(task_id),
-            result=SUCCEEDED,
+            description="job_id={0}".format(job_id),
+            result=COMPLETED,
         )
-        return job_store.get_job(task_id)
+        return job_store.get_job(job_id, include_operations=True)
     except TimeoutError as exc:
         job_store.update_job(
-            task_id,
+            job_id,
             status=TIMEOUT,
             error_message=str(exc)[:500],
             completed_at="now()",
         )
-        logger.exception("Firewall job %s timed out", task_id)
-        return job_store.get_job(task_id)
+        logger.exception("Firewall job %s timed out", job_id)
+        return job_store.get_job(job_id, include_operations=True)
     except Exception as exc:
         job_store.update_job(
-            task_id,
+            job_id,
             status=FAILED,
             error_message=str(exc)[:500],
             completed_at="now()",
         )
-        logger.exception("Firewall job %s failed", task_id)
-        return job_store.get_job(task_id)
+        logger.exception("Firewall job %s failed", job_id)
+        return job_store.get_job(job_id, include_operations=True)

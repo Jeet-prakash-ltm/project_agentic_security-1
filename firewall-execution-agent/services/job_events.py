@@ -87,14 +87,17 @@ def negotiate(user_id=None):
 def _summary(job):
     if not job:
         return None
+    job_id = job.get("job_id") or job.get("task_id")
     return {
-        "task_id": job.get("task_id"),
+        "job_id": job_id,
+        "task_id": job_id,
         "status": job.get("status"),
+        "approval_status": job.get("approval_status"),
         "user_id": job.get("user_id"),
         "operation": job.get("operation"),
+        "source_type": job.get("source_type"),
         "firewall_host": job.get("firewall_host"),
         "device_group": job.get("device_group"),
-        "panos_job_id": job.get("panos_job_id"),
         "updated_at": job.get("updated_at"),
     }
 
@@ -102,7 +105,7 @@ def _summary(job):
 def publish(job):
     """Broadcast a job status change. Failures are logged, never raised."""
     payload = _summary(job)
-    if not payload or not payload.get("task_id"):
+    if not payload or not payload.get("job_id"):
         return False
     if not is_configured():
         return False

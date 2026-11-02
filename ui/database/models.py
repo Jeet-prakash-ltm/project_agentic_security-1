@@ -21,7 +21,9 @@ Additional tables:
 * ``agent_activity_logs``  - audit trail for agent/function actions
 * ``managed_firewalls``    - admin firewall registry (Settings > Firewall Inventory)
 * ``firewall_inventory``   - live collector snapshots (managed by the collector)
-* ``automation_jobs``      - Firewall Execution bulk commit jobs and nested ops
+* ``automation_jobs``      - LEGACY bulk commit jobs (kept for compatibility)
+* ``security_jobs``        - CANONICAL firewall-change jobs (single + bulk)
+* ``security_job_operations`` - CANONICAL operations for a security_jobs row
 """
 
 from sqlalchemy import (
@@ -37,6 +39,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import relationship
 from sqlalchemy.types import JSON
 
 from database.db import Base
@@ -281,6 +284,75 @@ class AutomationJob(Base):
     status = Column(String(32), default="failed", index=True)
     created = Column(Float, index=True)
     operations = Column(JSON)
+
+
+class SecurityJob(Base):
+    """Canonical firewall-change job written by the execution agent."""
+
+    __tablename__ = "security_jobs"
+
+    id = Column(UUID(as_uuid=False), primary_key=True)
+    job_id = Column(String(64), unique=True, nullable=False, index=True)
+    user_id = Column(String(64), default="anonymous", index=True)
+    agent_id = Column(String(64))
+    conversation_id = Column(String(64))
+    security_domain = Column(String(64), default="network_security")
+    job_type = Column(String(64), default="firewall_change")
+    operation = Column(String(64), default="")
+    source_type = Column(String(64), default="")
+    source_name = Column(String(255), default="")
+    source_file_id = Column(String(64))
+    target_asset_id = Column(String(64))
+    firewall_host = Column(String(255), default="")
+    device_group = Column(String(255), default="")
+    status = Column(String(32), default="awaiting_approval", index=True)
+    approval_status = Column(String(32), default="pending", index=True)
+    requested_payload = Column(JSONB)
+    normalized_payload = Column(JSONB)
+    execution_plan = Column(JSONB)
+    payload_hash = Column(String(128))
+    plan_hash = Column(String(128))
+    requested_by = Column(String(64))
+    approved_by = Column(String(64))
+    result = Column(JSONB)
+    error_message = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    approved_at = Column(DateTime(timezone=True))
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    operations = relationship(
+        "SecurityJobOperation",
+        primaryjoin="SecurityJob.job_id==SecurityJobOperation.job_id",
+        foreign_keys="SecurityJobOperation.job_id",
+        order_by="SecurityJobOperation.sequence",
+        viewonly=True,
+    )
+
+
+class SecurityJobOperation(Base):
+    """One PAN-OS change belonging to a canonical security job."""
+
+    __tablename__ = "security_job_operations"
+
+    id = Column(UUID(as_uuid=False), primary_key=True)
+    job_id = Column(String(64), nullable=False, index=True)
+    sequence = Column(Integer, default=0)
+    source_sheet = Column(String(255))
+    source_row = Column(Integer)
+    category = Column(String(64))
+    action = Column(String(32))
+    object_name = Column(String(255))
+    requested_fields = Column(JSONB)
+    normalized_fields = Column(JSONB)
+    status = Column(String(32), default="pending", index=True)
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    result = Column(JSONB)
+    error_code = Column(String(64))
+    error_message = Column(Text)
 
 
 class FirewallJob(Base):

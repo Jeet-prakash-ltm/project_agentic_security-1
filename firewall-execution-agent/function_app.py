@@ -11,12 +11,10 @@ from services.settings import Settings
 from services.response import (
     success,
     error,
-    preview
 )
 from services.validation import (
     ValidationError,
     require_xpath,
-    require_element,
     require_cmd
 )
 from services.audit import audit
@@ -25,10 +23,7 @@ from services.xml_json import (
     agent_payload,
     is_system_info_cmd
 )
-from workbook.adapter import WorkbookPanosClient
-from workbook.dependencies import Inventory
-from workbook.runner import analyze_workbook, run_workbook
-from workbook.changes import apply_change, prepare_change
+from workbook.runner import analyze_workbook
 from workbook import sheets, workbook
 
 
@@ -158,137 +153,71 @@ def config_get(req):
         return fail(ex)
 
 
+def _write_via_job_required(operation):
+    return error(
+        "{0} is not a live write path. Submit the change through "
+        "POST /api/firewall/jobs (PrepareFirewallJob) and approve it.".format(
+            operation
+        ),
+        409,
+    )
+
+
 @app.route(route="panos/config/set")
 def config_set(req):
-    try:
-        blocked = live_block()
-        if blocked:
-            return blocked
-        body = get_body(req)
-        xpath = require_xpath(body)
-        element = require_element(body)
-        if Settings.DRY_RUN:
-            return preview("Dry run enabled", {
-                "operation": "set",
-                "xpath": xpath
-            })
-        xml = client().set(xpath, element)
-        audit(operation="set", xpath=xpath, result="success")
-        return success(agent_payload(xml, extra={"action": "set", "xpath": xpath}))
-    except Exception as ex:
-        return fail(ex)
+    return _write_via_job_required("panos/config/set")
 
 
 @app.route(route="panos/config/edit")
 def config_edit(req):
-    try:
-        blocked = live_block()
-        if blocked:
-            return blocked
-        body = get_body(req)
-        xpath = require_xpath(body)
-        element = require_element(body)
-        if Settings.DRY_RUN:
-            return preview("Dry run enabled", {
-                "operation": "edit",
-                "xpath": xpath
-            })
-        xml = client().edit(xpath, element)
-        return success(agent_payload(xml, extra={"action": "edit", "xpath": xpath}))
-    except Exception as ex:
-        return fail(ex)
+    return _write_via_job_required("panos/config/edit")
 
 
 @app.route(route="panos/config/delete")
 def config_delete(req):
-    try:
-        blocked = live_block()
-        if blocked:
-            return blocked
-        body = get_body(req)
-        xpath = require_xpath(body)
-        if Settings.DRY_RUN:
-            return preview("Dry run enabled", {
-                "operation": "delete",
-                "xpath": xpath
-            })
-        xml = client().delete(xpath)
-        return success(agent_payload(xml, extra={"action": "delete", "xpath": xpath}))
-    except Exception as ex:
-        return fail(ex)
+    return _write_via_job_required("panos/config/delete")
 
 
 @app.route(route="panos/change", methods=["POST"])
 def panos_change(req: func.HttpRequest):
-    """Apply one structured configuration change and commit it.
+    """Prepare one structured change as a security job. Does not write PAN-OS."""
+    from services.firewall_jobs import create_job
 
-    Body::
-
-        {
-          "category": "security_rule",
-          "action": "create",
-          "name": "allow-web",
-          "fields": {"from": "trust", "to": "untrust", "source": "any",
-                     "destination": "web", "rule_action": "allow"},
-          "commit": true
-        }
-    """
+    body = get_body(req)
+    category = body.get("category") or body.get("type")
+    if not category and not body.get("changes"):
+        return error("category is required", 400)
+    fields_map = (
+        body.get("fields")
+        or body.get("values")
+        or body.get("attributes")
+        or {}
+    )
+    if fields_map and not isinstance(fields_map, dict):
+        return error("fields must be an object", 400)
+    change = {
+        "category": category,
+        "action": body.get("action") or "create",
+        "name": body.get("name"),
+        "fields": fields_map,
+        "source_sheet": body.get("source_sheet"),
+        "source_row": body.get("source_row"),
+    }
+    payload = dict(body)
+    payload.setdefault("operation", "apply_change")
+    payload.setdefault("source_type", body.get("source_type") or "ai_workspace")
+    payload["changes"] = body.get("changes") or [change]
+    payload["requested_payload"] = body.get("requested_payload") or change
     try:
-        blocked = live_block()
-        if blocked:
-            return blocked
-        body = get_body(req)
-        category = body.get("category") or body.get("type")
-        if not category:
-            raise ValueError("category is required")
-        fields_map = (
-            body.get("fields")
-            or body.get("values")
-            or body.get("attributes")
-            or {}
-        )
-        if not isinstance(fields_map, dict):
-            raise ValueError("fields must be an object")
-        commit = body.get("commit")
-        commit = _truthy(commit, default=not Settings.DRY_RUN) if commit is not None else None
-        auto_create = _truthy(body.get("auto_create"), default=True)
-        change = prepare_change(
-            category,
-            action=body.get("action") or "create",
-            name=body.get("name"),
-            fields_map=fields_map,
-        )
-        client = WorkbookPanosClient()
-        inventory = Inventory(client_factory=lambda: client)
-        result = apply_change(
-            client,
-            change,
-            commit=commit,
-            inventory=inventory,
-            auto_create=auto_create,
-        )
-        audit(
-            operation="change",
-            xpath="{0}:{1}".format(category, body.get("name") or ""),
-            result="success" if not result.get("commit_error") else "error",
-        )
-        return success(result)
+        job = create_job(_user_id(req, body), payload)
+        return success({"job": job, "preview": job.get("execution_plan")})
     except Exception as ex:
-        return fail(ex)
+        return _job_response(ex)
 
 
 @app.route(route="panos/commit")
 def commit(req):
-    try:
-        blocked = live_block()
-        if blocked:
-            return blocked
-        if Settings.DRY_RUN:
-            return preview("Commit blocked because dry-run is enabled")
-        xml = client().commit()
-        return success(agent_payload(xml, extra={"action": "commit"}))
-    except Exception as ex:
-        return fail(ex)
+    return _write_via_job_required("panos/commit")
 
 
 @app.route(route="panos/workbook/analyze", methods=["POST"])
@@ -320,43 +249,37 @@ def panos_analyze_workbook(req: func.HttpRequest):
 
 @app.route(route="panos/workbook/run", methods=["POST"])
 def panos_run_workbook(req: func.HttpRequest):
-    """Parse a workbook of any layout, apply every detected row and commit."""
-    path = None
+    """Prepare a bulk workbook/changes job. Does not write PAN-OS until approved."""
+    from services.firewall_jobs import create_job
+
+    body = get_body(req)
+    payload = dict(body)
+    payload.setdefault("operation", "apply_bulk")
+    payload.setdefault(
+        "source_type",
+        body.get("source_type") or "automation_hub",
+    )
+    payload.setdefault(
+        "source_name",
+        body.get("source_name") or body.get("workbook_name") or "workbook.xlsx",
+    )
+    workbook_payload = None
+    if not payload.get("changes"):
+        try:
+            workbook_payload = workbook_bytes(req, body)
+        except ValueError:
+            workbook_payload = None
+        if not workbook_payload:
+            return error("changes[] or workbook_base64 is required", 400)
     try:
-        blocked = live_block()
-        if blocked:
-            return blocked
-        body = get_body(req)
-        payload = workbook_bytes(req, body)
-        if not payload:
-            raise ValueError("workbook_base64 is required")
-        path = _write_temp(payload)
-        commit = body.get("commit")
-        commit = _truthy(commit, default=not Settings.DRY_RUN) if commit is not None else None
-        auto_create = _truthy(body.get("auto_create"), default=True)
-        client = WorkbookPanosClient()
-        result = run_workbook(
-            client,
-            path,
-            row_limit=_row_limit(body),
-            commit=commit,
-            inventory=Inventory(client_factory=lambda: client),
-            auto_create=auto_create,
+        job = create_job(
+            _user_id(req, body),
+            payload,
+            workbook_bytes=workbook_payload,
         )
-        audit(
-            operation="runWorkbook",
-            xpath=body.get("workbook_name") or "workbook.xlsx",
-            result=result.get("status") or "success",
-        )
-        return success(result)
+        return success({"job": job, "preview": job.get("execution_plan")})
     except Exception as ex:
-        return fail(ex)
-    finally:
-        if path:
-            try:
-                os.unlink(path)
-            except OSError:
-                pass
+        return _job_response(ex)
 
 
 @app.route(route="panos/op")
@@ -437,9 +360,29 @@ def firewall_jobs_create(req):
     from services.firewall_jobs import create_job
 
     body = get_body(req)
+    workbook_payload = None
+    if not body.get("changes") and not (
+        isinstance(body.get("requested_payload"), dict)
+        and (
+            body["requested_payload"].get("xpath")
+            or body["requested_payload"].get("category")
+            or body["requested_payload"].get("changes")
+        )
+    ):
+        try:
+            workbook_payload = workbook_bytes(req, body)
+        except ValueError:
+            workbook_payload = None
+    if workbook_payload and not body.get("source_type"):
+        body["source_type"] = "automation_hub"
+        body.setdefault("operation", "apply_bulk")
     try:
-        job = create_job(_user_id(req, body), body)
-        return success({"job": job})
+        job = create_job(
+            _user_id(req, body),
+            body,
+            workbook_bytes=workbook_payload,
+        )
+        return success({"job": job, "preview": job.get("execution_plan")})
     except Exception as ex:
         return _job_response(ex)
 
@@ -449,7 +392,21 @@ def firewall_jobs_get(req):
     from services.firewall_jobs import get_job
 
     try:
-        return success({"job": get_job(req.route_params.get("task_id"))})
+        job = get_job(req.route_params.get("task_id"))
+        return success({"job": job, "operations": job.get("operations") or []})
+    except Exception as ex:
+        return _job_response(ex)
+
+
+@app.route(route="firewall/jobs/{task_id}/operations", methods=["GET"])
+def firewall_jobs_operations(req):
+    from services import job_store
+    from services.firewall_jobs import get_job
+
+    try:
+        job = get_job(req.route_params.get("task_id"), include_operations=False)
+        operations = job_store.list_operations(job["job_id"])
+        return success({"job_id": job["job_id"], "operations": operations})
     except Exception as ex:
         return _job_response(ex)
 
@@ -498,7 +455,7 @@ def firewall_jobs_worker(msg: func.ServiceBusMessage):
         body = json.loads(msg.get_body().decode("utf-8"))
     except Exception:
         raise ValueError("Firewall job message is not valid JSON.")
-    task_id = body.get("task_id")
-    if not task_id:
-        raise ValueError("Firewall job message is missing task_id.")
-    execute_job(task_id)
+    job_id = body.get("job_id") or body.get("task_id")
+    if not job_id:
+        raise ValueError("Firewall job message is missing job_id.")
+    execute_job(job_id)

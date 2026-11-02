@@ -1678,10 +1678,22 @@
         return null;
     }
 
-    function layerChip(label, value) {
-        var v = value || "Not assessed";
-        var tone = v === "Yes" ? "yes" : (v === "No" ? "no" : "na");
-        return '<span class="zt-layer-chip is-' + tone + '"><em>' + esc(label) + "</em><strong>" + esc(v) + "</strong></span>";
+    function metaRow(label, value) {
+        return '<div class="zt-ms-row"><span>' + esc(label) + "</span><strong>" + esc(value || "Unavailable") + "</strong></div>";
+    }
+
+    function evidenceTableHtml(table) {
+        if (!table || !table.columns || !table.rows || !table.rows.length) return "";
+        var head = table.columns.map(function (col) {
+            return "<th>" + esc(col.label || col.key) + "</th>";
+        }).join("");
+        var body = table.rows.map(function (row) {
+            return "<tr>" + table.columns.map(function (col) {
+                return "<td>" + esc(row[col.key] == null ? "" : row[col.key]) + "</td>";
+            }).join("") + "</tr>";
+        }).join("");
+        var more = table.truncated ? '<p class="zt-ms-more">Showing ' + table.rows.length + " of " + table.total + "</p>" : "";
+        return '<section class="zt-ms-table-wrap"><h4>' + esc(table.title) + '</h4><div class="zt-ms-table-scroll"><table class="zt-ms-table"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>' + more + '</section>';
     }
 
     function openDrawer(id) {
@@ -1689,38 +1701,32 @@
         if (!test || !drawer) return;
         state.selectedId = id;
         drawerTitle.textContent = test.name;
-        var layer = test.assessmentLayer || {};
-        var evidenceItems = test.evidence || [];
-        var evidenceLine = evidenceItems.length ? evidenceItems.slice(0, 2).join(" · ") : "Evidence was not returned.";
         var finding = test.impact || test.description || "No finding summary returned.";
-        var kpis = [];
-        if (test.category) kpis.push(["Category", test.category]);
-        if (test.platform) kpis.push(["Platform", test.platform]);
-        if (test.area) kpis.push(["Area", test.area]);
-        kpis.push(["Evaluated", formatTime(test.lastEvaluatedAt)]);
-        kpis = kpis.slice(0, 4);
-        var meta = "";
-        if (test.id) meta += '<div class="zt-assess-meta-row"><span>Control ID</span><strong>' + esc(test.id) + "</strong></div>";
-        meta += '<div class="zt-assess-meta-row"><span>SFI pillar</span><strong>' + esc((test.sfiPillars || []).join(", ") || "Unavailable") + "</strong></div>";
-        meta += '<div class="zt-assess-meta-row"><span>Documentation</span>' + (test.documentationUrl ? '<a href="' + esc(test.documentationUrl) + '" target="_blank" rel="noopener noreferrer">Open docs</a>' : "<strong>Unavailable</strong>") + "</div>";
-        meta += '<div class="zt-assess-meta-row"><span>Portal</span>' + (test.portalUrl ? '<a href="' + esc(test.portalUrl) + '" target="_blank" rel="noopener noreferrer">Open portal</a>' : "<strong>Unavailable</strong>") + "</div>";
-        if (layer.validation) meta += '<div class="zt-assess-meta-row"><span>Validation</span><strong>' + esc(layer.validation) + "</strong></div>";
+        var actions = test.remediationActions && test.remediationActions.length
+            ? test.remediationActions
+            : (test.recommendation ? [test.recommendation] : []);
+        var tables = (test.evidenceTables || []).map(evidenceTableHtml).join("");
+        var docs = [];
+        if (test.documentationUrl) docs.push('<a href="' + esc(test.documentationUrl) + '" target="_blank" rel="noopener noreferrer">Learn more</a>');
+        if (test.portalUrl) docs.push('<a href="' + esc(test.portalUrl) + '" target="_blank" rel="noopener noreferrer">Open portal</a>');
         drawerBody.innerHTML =
-            '<div class="zt-assess">' +
-            '<div class="zt-assess-outcome">' + statusBadge(test.status) + riskBadge(test.risk) + "</div>" +
-            '<div class="zt-assess-kpis">' + kpis.map(function (row) {
-                return '<article><span>' + esc(row[0]) + "</span><strong>" + esc(row[1]) + "</strong></article>";
-            }).join("") + "</div>" +
-            '<div class="zt-assess-layers" aria-label="Assessment posture">' +
-            layerChip("Configured", layer.configured) +
-            layerChip("Assigned", layer.assigned) +
-            layerChip("Observed", layer.observed) +
-            "</div>" +
-            '<section class="zt-assess-block"><h4>Finding</h4><p>' + esc(finding) + "</p></section>" +
-            '<section class="zt-assess-block"><h4>Evidence</h4><p class="zt-assess-evidence">' + esc(evidenceLine) + "</p></section>" +
-            '<section class="zt-assess-block"><h4>Action</h4><p>' + esc(test.recommendation || "No remediation summary returned.") + "</p></section>" +
+            '<div class="zt-ms">' +
+            metaRow("Risk", test.risk) +
+            metaRow("User Impact", test.userImpact) +
+            metaRow("Implementation Effort", test.implementationEffort) +
+            metaRow("Test ID", test.id) +
+            metaRow("License", test.license) +
+            '<div class="zt-ms-result"><span>Test result</span>' + statusBadge(test.status) + "</div>" +
+            '<p class="zt-ms-finding">' + esc(finding) + "</p>" +
+            tables +
             (test.error ? '<section class="zt-assess-block is-error"><h4>Error</h4><p>' + esc(test.error.message) + "</p></section>" : "") +
-            '<details class="zt-assess-more"><summary>Docs, portal, and identifiers</summary>' + meta + "</details>" +
+            '<section class="zt-ms-block"><h4>What was checked</h4><p>' + esc(test.whatWasChecked || test.description || "No check summary returned.") + "</p>" +
+            (test.howToCheck ? "<p>" + esc(test.howToCheck) + "</p>" : "") +
+            "</section>" +
+            '<section class="zt-ms-block"><h4>Remediation action</h4>' +
+            (actions.length ? "<ul>" + actions.map(function (item) { return "<li>" + esc(item) + "</li>"; }).join("") + "</ul>" : "<p>No remediation summary returned.</p>") +
+            (docs.length ? '<p class="zt-ms-links">' + docs.join(" · ") + "</p>" : "") +
+            "</section>" +
             "</div>";
         drawer.hidden = false;
         if (drawerBackdrop) drawerBackdrop.hidden = false;

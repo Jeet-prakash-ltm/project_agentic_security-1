@@ -628,6 +628,43 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         self.assertEqual(infra["defender"]["defenderScore"], {"value": 61.5})
         self.assertEqual(infra["defender"]["unhealthyAssessments"], {"value": 682})
 
+    def test_microsoft_style_details_and_evidence_tables(self):
+        adapted = adapt_assessment({
+            "assessment_id": "ms-1",
+            "status": "completed",
+            "findings": [
+                {
+                    "id": "ZT-ID-ID10-WORKLOAD",
+                    "pillar": "Identity",
+                    "title": "ID-10 Workload identity credentials are current",
+                    "status": "Fail",
+                    "severity": "High",
+                    "detail": "Found 2 applications with certificates that have not been rotated.",
+                    "remediation": "Rotate expired application secrets and certificates.",
+                }
+            ],
+            "evidence": {
+                "application_credentials": {
+                    "available": True,
+                    "credentials": [
+                        {"displayName": "App A", "appId": "111", "state": "expired", "endDateTime": "2021-11-02T00:00:00Z"},
+                        {"displayName": "App B", "appId": "222", "state": "expiring", "endDateTime": "2025-06-05T00:00:00Z"},
+                    ],
+                }
+            },
+        })
+        test = adapted["identity"]["tests"][0]
+        self.assertEqual(test["userImpact"], "Low")
+        self.assertEqual(test["implementationEffort"], "High")
+        self.assertEqual(test["license"], "Free")
+        self.assertTrue(test["whatWasChecked"])
+        self.assertTrue(test["howToCheck"])
+        self.assertGreaterEqual(len(test["remediationActions"]), 1)
+        self.assertEqual(len(test["evidenceTables"]), 1)
+        self.assertEqual(test["evidenceTables"][0]["title"], "Applications with expired or expiring credentials")
+        self.assertEqual(test["evidenceTables"][0]["rows"][0]["displayName"], "App A")
+        self.assertEqual(test["evidenceTables"][0]["rows"][0]["endDateTime"], "2021-11-02")
+
     def test_csv_export_fields(self):
         adapted = adapt_assessment({
             "assessment_id": "csv-1",

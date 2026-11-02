@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 
+from .zero_trust_test_details import enrich_test
+
 RISK_LEVELS = ("High", "Medium", "Low")
 ASSESSMENT_STATUSES = ("Passed", "Failed", "Planned", "Investigate", "Skipped")
 ASSESSMENT_AREAS = ("Identity", "Devices", "Network", "Data", "Infrastructure")
@@ -952,7 +954,9 @@ def adapt_assessment(payload):
     findings = payload.get("findings") or (payload.get("report") or {}).get("findings") or []
     evidence = payload.get("evidence") or {}
     evaluated_at = payload.get("completed_at") or payload.get("updated_at")
-    tests = deduplicate_tests([adapt_finding(item, evaluated_at) for item in findings])
+    tests = deduplicate_tests([
+        enrich_test(adapt_finding(item, evaluated_at), evidence) for item in findings
+    ])
     identity_tests = [t for t in tests if t.get("area") == "Identity"]
     device_tests = [t for t in tests if t.get("area") == "Devices"]
     network_tests = [t for t in tests if t.get("area") == "Network"]

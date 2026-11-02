@@ -1536,7 +1536,7 @@
     right: 0;
     bottom: 0;
     z-index: 91;
-    width: min(480px, 100vw);
+    width: min(720px, 100vw);
     display: flex;
     flex-direction: column;
     background: #16161c;
@@ -1589,6 +1589,126 @@
 .zt-drawer .fw-drawer-body {
     padding: 18px 20px 28px;
     overflow: auto;
+}
+
+.zt-ms {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+}
+
+.zt-ms-row {
+    display: grid;
+    grid-template-columns: 170px 1fr;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.zt-ms-row span {
+    color: var(--zt-muted);
+    font-weight: 700;
+}
+
+.zt-ms-row strong {
+    font-weight: 700;
+}
+
+.zt-ms-result {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 0 8px;
+    font-weight: 700;
+}
+
+.zt-ms-result span {
+    color: var(--zt-muted);
+}
+
+.zt-ms-finding {
+    margin: 0 0 12px;
+    line-height: 1.5;
+}
+
+.zt-ms-table-wrap {
+    margin: 8px 0 16px;
+}
+
+.zt-ms-table-wrap h4 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.zt-ms-table-scroll {
+    overflow: auto;
+    max-height: 320px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+.zt-ms-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.zt-ms-table th,
+.zt-ms-table td {
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    white-space: nowrap;
+}
+
+.zt-ms-table th {
+    position: sticky;
+    top: 0;
+    background: #1d1d24;
+    color: var(--zt-muted);
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.zt-ms-more {
+    margin: 6px 0 0;
+    color: var(--zt-muted);
+    font-size: 12px;
+}
+
+.zt-ms-block {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.zt-ms-block h4 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.zt-ms-block p,
+.zt-ms-block li {
+    margin: 0 0 8px;
+    line-height: 1.5;
+}
+
+.zt-ms-block ul {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.zt-ms-links {
+    margin-top: 10px;
+}
+
+.zt-ms-links a {
+    color: var(--crimson, #ff5e4f);
+    font-weight: 700;
 }
 
 .zt-app .btn[disabled] {

@@ -583,7 +583,7 @@
         var field = document.getElementById("pillarField");
         var facets = state.facets || {};
         var pillars = facets.pillars || [];
-        var show = PAGE_DOMAIN === "zero_trust" && pillars.length > 0;
+        var show = false;
         if (field) field.hidden = !show;
         if (!show) {
             state.filters.pillar = "all";
@@ -1503,7 +1503,8 @@
                 s.classList.add("is-collapsed");
             });
         });
-        document.getElementById("btnExportReport").addEventListener("click", generateReport);
+        var exportReportBtn = document.getElementById("btnExportReport");
+        if (exportReportBtn) exportReportBtn.addEventListener("click", generateReport);
 
         document.getElementById("copilotClose").addEventListener("click", closeCopilot);
         document.getElementById("copilotBackdrop").addEventListener("click", closeCopilot);
@@ -1662,15 +1663,319 @@
     }
 
     function reflectTabUI() {
+        var zt = PAGE_DOMAIN === "zero_trust";
+        ["categoryField", "severityField", "sortField", "viewField", "resetField", "pillarField"].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.hidden = zt;
+        });
         var fwField = document.querySelector(".fw-combo-group");
-        if (fwField) fwField.hidden = PAGE_DOMAIN === "zero_trust";
-        var sortDomain = document.querySelector('#sortSelect option[value="domain"]');
-        if (sortDomain) sortDomain.textContent = PAGE_DOMAIN === "zero_trust" ? "Pillar" : "Category";
-        var sortFw = document.querySelector('#sortSelect option[value="firewall"]');
-        if (sortFw) sortFw.hidden = PAGE_DOMAIN === "zero_trust";
-        if (PAGE_DOMAIN === "zero_trust" && state.filters.firewall !== "all") {
+        if (fwField) fwField.hidden = zt;
+        if (zt) {
+            state.filters.pillar = "all";
+            state.filters.category = "all";
+            state.filters.severity = "all";
             state.filters.firewall = "all";
         }
+    }
+
+    var ZT_STORAGE_KEY = "ltm_zt_assessment_id";
+    var ztRun = {
+        running: false,
+        assessmentId: "",
+        pollTimer: null,
+        abort: null,
+        assessment: null
+    };
+
+    function ztJsonFetch(url, body, signal) {
+        return fetch(url, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            body: JSON.stringify(body || {}),
+            signal: signal
+        }).then(function (res) {
+            return res.json().catch(function () { return {}; }).then(function (data) {
+                if (!res.ok) {
+                    var err = new Error(data.error || "Request failed");
+                    err.status = res.status;
+                    err.retryAfter = data.retryAfter;
+                    throw err;
+                }
+                return data;
+            });
+        });
+    }
+
+    function ztStopPoll() {
+        if (ztRun.pollTimer) {
+            clearTimeout(ztRun.pollTimer);
+            ztRun.pollTimer = null;
+        }
+        if (ztRun.abort) {
+            try { ztRun.abort.abort(); } catch (e) {}
+            ztRun.abort = null;
+        }
+    }
+
+    function ztSetProgress(text, hidden) {
+        var el = document.getElementById("ztProgress");
+        if (!el) return;
+        el.hidden = !!hidden;
+        el.textContent = text || "";
+    }
+
+    function ztOpenConfirm() {
+        if (ztRun.running) return;
+        var modal = document.getElementById("ztConfirmModal");
+        if (modal) modal.hidden = false;
+        var run = document.getElementById("ztConfirmRun");
+        if (run) run.focus();
+    }
+
+    function ztCloseConfirm() {
+        var modal = document.getElementById("ztConfirmModal");
+        if (modal) modal.hidden = true;
+    }
+
+    function ztStartAssessment() {
+        var forceEl = document.getElementById("ztForceRefresh");
+        var force = !!(forceEl && forceEl.checked);
+        var runBtn = document.getElementById("ztRunBtn");
+        ztCloseConfirm();
+        ztStopPoll();
+        ztRun.running = true;
+        if (runBtn) runBtn.disabled = true;
+        ztSetProgress("Starting Zero Trust assessment\u2026", false);
+        ztJsonFetch("/api/zero-trust/start", { force: force }).then(function (data) {
+            ztRun.assessmentId = data.assessmentId || "";
+            if (ztRun.assessmentId) {
+                try { localStorage.setItem(ZT_STORAGE_KEY, ztRun.assessmentId); } catch (e) {}
+            }
+            if (data.status === "completed" && data.cached) {
+                ztSetProgress("Using cached Zero Trust results.", false);
+                ztFinishRun(true);
+                return;
+            }
+            ztSetProgress(data.message || "Collecting Entra ID and Intune configuration\u2026", false);
+            ztPollStatus();
+        }).catch(function (err) {
+            ztRun.running = false;
+            if (runBtn) runBtn.disabled = false;
+            ztSetProgress("", true);
+            if (window.showToast) window.showToast(err.message || "Could not start assessment.", "error");
+        });
+    }
+
+    function ztPollStatus() {
+        if (!ztRun.assessmentId) return;
+        ztRun.abort = new AbortController();
+        ztJsonFetch("/api/zero-trust/status", { assessmentId: ztRun.assessmentId }, ztRun.abort.signal).then(function (data) {
+            ztSetProgress(data.message || ("Assessment " + (data.status || "running") + "\u2026"), false);
+            if (data.status === "completed") {
+                ztFinishRun(true);
+                return;
+            }
+            if (data.status === "failed") {
+                ztStopPoll();
+                ztRun.running = false;
+                var runBtn = document.getElementById("ztRunBtn");
+                if (runBtn) runBtn.disabled = false;
+                ztSetProgress("", true);
+                if (window.showToast) window.showToast(data.error || data.message || "Assessment failed.", "error");
+                return;
+            }
+            ztRun.pollTimer = setTimeout(ztPollStatus, 2500);
+        }).catch(function (err) {
+            if (err.name === "AbortError") return;
+            ztStopPoll();
+            ztRun.running = false;
+            var runBtn = document.getElementById("ztRunBtn");
+            if (runBtn) runBtn.disabled = false;
+            ztSetProgress("", true);
+            if (window.showToast) window.showToast(err.message || "Status polling failed.", "error");
+        });
+    }
+
+    function ztFinishRun(reload) {
+        ztStopPoll();
+        ztRun.running = false;
+        var runBtn = document.getElementById("ztRunBtn");
+        if (runBtn) runBtn.disabled = false;
+        ztSetProgress("Assessment complete. Refreshing findings\u2026", false);
+        if (reload) loadData();
+        setTimeout(function () { ztSetProgress("", true); }, 1800);
+        if (window.showToast) window.showToast("Zero Trust assessment complete.", "success");
+    }
+
+    function ztDownload(filename, text, type) {
+        var blob = new Blob([text], { type: type || "text/plain" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function ztCsvEscape(value) {
+        var text = String(value == null ? "" : value);
+        if (/[",\n]/.test(text)) return '"' + text.replace(/"/g, '""') + '"';
+        return text;
+    }
+
+    function ztTestsFromAssessment(assessment) {
+        var out = [];
+        ["identity", "devices", "network", "data", "infrastructure"].forEach(function (key) {
+            var bucket = assessment && assessment[key];
+            ((bucket && bucket.tests) || []).forEach(function (t) { out.push(t); });
+        });
+        return out;
+    }
+
+    function ztExportCsv(assessment) {
+        var tests = ztTestsFromAssessment(assessment);
+        var header = ["assessmentId", "timestamp", "area", "name", "category", "risk", "status", "sfiPillar", "recommendation", "evidenceAvailable"];
+        var lines = [header.join(",")];
+        tests.forEach(function (t) {
+            lines.push([
+                assessment.assessmentId, assessment.completedAt || assessment.startedAt, t.area, t.name, t.category, t.risk, t.status,
+                (t.sfiPillars || []).join(" "), t.recommendation || "", t.evidence && t.evidence.length ? "yes" : "no"
+            ].map(ztCsvEscape).join(","));
+        });
+        ztDownload("zero-trust-results.csv", lines.join("\n"), "text/csv");
+    }
+
+    function ztExportJson(assessment) {
+        ztDownload("zero-trust-assessment.json", JSON.stringify(assessment || {}, null, 2), "application/json");
+    }
+
+    function ztPrintSummary(assessment, exec) {
+        if (!assessment) {
+            if (window.showToast) window.showToast("No assessment to export.", "error");
+            return;
+        }
+        var w = window.open("", "_blank");
+        if (!w) return;
+        function line(label, bucket) {
+            var s = (bucket && bucket.summary) || {};
+            return label + " passed " + (s.passed || 0) + " of " + (s.total || 0);
+        }
+        function esc(value) {
+            return String(value == null ? "" : value)
+                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+        w.document.write("<html><head><title>Zero Trust Assessment</title></head><body>");
+        w.document.write("<h1>" + (exec ? "Executive summary" : "Zero Trust assessment") + "</h1>");
+        w.document.write("<p>Assessment ID " + esc(assessment.assessmentId) + " · " + esc(assessment.completedAt || "") + "</p>");
+        w.document.write("<p>" +
+            line("Identity", assessment.identity) + ". " +
+            line("Endpoint Device", assessment.devices) + ". " +
+            line("Network", assessment.network) + ". " +
+            line("Data", assessment.data) + ". " +
+            line("Infrastructure", assessment.infrastructure) + ".</p>");
+        if (exec) {
+            w.document.write("<h2>Priority remediation</h2><ol>");
+            (assessment.priority || []).forEach(function (t) {
+                w.document.write("<li>" + esc(t.name) + " (" + esc(t.risk) + " / " + esc(t.status) + ")</li>");
+            });
+            w.document.write("</ol>");
+        }
+        w.document.write("</body></html>");
+        w.document.close();
+        w.focus();
+        w.print();
+    }
+
+    function ztLoadAssessmentThen(kind) {
+        var id = ztRun.assessmentId || "";
+        try { id = id || localStorage.getItem(ZT_STORAGE_KEY) || ""; } catch (e) {}
+        var runExport = function (assessment) {
+            if (!assessment) {
+                if (window.showToast) window.showToast("No assessment to export.", "error");
+                return;
+            }
+            ztRun.assessment = assessment;
+            if (kind === "csv") ztExportCsv(assessment);
+            else if (kind === "json") ztExportJson(assessment);
+            else if (kind === "print") ztPrintSummary(assessment, false);
+            else ztPrintSummary(assessment, true);
+        };
+        if (ztRun.assessment && (!id || ztRun.assessment.assessmentId === id)) {
+            runExport(ztRun.assessment);
+            return;
+        }
+        var loadById = function (assessmentId) {
+            if (!assessmentId) {
+                if (window.showToast) window.showToast("No assessment to export.", "error");
+                return;
+            }
+            ztJsonFetch("/api/zero-trust/results", { assessmentId: assessmentId }).then(function (data) {
+                runExport(data.assessment);
+            }).catch(function (err) {
+                if (window.showToast) window.showToast(err.message || "Could not export assessment.", "error");
+            });
+        };
+        if (id) {
+            loadById(id);
+            return;
+        }
+        fetch("/api/zero-trust/latest", {
+            credentials: "same-origin",
+            headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" }
+        }).then(function (res) { return res.json().catch(function () { return {}; }); }).then(function (data) {
+            loadById(data && data.assessmentId);
+        }).catch(function () {
+            if (window.showToast) window.showToast("Could not export assessment.", "error");
+        });
+    }
+
+    function bindZeroTrustActions() {
+        if (PAGE_DOMAIN !== "zero_trust") return;
+        var runBtn = document.getElementById("ztRunBtn");
+        var confirmModal = document.getElementById("ztConfirmModal");
+        var confirmCancel = document.getElementById("ztConfirmCancel");
+        var confirmRun = document.getElementById("ztConfirmRun");
+        var exportBtn = document.getElementById("ztExportBtn");
+        var exportMenu = document.getElementById("ztExportMenu");
+        if (runBtn) runBtn.addEventListener("click", ztOpenConfirm);
+        if (confirmCancel) confirmCancel.addEventListener("click", ztCloseConfirm);
+        if (confirmRun) confirmRun.addEventListener("click", ztStartAssessment);
+        if (confirmModal) {
+            confirmModal.addEventListener("click", function (e) {
+                if (e.target === confirmModal) ztCloseConfirm();
+            });
+        }
+        if (exportBtn && exportMenu) {
+            exportBtn.addEventListener("click", function (e) {
+                e.stopPropagation();
+                var open = exportMenu.hidden;
+                exportMenu.hidden = !open;
+                exportBtn.setAttribute("aria-expanded", open ? "true" : "false");
+            });
+            exportMenu.addEventListener("click", function (e) {
+                var btn = e.target.closest("[data-export]");
+                if (!btn) return;
+                exportMenu.hidden = true;
+                exportBtn.setAttribute("aria-expanded", "false");
+                ztLoadAssessmentThen(btn.getAttribute("data-export"));
+            });
+            document.addEventListener("click", function () {
+                exportMenu.hidden = true;
+                exportBtn.setAttribute("aria-expanded", "false");
+            });
+        }
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") {
+                ztCloseConfirm();
+                if (exportMenu) exportMenu.hidden = true;
+            }
+        });
+        window.addEventListener("beforeunload", ztStopPoll);
     }
 
     loadFilters();
@@ -1678,5 +1983,6 @@
     bindChips("scopeChips", "domain");
     bindEvents();
     bindFirewallCombo();
+    bindZeroTrustActions();
     load();
 })();

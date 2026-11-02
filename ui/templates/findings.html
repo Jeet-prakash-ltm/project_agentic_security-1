@@ -34,23 +34,32 @@
         <h1>{{ findings_page_label }}</h1>
     </div>
     <div class="findings-header-actions">
+        {% if findings_view == 'firewall_audit' %}
         <button class="btn btn-ghost" id="btnExportReport" type="button">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
             Export Report
         </button>
-        {% if findings_view == 'firewall_audit' %}
         <a href="{{ url_for('run_assessment') }}" class="btn btn-primary" id="btnRunAssessment">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"/></svg>
             Run Assessment
         </a>
         {% else %}
-        <a href="{{ url_for('dashboard_cloud_security') }}" class="btn btn-primary" id="btnRunAssessment">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"/></svg>
-            Run Assessment
-        </a>
+        <div class="zt-export">
+            <button class="btn btn-ghost" id="ztExportBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="ztExportMenu">Export</button>
+            <div class="zt-export-menu" id="ztExportMenu" hidden>
+                <button type="button" data-export="csv">Filtered results CSV</button>
+                <button type="button" data-export="json">Full results JSON</button>
+                <button type="button" data-export="print">Printable summary</button>
+                <button type="button" data-export="exec">Executive summary</button>
+            </div>
+        </div>
+        <button class="btn btn-primary" id="ztRunBtn" type="button">Run assessment</button>
         {% endif %}
     </div>
 </div>
+{% if findings_view == 'zero_trust' %}
+<div class="zt-progress" id="ztProgress" hidden role="status" aria-live="polite"></div>
+{% endif %}
 
 <div id="findingsApp" data-view="{{ findings_view }}" hidden></div>
 
@@ -101,13 +110,13 @@
                 <option value="all">All pillars</option>
             </select>
         </div>
-        <div class="filter-group toolbar-field">
+        <div class="filter-group toolbar-field" id="categoryField"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
             <label class="filter-label" for="categorySelect">Category</label>
             <select id="categorySelect" class="filter-select">
                 <option value="all">All categories</option>
             </select>
         </div>
-        <div class="filter-group toolbar-field">
+        <div class="filter-group toolbar-field" id="severityField"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
             <label class="filter-label" for="severitySelect">Severity</label>
             <select id="severitySelect" class="filter-select">
                 <option value="all">All</option>
@@ -117,7 +126,7 @@
                 <option value="low">Low</option>
             </select>
         </div>
-        <div class="filter-group toolbar-field">
+        <div class="filter-group toolbar-field" id="statusField">
             <label class="filter-label" for="statusSelect">Status</label>
             <select id="statusSelect" class="filter-select">
                 <option value="all">All</option>
@@ -135,8 +144,8 @@
             </div>
             <select id="firewallSelect" class="filter-select" hidden><option value="all">All</option></select>
         </div>
-        <div class="filter-group toolbar-field">
-            <label class="filter-label" for="riskRangeSelect">Risk Score</label>
+        <div class="filter-group toolbar-field" id="riskField">
+            <label class="filter-label" for="riskRangeSelect">{{ 'Risk' if findings_view == 'zero_trust' else 'Risk Score' }}</label>
             <select id="riskRangeSelect" class="filter-select">
                 <option value="all">All</option>
                 <option value="critical">90–100 (Critical)</option>
@@ -145,11 +154,11 @@
                 <option value="low">0–39 (Low)</option>
             </select>
         </div>
-        <div class="filter-group toolbar-field">
+        <div class="filter-group toolbar-field" id="dateField">
             <label class="filter-label" for="dateSelect">Assessed</label>
             <select id="dateSelect" class="filter-select"><option value="all">All dates</option></select>
         </div>
-        <div class="filter-group toolbar-field">
+        <div class="filter-group toolbar-field" id="sortField"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
             <label class="filter-label" for="sortSelect">Sort</label>
             <select id="sortSelect" class="filter-select">
                 <option value="severity">Severity</option>
@@ -162,13 +171,13 @@
                 <option value="control">Control</option>
             </select>
         </div>
-        <div class="filter-group toolbar-field">
+        <div class="filter-group toolbar-field" id="viewField"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
             <label class="filter-label" for="viewSelect">Saved view</label>
             <select id="viewSelect" class="filter-select">
                 <option value="all">All Findings</option>
             </select>
         </div>
-        <div class="toolbar-field">
+        <div class="toolbar-field" id="resetField"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
             <button class="btn btn-ghost btn-sm" id="btnResetFilters" type="button">Reset</button>
         </div>
     </div>
@@ -233,6 +242,29 @@
     <div class="copilot-body" id="copilotBody"><p class="copilot-placeholder">Select an action to get AI assistance for this finding.</p></div>
 </div>
 
+{% if findings_view == 'zero_trust' %}
+<div class="modal-backdrop" id="ztConfirmModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ztConfirmTitle">
+        <div class="modal-head">
+            <div>
+                <h3 id="ztConfirmTitle">Run Zero Trust assessment</h3>
+                <p>This collects Entra ID and Intune configuration for the current tenant. Cached results newer than 30 minutes are reused unless you force a refresh.</p>
+            </div>
+        </div>
+        <div class="modal-body">
+            <label class="zt-check">
+                <input type="checkbox" id="ztForceRefresh">
+                <span>Force a fresh collection</span>
+            </label>
+            <div class="modal-foot">
+                <button class="btn btn-ghost" id="ztConfirmCancel" type="button">Cancel</button>
+                <button class="btn btn-primary" id="ztConfirmRun" type="button">Start assessment</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endif %}
 
 {% endblock %}
@@ -240,6 +272,6 @@
 {% block scripts %}
 {% if not assessment_blocked %}
 <script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=8"></script>
-<script src="{{ url_for('static', filename='js/findings.js') }}?v=17"></script>
+<script src="{{ url_for('static', filename='js/findings.js') }}?v=18"></script>
 {% endif %}
 {% endblock %}

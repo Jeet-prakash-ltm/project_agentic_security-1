@@ -105,6 +105,51 @@
 .findings-header p { color: var(--muted); font-size: 14px; }
 .findings-header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-self: flex-start; margin-left: auto; }
 
+.zt-export { position: relative; }
+.zt-export-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    min-width: 210px;
+    background: rgba(30, 30, 30, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    padding: 6px;
+    z-index: 30;
+}
+.zt-export-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: 0;
+    color: #fff;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+}
+.zt-export-menu button:hover,
+.zt-export-menu button:focus-visible {
+    background: rgba(255, 255, 255, 0.08);
+}
+.zt-progress {
+    margin: 0 0 16px;
+    padding: 12px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(30, 30, 30, 0.74);
+    color: #fff;
+    font-size: 13px;
+}
+.zt-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
 /* ============================================================
    TOOLBAR
    ============================================================ */

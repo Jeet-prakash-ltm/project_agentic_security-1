@@ -674,10 +674,13 @@
 
     function decideJob(jobId, approve) {
         if (!jobId) return;
-        fetch("/api/firewall/jobs/" + encodeURIComponent(jobId) + "/approve", {
+        var path = approve
+            ? "/api/firewall/jobs/" + encodeURIComponent(jobId) + "/approve"
+            : "/api/firewall/jobs/" + encodeURIComponent(jobId) + "/reject";
+        fetch(path, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Accept": "application/json" },
-            body: JSON.stringify({ approve: !!approve })
+            body: JSON.stringify(approve ? { approve: true } : {})
         }).then(function (r) {
             return r.json().then(function (data) { return { ok: r.ok, data: data }; });
         }).then(function (res) {

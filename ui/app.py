@@ -1543,12 +1543,16 @@ def api_netsec_playbooks_run():
     playbook_id = (payload.get("playbook_id") or "").strip()
     source_type = (payload.get("source_type") or "automation_hub").strip()
     source_name = (payload.get("source_name") or "").strip()
+    firewall_id = (payload.get("firewall_id") or "").strip()
+    firewall_host = (payload.get("firewall_host") or "").strip()
     try:
         result = netsec_service.run_playbook(
             current_user_id(),
             playbook_id,
             source_type=source_type,
             source_name=source_name,
+            firewall_id=firewall_id,
+            firewall_host=firewall_host,
         )
         return jsonify(result)
     except ValueError as e:
@@ -1694,6 +1698,25 @@ def api_firewall_jobs_approve(task_id):
     try:
         job = firewall_jobs_service.approve_job(
             current_user_id(), task_id, approve=approve
+        )
+        return jsonify({"job": job})
+    except firewall_jobs_service.FirewallJobsError as e:
+        return jsonify({"error": str(e)}), e.status_code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/firewall/jobs/<task_id>/reject", methods=["POST"])
+@login_required
+def api_firewall_jobs_reject(task_id):
+    from services import firewall_jobs_service
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        job = firewall_jobs_service.reject_job(
+            current_user_id(),
+            task_id,
+            reason=payload.get("reason") or payload.get("comment"),
         )
         return jsonify({"job": job})
     except firewall_jobs_service.FirewallJobsError as e:

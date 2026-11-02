@@ -117,6 +117,15 @@ def approve_job(user_id, task_id, approve=True):
     ).get("job")
 
 
+def reject_job(user_id, task_id, reason=None):
+    body = {"user_id": str(user_id or "anonymous")}
+    if reason:
+        body["reason"] = str(reason)
+    return _request(
+        "POST", "firewall/jobs/{0}/reject".format(task_id), user_id, body
+    ).get("job")
+
+
 def negotiate(user_id):
     data = _request("POST", "firewall/signalr/negotiate", user_id, body={}) or {}
     return {

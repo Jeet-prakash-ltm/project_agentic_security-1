@@ -266,6 +266,31 @@ button.auto-ns-file-card { width: 100%; }
     cursor: not-allowed;
 }
 
+.auto-ns-target {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0 0 14px;
+    font-size: 12.5px;
+    color: var(--text-2);
+}
+
+.auto-ns-target span {
+    font-weight: 700;
+    letter-spacing: 0.2px;
+}
+
+.auto-ns-target select {
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--glass-soft);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+}
+
 @media (max-width: 640px) {
     .auto-ns-file-grid {
         grid-template-columns: 1fr;

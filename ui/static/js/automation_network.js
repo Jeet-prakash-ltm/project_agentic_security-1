@@ -17,6 +17,7 @@
     var fileInput = document.getElementById("autoNsFile");
     var fileLabel = document.getElementById("autoNsFileLabel");
     var commitBtn = document.getElementById("autoNsCommit");
+    var firewallSelect = document.getElementById("autoNsFirewall");
 
     var state = {
         info: null,
@@ -91,6 +92,62 @@
         modeEl.hidden = true;
     }
 
+    function selectedFirewall() {
+        var option = firewallSelect && firewallSelect.options[firewallSelect.selectedIndex];
+        if (!option || !option.value) return null;
+        return {
+            id: option.getAttribute("data-id") || option.value,
+            host: option.getAttribute("data-host") || option.value,
+            label: option.textContent || option.value,
+            status: option.getAttribute("data-status") || ""
+        };
+    }
+
+    function renderFirewalls(info) {
+        if (!firewallSelect) return;
+        var firewalls = (info && info.firewalls) || [];
+        if (!firewalls.length) {
+            firewallSelect.innerHTML = '<option value="">No managed firewalls</option>';
+            firewallSelect.disabled = true;
+            return;
+        }
+        firewallSelect.disabled = false;
+        firewallSelect.innerHTML = firewalls.map(function (fw) {
+            var host = fw.host || fw.host_ip || fw.host_name || "";
+            var label = fw.label || ((fw.device_name || host) + (host && fw.device_name && fw.device_name !== host ? " (" + host + ")" : ""));
+            var status = String(fw.status || "").toLowerCase();
+            return '<option value="' + esc(fw.id || fw.device_name || host) + '"' +
+                ' data-id="' + esc(fw.id || "") + '"' +
+                ' data-host="' + esc(host) + '"' +
+                ' data-status="' + esc(status) + '"' +
+                (status === "live" ? " selected" : "") +
+                ">" + esc(label) + (status ? " · " + status : "") + "</option>";
+        }).join("");
+        var live = firewalls.filter(function (fw) {
+            return String(fw.status || "").toLowerCase() === "live";
+        })[0];
+        if (live) firewallSelect.value = live.id || live.device_name || live.host || "";
+    }
+
+    function logPreview(summary) {
+        var changes = (summary && summary.changes) || [];
+        var errors = (summary && summary.errors) || [];
+        if (changes.length) {
+            blank();
+            line("Preview (" + changes.length + " change" + (changes.length === 1 ? "" : "s") + ")", "head");
+            changes.forEach(function (item) {
+                line(
+                    (item.action || "create") + " " + (item.category || "object") + " " + (item.name || "(unnamed)") +
+                    (item.source_sheet ? " · " + item.source_sheet + " row " + (item.source_row || "") : ""),
+                    "muted"
+                );
+            });
+        }
+        errors.forEach(function (item) {
+            line((item.sheet || "Workbook") + " row " + (item.row || "?") + ": " + (item.error || "Invalid row"), "err");
+        });
+    }
+
     function logUpload(summary, fileName) {
         line('Upload workbook "' + fileName + '"');
         blank();
@@ -110,6 +167,7 @@
         if (!state.matches.length) {
             line("None of the uploaded sheets match a playbook in the catalogue.", "err");
         }
+        logPreview(summary);
     }
 
     function unique(values) {
@@ -212,6 +270,7 @@
                 if (data && data.error) throw new Error(data.error);
                 state.info = data;
                 renderMode(data);
+                renderFirewalls(data);
                 if (!data.configured) setStatus("Offline", "err");
                 else setStatus("Idle");
             })
@@ -284,8 +343,9 @@
                 state.matches = matchPlaybooks(state.summary, state.info);
                 showTerminal();
                 logUpload(state.summary, file.name);
-                commitBtn.disabled = !(state.info && state.info.configured && state.matches.length);
-                setStatus("Ready", state.matches.length ? "ok" : "err");
+                var previewOk = state.matches.length && !((state.summary && state.summary.errors) || []).length;
+                commitBtn.disabled = !(state.info && state.info.configured && previewOk);
+                setStatus(previewOk ? "Ready" : "Failed", previewOk ? "ok" : "err");
             })
             .catch(function (err) {
                 showTerminal();
@@ -350,11 +410,23 @@
             line("Firewall Execution Agent is not connected.", "err");
             return;
         }
+        var target = selectedFirewall();
+        if (!target || !target.host) {
+            line("Select a managed firewall before preparing the job.", "err");
+            setStatus("Failed", "err");
+            return;
+        }
+        if (((state.summary && state.summary.errors) || []).length) {
+            line("Fix workbook preview errors before preparing the job.", "err");
+            setStatus("Failed", "err");
+            return;
+        }
         state.busy = true;
         commitBtn.disabled = true;
         setDownloadBusy(true);
         setStatus("Preparing", "run");
         line("Execute", "head");
+        line("Target " + target.label, "muted");
         line("Preparing a bulk firewall job. Nothing is written until you approve it on Jobs.", "muted");
         blank();
 
@@ -364,7 +436,9 @@
             body: JSON.stringify({
                 playbook_id: (state.matches[0] && state.matches[0].playbook && state.matches[0].playbook.id) || "",
                 source_type: "automation_hub",
-                source_name: state.workbookName || "Automation Hub"
+                source_name: state.workbookName || "Automation Hub",
+                firewall_id: target.id || "",
+                firewall_host: target.host || ""
             })
         }).then(function (r) {
             return r.json().then(function (d) { return { ok: r.ok, data: d }; });
@@ -372,8 +446,9 @@
             if (!res.ok) throw new Error((res.data && res.data.error) || "Prepare failed");
             var data = res.data || {};
             var jobNumber = data.job_number || "";
-            var ops = (data.rows || []).length || ((data.counts && (data.counts.created + data.counts.updated + data.counts.deleted)) || 0);
+            var ops = (data.changes || data.rows || []).length || ((data.counts && (data.counts.created + data.counts.updated + data.counts.deleted)) || 0);
             line("Prepared " + ops + " operation(s) as " + (jobNumber || "a Jobs entry") + ".", "ok");
+            if (data.operation) line("operation=" + data.operation + " source_type=" + (data.source_type || "automation_hub"), "muted");
             line("Open Automation Hub · Jobs and approve the job to apply it on the firewall.", "muted");
             setStatus("Awaiting approval", "ok");
             if (window.showToast) window.showToast("Job prepared. Approve it on the Jobs page.", "success");
@@ -384,7 +459,8 @@
         }).finally(function () {
             state.busy = false;
             setDownloadBusy(false);
-            commitBtn.disabled = !(state.info && state.info.configured && state.matches.length);
+            var previewOk = state.matches.length && !((state.summary && state.summary.errors) || []).length;
+            commitBtn.disabled = !(state.info && state.info.configured && previewOk);
         });
     }
 

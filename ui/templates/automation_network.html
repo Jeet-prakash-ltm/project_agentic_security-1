@@ -19,6 +19,12 @@
             </p>
         </div>
         <div class="auto-ns-mode" id="autoNsMode" hidden></div>
+        <label class="auto-ns-target">
+            <span>Target firewall</span>
+            <select id="autoNsFirewall" aria-label="Target firewall">
+                <option value="">Loading inventory…</option>
+            </select>
+        </label>
         <div class="auto-ns-file-grid">
             <label class="auto-ns-file-card" for="autoNsFile">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
@@ -47,5 +53,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/automation_network.js') }}?v=8"></script>
+<script src="{{ url_for('static', filename='js/automation_network.js') }}?v=9"></script>
 {% endblock %}

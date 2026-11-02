@@ -150,6 +150,20 @@ class ZeroTrustAdapterTests(unittest.TestCase):
             "0817c655-****-****-****-3a333b5b9235",
         )
 
+    def test_tenant_inventory_separates_entra_and_intune_devices(self):
+        adapted = adapt_assessment({
+            "assessment_id": "devices-split",
+            "status": "completed",
+            "evidence": {
+                "managed_devices": {"available": True, "count": 2, "devices": []},
+                "entra_devices": {"available": True, "count": 25},
+            },
+        })
+        self.assertEqual(adapted["tenant"]["managedDevices"], 2)
+        self.assertEqual(adapted["tenant"]["entraDevices"], 25)
+        self.assertEqual(adapted["tenant"]["totalDevices"], 27)
+        self.assertEqual(adapted["tenant"]["devices"], 27)
+
     def test_tenant_profile_and_visualizations(self):
         adapted = adapt_assessment({
             "assessment_id": "tenant-1",

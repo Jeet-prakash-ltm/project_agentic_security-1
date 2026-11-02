@@ -914,6 +914,13 @@ def _tenant_from_evidence(payload, evidence):
     profile_ok = bool(profile.get("available"))
     managed = evidence.get("managed_devices") or {}
     managed_available = bool(managed.get("available"))
+    entra = evidence.get("entra_devices") or {}
+    entra_available = bool(entra.get("available"))
+    intune_count = _metric(managed.get("count"), managed_available)
+    entra_count = _metric(entra.get("count"), entra_available)
+    total_devices = None
+    if intune_count is not None or entra_count is not None:
+        total_devices = (intune_count or 0) + (entra_count or 0)
     return {
         "tenantName": sanitize_text(
             payload.get("tenant_name")
@@ -933,8 +940,10 @@ def _tenant_from_evidence(payload, evidence):
         "groups": _metric(payload.get("groups") if payload.get("groups") is not None else profile.get("groups"), profile_ok or payload.get("groups") is not None),
         "applications": _metric(payload.get("applications") if payload.get("applications") is not None else profile.get("applications"), profile_ok or payload.get("applications") is not None),
         "servicePrincipals": _metric(profile.get("service_principals"), profile_ok),
-        "devices": _metric(managed.get("count"), managed_available),
-        "managedDevices": _metric(managed.get("count"), managed_available),
+        "devices": total_devices,
+        "totalDevices": total_devices,
+        "managedDevices": intune_count,
+        "entraDevices": entra_count,
     }
 
 

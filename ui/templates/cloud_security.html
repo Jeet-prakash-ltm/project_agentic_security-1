@@ -3,7 +3,7 @@
 {% set zt_page_labels = {
     'overview': 'Dashboard',
     'identity': 'Identity',
-    'devices': 'Devices',
+    'devices': 'Endpoint Device',
     'network': 'Network',
     'data': 'Data',
     'infrastructure': 'Infrastructure'
@@ -13,7 +13,7 @@
 {% set zt_tabs = [
     ('overview', 'Overview'),
     ('identity', 'Identity'),
-    ('devices', 'Devices'),
+    ('devices', 'Endpoint Device'),
     ('network', 'Network'),
     ('data', 'Data'),
     ('infrastructure', 'Infrastructure')
@@ -73,7 +73,7 @@
                             <div class="rep-filter-pills" id="ztFilterAreaPills" role="group" aria-label="Area">
                                 <button type="button" class="rep-pill is-active" data-area="all" aria-pressed="true">All</button>
                                 <button type="button" class="rep-pill" data-area="Identity" aria-pressed="false">Identity</button>
-                                <button type="button" class="rep-pill" data-area="Devices" aria-pressed="false">Devices</button>
+                                <button type="button" class="rep-pill" data-area="Devices" aria-pressed="false">Endpoint Device</button>
                                 <button type="button" class="rep-pill" data-area="Network" aria-pressed="false">Network</button>
                                 <button type="button" class="rep-pill" data-area="Data" aria-pressed="false">Data</button>
                                 <button type="button" class="rep-pill" data-area="Infrastructure" aria-pressed="false">Infrastructure</button>
@@ -212,5 +212,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=36"></script>
+<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=38"></script>
 {% endblock %}

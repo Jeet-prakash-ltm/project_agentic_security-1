@@ -429,7 +429,7 @@
 
     var PILLAR_ORDER = [
         { key: "identity", name: "Identity", view: "identity" },
-        { key: "devices", name: "Devices", view: "devices" },
+        { key: "devices", name: "Endpoint Device", view: "devices" },
         { key: "network", name: "Network", view: "network" },
         { key: "data", name: "Data", view: "data" },
         { key: "infrastructure", name: "Infrastructure", view: "infrastructure" }
@@ -740,8 +740,9 @@
             '<div class="zt-inv-metrics">' +
             inventoryStat("blue", "user", "Users", t.users) +
             inventoryStat("sky", "guests", "Guest users", t.guests) +
-            inventoryStat("purple", "laptop", "Devices", t.devices) +
-            inventoryStat("violet", "devices", "Managed devices", t.managedDevices) +
+            inventoryStat("purple", "laptop", "Total device", t.totalDevices != null ? t.totalDevices : t.devices) +
+            inventoryStat("violet", "devices", "Intune Managed Devices", t.managedDevices) +
+            inventoryStat("sky", "laptop", "Entra Devices", t.entraDevices) +
             inventoryStat("teal", "groups", "Groups", t.groups) +
             inventoryStat("mint", "apps", "Applications", t.applications) +
             "</div></section>" +
@@ -790,11 +791,11 @@
             { key: "accessReviews", label: "Access reviews" }
         ],
         devices: [
-            { key: "managedDevices", label: "Managed devices" },
+            { key: "managedDevices", label: "Endpoint Managed devices" },
             { key: "compliant", label: "Compliant" },
             { key: "encrypted", label: "Encrypted" },
             { key: "compliancePolicies", label: "Compliance policies" },
-            { key: "entraDevices", label: "Entra devices" }
+            { key: "entraDevices", label: "Endpoint Devices" }
         ],
         network: [
             { key: "nsgsAssociated", label: "NSGs associated" },
@@ -1534,7 +1535,7 @@
         var a = state.assessment;
         if (!a) return emptyState("No assessment results are available.", "Run a Zero Trust assessment to populate this dashboard.");
         var tests = (a.devices && a.devices.tests) || [];
-        var html = pillarTabs("Devices");
+        var html = pillarTabs("Endpoint Device");
         if (state.pillarTab === "assessment") {
             var platforms = ["All", "Windows", "macOS", "iOS/iPadOS", "Android", "Tenant-wide"];
             html += '<div class="zt-platform-tabs" role="tablist">' + platforms.map(function (p) {
@@ -1917,7 +1918,7 @@
         w.document.write("<p>Assessment ID " + esc(a.assessmentId) + " · " + esc(formatTime(a.completedAt)) + "</p>");
         w.document.write("<p>" +
             line("Identity", a.identity) + ". " +
-            line("Devices", a.devices) + ". " +
+            line("Endpoint Device", a.devices) + ". " +
             line("Network", a.network) + ". " +
             line("Data", a.data) + ". " +
             line("Infrastructure", a.infrastructure) + ".</p>");

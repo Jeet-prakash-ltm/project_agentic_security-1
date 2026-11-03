@@ -46,6 +46,16 @@ class CloudTenantsRepository(BaseRepository):
         self.session.commit()
         return entry
 
+    def update(self, pk, **fields):
+        entry = self.session.get(CloudTenant, pk)
+        if entry is None:
+            return None
+        for key, value in fields.items():
+            if hasattr(entry, key):
+                setattr(entry, key, value)
+        self.session.commit()
+        return entry
+
     def delete_id(self, pk):
         entry = self.session.get(CloudTenant, pk)
         if entry is None:

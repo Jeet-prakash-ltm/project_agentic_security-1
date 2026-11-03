@@ -293,6 +293,15 @@ def run_bootstrap():
         log.warning("Firewall inventory seed failed: %s", exc)
 
     try:
+        from services import cloud_tenants_service
+
+        synced = cloud_tenants_service.sync_from_assessments()
+        if synced:
+            log.info("Registered %s Zero Trust tenant(s) in Cloud inventory.", synced)
+    except Exception as exc:
+        log.warning("Cloud tenant inventory sync failed: %s", exc)
+
+    try:
         counts = reclaim_legacy_data(admin_id)
     except Exception as exc:
         log.warning("Legacy data reclaim failed: %s", exc)

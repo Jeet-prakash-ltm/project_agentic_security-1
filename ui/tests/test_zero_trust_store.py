@@ -144,6 +144,11 @@ class FakeCanonical:
     def latest_run(self):
         return self.payload
 
+    def list_runs(self, limit=200):
+        if self.payload is None:
+            return []
+        return [self.payload]
+
     def get_row(self, assessment_id):
         return SimpleNamespace(assessment_id=assessment_id) if assessment_id in self.rows else None
 

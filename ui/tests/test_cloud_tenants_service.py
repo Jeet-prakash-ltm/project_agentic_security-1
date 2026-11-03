@@ -31,6 +31,42 @@ class CloudTenantValidationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             cloud_tenants_service._normalize_status("pending")
 
+    def test_tenant_fields_from_assessment(self):
+        fields = cloud_tenants_service.tenant_fields_from_assessment({
+            "tenant_id": "28f91c7c-d50f-4c19-9a26-0504aca35c52",
+            "evidence": {
+                "tenant_profile": {
+                    "tenant_name": "LTIM SecCOE",
+                    "primary_domain": "ltimsec.com",
+                }
+            },
+        })
+        self.assertEqual(fields["tenant_id"], "28f91c7c-d50f-4c19-9a26-0504aca35c52")
+        self.assertEqual(fields["tenant_name"], "LTIM SecCOE")
+        self.assertEqual(fields["primary_domain"], "ltimsec.com")
+        self.assertEqual(fields["cloud_provider"], "Azure")
+
+    def test_tenant_fields_from_assessment_profile_only(self):
+        fields = cloud_tenants_service.tenant_fields_from_assessment({
+            "evidence": {
+                "tenant_id": "tenant-1",
+                "tenant_profile": {
+                    "tenant_name": "Contoso",
+                    "tenant_id": "tenant-1",
+                    "primary_domain": "contoso.com",
+                },
+            }
+        })
+        self.assertEqual(fields["tenant_id"], "tenant-1")
+        self.assertEqual(fields["tenant_name"], "Contoso")
+        self.assertEqual(fields["primary_domain"], "contoso.com")
+
+    def test_fallback_domain(self):
+        self.assertEqual(
+            cloud_tenants_service._fallback_domain("tenant-1"),
+            "tenant-1.onmicrosoft.com",
+        )
+
 
 class TenantBulkTemplateTests(unittest.TestCase):
     def test_template_headers(self):

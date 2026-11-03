@@ -127,6 +127,12 @@ def sync_legacy(assessment_id):
     except Exception as exc:  # pragma: no cover - defensive
         logger.warning("Canonical mirror failed for %s: %s", assessment_id, exc)
         return None
+    try:
+        from services import cloud_tenants_service
+
+        cloud_tenants_service.upsert_from_assessment(payload)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Cloud tenant inventory sync failed: %s", exc)
     return _canonical().load_run(assessment_id)
 
 
@@ -253,10 +259,39 @@ def latest_results():
     return get_results(summary["assessmentId"])
 
 
+def iter_assessment_payloads(limit=200):
+    """Yield stored Zero Trust assessment payloads (canonical, then legacy)."""
+
+    seen = set()
+    try:
+        for payload in _canonical().list_runs(limit=limit):
+            assessment_id = payload.get("assessment_id")
+            if assessment_id:
+                seen.add(assessment_id)
+            yield payload
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Canonical Zero Trust listing failed: %s", exc)
+
+    try:
+        for row in _legacy().list_assessments(limit=limit):
+            if row.assessment_id in seen:
+                continue
+            yield _legacy_payload(row)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Legacy Zero Trust listing failed: %s", exc)
+
+
 def store_run(payload, user_id="zero-trust-function"):
     """Persist one Function App payload into canonical storage."""
 
-    return _canonical().save_run(payload, user_id=user_id)
+    saved = _canonical().save_run(payload, user_id=user_id)
+    try:
+        from services import cloud_tenants_service
+
+        cloud_tenants_service.upsert_from_assessment(payload)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Cloud tenant inventory sync failed: %s", exc)
+    return saved
 
 
 def available():

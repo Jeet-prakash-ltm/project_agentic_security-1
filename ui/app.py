@@ -2249,6 +2249,12 @@ def api_admin_tenants():
     """List the cloud tenant inventory."""
 
     entries = cloud_tenants_service.list_tenants()
+    if not entries:
+        try:
+            cloud_tenants_service.sync_from_assessments()
+            entries = cloud_tenants_service.list_tenants()
+        except Exception as exc:
+            app.logger.warning("Cloud tenant inventory sync failed: %s", exc)
     return jsonify({"tenants": entries})
 
 

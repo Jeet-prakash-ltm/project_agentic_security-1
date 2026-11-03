@@ -244,6 +244,19 @@ class CanonicalZeroTrustRepository:
             return None
         return self._payload_from_row(row)
 
+    def list_runs(self, limit=200):
+        sql = "SELECT " + COLUMNS + """
+            FROM assessments
+            WHERE security_domain = 'zero_trust'
+            ORDER BY completed_at DESC NULLS LAST, created_at DESC
+            LIMIT :limit
+        """
+        rows = self.session.execute(text(sql), {"limit": int(limit or 200)}).mappings()
+        payloads = []
+        for row in rows:
+            payloads.append(self._payload_from_row(row))
+        return payloads
+
     def _findings(self, assessment_id):
         return list(
             self.session.execute(

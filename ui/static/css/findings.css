@@ -163,7 +163,25 @@
 }
 .toolbar-row { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
 
+.findings-toolbar [hidden] {
+    display: none !important;
+}
+
 .findings-toolbar.is-zt .toolbar-row { display: flex; }
+.findings-toolbar.is-zt .toolbar-field,
+.findings-toolbar.is-zt .toolbar-filters,
+.findings-toolbar.is-zt .fw-combo-group {
+    display: none !important;
+}
+.findings-toolbar.is-zt #searchField,
+.findings-toolbar.is-zt #statusField,
+.findings-toolbar.is-zt #riskField,
+.findings-toolbar.is-zt #dateField,
+.findings-toolbar.is-zt #assessmentField,
+.findings-toolbar.is-zt #pillarField {
+    display: flex !important;
+    order: 0;
+}
 .findings-toolbar.is-zt #searchField { order: 1; }
 .findings-toolbar.is-zt #statusField { order: 2; }
 .findings-toolbar.is-zt #riskField { order: 3; }

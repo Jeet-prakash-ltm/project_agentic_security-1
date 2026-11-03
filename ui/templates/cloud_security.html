@@ -50,6 +50,10 @@
                 <button type="button" class="reports-filter-btn" id="ztTenantBtn" aria-label="Tenant information" aria-haspopup="dialog" aria-expanded="false" aria-controls="ztTenantPop">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-8h6v8"/><path d="M9 9h.01M15 9h.01M9 13h.01M15 13h.01"/></svg>
                 </button>
+                <span class="zt-azure-brand" title="Azure">
+                    <svg class="zt-azure-logo" viewBox="0 0 18 18" aria-hidden="true"><path fill="#0078D4" d="M7.2 2.1 2 14.9h3.5L10.6 2.1z"/><path fill="#50E6FF" d="M10.6 2.1 7.8 10.2l3.1 3.8L16 14.9 10.6 2.1z"/><path fill="#0078D4" d="M8.1 11.3 6.6 14.9H16l-3.1-.9z"/></svg>
+                    <span>Azure</span>
+                </span>
                 <button type="button" class="reports-filter-btn" id="ztAssessBtn" aria-label="Assessment details" aria-haspopup="dialog" aria-expanded="false" aria-controls="ztAssessPop">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3h8a2 2 0 012 2v16l-6-3-6 3V5a2 2 0 012-2z"/><path d="M9 8h6M9 12h6"/></svg>
                 </button>
@@ -154,9 +158,6 @@
                         </div>
                     </div>
                 </div>
-                <button class="icon-btn" id="ztThemeBtn" type="button" aria-label="Toggle theme">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-                </button>
                 <div class="zt-export">
                     <button class="btn btn-ghost" id="ztExportBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="ztExportMenu">Export</button>
                     <div class="zt-export-menu" id="ztExportMenu" hidden>
@@ -212,5 +213,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=40"></script>
+<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=41"></script>
 {% endblock %}

@@ -19,7 +19,8 @@ Tables map to the pre-migration JSON documents as follows:
 Additional tables:
 * ``findings``             - per-assessment finding rows
 * ``agent_activity_logs``  - audit trail for agent/function actions
-* ``managed_firewalls``    - admin firewall registry (Settings > Firewall Inventory)
+* ``managed_firewalls``    - admin firewall registry (Settings > Asset Inventory)
+* ``cloud_tenants``        - admin cloud tenant registry (Settings > Asset Inventory)
 * ``firewall_inventory``   - live collector snapshots (managed by the collector)
 * ``automation_jobs``      - LEGACY bulk commit jobs (kept for compatibility)
 * ``security_jobs``        - CANONICAL firewall-change jobs (single + bulk)
@@ -265,6 +266,25 @@ class ManagedFirewall(Base):
     clone_of = Column(String(64))
     status = Column(String(16), default="down")
     last_checked = Column(Float)
+    created = Column(Float, index=True)
+
+
+class CloudTenant(Base):
+    """Admin-registered cloud tenant inventory.
+
+    Settings > Asset Inventory > Cloud stores the tenants the platform
+    assesses: tenant name, tenant id, cloud provider, primary domain and
+    status.
+    """
+
+    __tablename__ = "cloud_tenants"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_name = Column(String(255), unique=True, nullable=False)
+    tenant_id = Column(String(128), unique=True, nullable=False)
+    cloud_provider = Column(String(128), default="Azure")
+    primary_domain = Column(String(255), nullable=False)
+    status = Column(String(32), default="active")
     created = Column(Float, index=True)
 
 

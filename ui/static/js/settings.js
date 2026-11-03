@@ -691,6 +691,291 @@
     loadFirewalls();
 })();
 
+(function () {
+    "use strict";
+
+    var tabs = document.getElementById("inventoryPageTabs");
+    if (!tabs) return;
+
+    var networkSections = document.getElementById("fwInventorySections");
+    var cloudSections = document.getElementById("tnInventorySections");
+    var fwActions = document.getElementById("fwHeaderActions");
+    var tnActions = document.getElementById("tnHeaderActions");
+    var tabNetwork = document.getElementById("invTabNetwork");
+    var tabCloud = document.getElementById("invTabCloud");
+
+    function setInventoryTab(tab) {
+        var cloud = tab === "cloud";
+        if (tabNetwork) {
+            tabNetwork.classList.toggle("is-active", !cloud);
+            tabNetwork.setAttribute("aria-selected", cloud ? "false" : "true");
+        }
+        if (tabCloud) {
+            tabCloud.classList.toggle("is-active", cloud);
+            tabCloud.setAttribute("aria-selected", cloud ? "true" : "false");
+        }
+        if (networkSections) networkSections.hidden = cloud;
+        if (cloudSections) cloudSections.hidden = !cloud;
+        if (fwActions) fwActions.hidden = cloud;
+        if (tnActions) tnActions.hidden = !cloud;
+    }
+
+    tabs.addEventListener("click", function (event) {
+        var btn = event.target.closest("[data-tab]");
+        if (!btn) return;
+        setInventoryTab(btn.getAttribute("data-tab"));
+    });
+
+    setInventoryTab("network");
+})();
+
+(function () {
+    "use strict";
+
+    var body = document.getElementById("tnInventoryBody");
+    if (!body) return;
+
+    var card = document.getElementById("tnInventoryCard");
+    var isTnAdmin = card ? card.getAttribute("data-is-admin") === "true" : false;
+    var countChip = document.getElementById("tnCountChip");
+    var drawer = document.getElementById("tnDrawer");
+    var drawerBackdrop = document.getElementById("tnDrawerBackdrop");
+    var drawerTitle = document.getElementById("tnDrawerTitle");
+    var drawerClose = document.getElementById("tnDrawerClose");
+    var singularBtn = document.getElementById("tnSingularBtn");
+    var bulkBtn = document.getElementById("tnBulkBtn");
+    var panelSingular = document.getElementById("tnPanelSingular");
+    var panelBulk = document.getElementById("tnPanelBulk");
+
+    function openDrawer(mode) {
+        if (!drawer) return;
+        var singular = mode !== "bulk";
+        if (drawerTitle) drawerTitle.textContent = singular ? "Add tenant" : "Bulk tenant addition";
+        if (panelSingular) panelSingular.hidden = !singular;
+        if (panelBulk) panelBulk.hidden = singular;
+        if (singularBtn) {
+            singularBtn.classList.toggle("is-active", singular);
+            singularBtn.setAttribute("aria-pressed", singular ? "true" : "false");
+        }
+        if (bulkBtn) {
+            bulkBtn.classList.toggle("is-active", !singular);
+            bulkBtn.setAttribute("aria-pressed", !singular ? "true" : "false");
+        }
+        drawer.hidden = false;
+        if (drawerBackdrop) drawerBackdrop.hidden = false;
+        window.requestAnimationFrame(function () {
+            drawer.classList.add("is-open");
+            if (drawerBackdrop) drawerBackdrop.classList.add("is-open");
+        });
+    }
+
+    function closeDrawer() {
+        if (!drawer) return;
+        drawer.classList.remove("is-open");
+        if (drawerBackdrop) drawerBackdrop.classList.remove("is-open");
+        window.setTimeout(function () {
+            drawer.hidden = true;
+            if (drawerBackdrop) drawerBackdrop.hidden = true;
+        }, 220);
+    }
+
+    if (singularBtn) singularBtn.addEventListener("click", function () { openDrawer("singular"); });
+    if (bulkBtn) bulkBtn.addEventListener("click", function () { openDrawer("bulk"); });
+    if (drawerClose) drawerClose.addEventListener("click", closeDrawer);
+    if (drawerBackdrop) drawerBackdrop.addEventListener("click", closeDrawer);
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && drawer && !drawer.hidden) closeDrawer();
+    });
+
+    function escapeHtml(value) {
+        return String(value == null ? "" : value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    function statusHtml(status) {
+        var live = status === "active";
+        var color = live ? "#059669" : "#dc2626";
+        var border = live ? "rgba(34, 197, 94, 0.5)" : "rgba(239, 68, 68, 0.5)";
+        var label = live ? "Active" : "Inactive";
+        return '<span class="hero-chip" style="border-color: ' + border + '; color: ' + color + ';">' +
+            '<span class="pulse-dot" style="background: ' + color + ';"></span> ' + label + "</span>";
+    }
+
+    function renderTenants(tenants) {
+        var colSpan = isTnAdmin ? 6 : 5;
+        var rows = (tenants || []).map(function (tn) {
+            var cells =
+                "<td>" + escapeHtml(tn.tenant_name || "") + "</td>" +
+                "<td>" + escapeHtml(tn.tenant_id || "") + "</td>" +
+                "<td>" + escapeHtml(tn.cloud_provider || "Azure") + "</td>" +
+                "<td>" + escapeHtml(tn.primary_domain || "") + "</td>" +
+                "<td>" + statusHtml(tn.status) + "</td>";
+            if (isTnAdmin) {
+                cells +=
+                    "<td class=\"users-actions\">" +
+                    '<button class="btn btn-sm btn-danger" data-action="remove" data-id="' + tn.id + '">Remove</button>' +
+                    "</td>";
+            }
+            return "<tr data-id=\"" + tn.id + "\">" + cells + "</tr>";
+        }).join("");
+        body.innerHTML = rows ||
+            '<tr><td colspan="' + colSpan + '" class="users-empty">No tenants registered yet.</td></tr>';
+        if (countChip) countChip.textContent = "Total " + (tenants ? tenants.length : 0);
+    }
+
+    function loadTenants() {
+        var colSpan = isTnAdmin ? 6 : 5;
+        if (window.loadingRow) body.innerHTML = window.loadingRow(colSpan, "Loading tenant inventory…");
+        fetch("/api/admin/tenants", { headers: { "Accept": "application/json" } })
+            .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error("Failed to load tenants")); })
+            .then(function (data) { renderTenants(data.tenants || []); })
+            .catch(function (err) {
+                body.innerHTML = '<tr><td colspan="' + colSpan + '" class="users-empty">' + escapeHtml(err.message) + "</td></tr>";
+            });
+    }
+
+    function postJson(url, payload) {
+        return fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            body: JSON.stringify(payload || {})
+        }).then(function (res) {
+            return res.json().then(function (data) {
+                if (!res.ok) throw new Error(data.error || "Request failed");
+                return data;
+            });
+        });
+    }
+
+    var addBtn = document.getElementById("tnAddBtn");
+    if (addBtn) {
+        addBtn.addEventListener("click", function () {
+            var tenantName = (document.getElementById("tnTenantName").value || "").trim();
+            var tenantId = (document.getElementById("tnTenantId").value || "").trim();
+            var provider = (document.getElementById("tnCloudProvider").value || "Azure").trim();
+            var domain = (document.getElementById("tnPrimaryDomain").value || "").trim();
+            var status = (document.getElementById("tnStatus").value || "active").trim();
+            if (!tenantName || !tenantId || !domain) {
+                window.showToast("Tenant name, tenant ID, and primary domain are required.", "error");
+                return;
+            }
+            postJson("/api/admin/tenants", {
+                tenant_name: tenantName,
+                tenant_id: tenantId,
+                cloud_provider: provider,
+                primary_domain: domain,
+                status: status
+            }).then(function () {
+                window.showToast("Tenant added to the inventory.", "success");
+                document.getElementById("tnTenantName").value = "";
+                document.getElementById("tnTenantId").value = "";
+                document.getElementById("tnPrimaryDomain").value = "";
+                loadTenants();
+            }).catch(function (err) {
+                window.showToast(err.message, "error");
+            });
+        });
+    }
+
+    if (isTnAdmin) {
+        body.addEventListener("click", function (event) {
+            var button = event.target.closest("[data-action]");
+            if (!button || button.getAttribute("data-action") !== "remove") return;
+            var id = button.getAttribute("data-id");
+            var row = button.closest("tr");
+            var name = row ? row.cells[0].textContent.trim() : "tenant";
+            if (!window.confirm("Remove \"" + name + "\" from the inventory?")) return;
+            fetch("/api/admin/tenants/" + encodeURIComponent(id), { method: "DELETE" })
+                .then(function (res) {
+                    return res.json().then(function (data) {
+                        if (!res.ok) throw new Error(data.error || "Request failed");
+                        return data;
+                    });
+                })
+                .then(function () {
+                    window.showToast("Tenant removed from the inventory.", "success");
+                    loadTenants();
+                })
+                .catch(function (err) {
+                    window.showToast(err.message, "error");
+                });
+        });
+    }
+
+    var bulkMessages = document.getElementById("tnBulkMessages");
+    var uploadInput = document.getElementById("tnUploadInput");
+    var uploadBtn = document.getElementById("tnUploadBtn");
+    var bulkTimer = null;
+
+    function renderBulkMessages(summary) {
+        if (!bulkMessages) return;
+        var lines = [];
+        if (summary && summary.error) {
+            lines.push('<p class="bulk-message bulk-message-error">' + escapeHtml(summary.error) + "</p>");
+        } else if (summary) {
+            lines.push(
+                '<p class="bulk-summary">Added ' + (summary.added || 0) +
+                " · Removed " + (summary.removed || 0) +
+                " · Failed " + (summary.failed || 0) + "</p>"
+            );
+        }
+        ((summary && summary.results) || []).forEach(function (result) {
+            var cls = result.status === "success" ? "bulk-message-success" : "bulk-message-error";
+            lines.push('<p class="bulk-message ' + cls + '">' + escapeHtml(result.message) + "</p>");
+        });
+        bulkMessages.innerHTML = lines.join("");
+        if (bulkTimer) window.clearTimeout(bulkTimer);
+        bulkTimer = window.setTimeout(function () {
+            bulkMessages.innerHTML = "";
+        }, 20000);
+    }
+
+    function uploadWorkbook(file) {
+        if (bulkMessages) {
+            bulkMessages.innerHTML = '<p class="bulk-message bulk-message-pending">' +
+                '<span class="table-loading"><span class="spinner"></span>Processing ' +
+                escapeHtml(file.name) + "…</span></p>";
+        }
+        if (bulkTimer) window.clearTimeout(bulkTimer);
+        if (uploadBtn) uploadBtn.disabled = true;
+        var formData = new FormData();
+        formData.append("file", file);
+        fetch("/api/admin/tenants/bulk", {
+            method: "POST",
+            headers: { "Accept": "application/json" },
+            body: formData
+        }).then(function (res) {
+            return res.json().then(function (data) {
+                if (!res.ok) throw new Error(data.error || "Upload failed");
+                return data;
+            });
+        }).then(function (data) {
+            renderBulkMessages(data);
+            loadTenants();
+        }).catch(function (err) {
+            renderBulkMessages({ error: err.message });
+        }).then(function () {
+            if (uploadBtn) uploadBtn.disabled = false;
+        });
+    }
+
+    if (uploadBtn && uploadInput) {
+        uploadBtn.addEventListener("click", function () {
+            uploadInput.click();
+        });
+        uploadInput.addEventListener("change", function () {
+            var file = uploadInput.files && uploadInput.files[0];
+            uploadInput.value = "";
+            if (file) uploadWorkbook(file);
+        });
+    }
+
+    loadTenants();
+})();
+
 // ---- AI Agents (administrators manage; members view status only) ----
 
 (function () {

@@ -18,6 +18,7 @@ from database.repositories.demo_requests_repository import DemoRequestsRepositor
 from database.repositories.findings_repository import FindingsRepository
 from database.repositories.firewall_jobs_repository import FirewallJobsRepository
 from database.repositories.insights_repository import InsightsRepository
+from database.repositories.cloud_tenants_repository import CloudTenantsRepository
 from database.repositories.managed_firewalls_repository import ManagedFirewallsRepository
 from database.repositories.reports_repository import ReportsRepository
 from database.repositories.security_jobs_repository import SecurityJobsRepository
@@ -29,6 +30,7 @@ __all__ = [
     "AgentsRepository",
     "AssessmentsRepository",
     "CanonicalAssessmentsRepository",
+    "CloudTenantsRepository",
     "CanonicalZeroTrustRepository",
     "AutomationJobsRepository",
     "ConversationsRepository",

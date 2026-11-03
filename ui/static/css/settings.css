@@ -562,6 +562,48 @@
     align-self: flex-start;
 }
 
+.settings-header-actions[hidden] {
+    display: none !important;
+}
+
+.inventory-page-tabs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 0 0 18px;
+    padding: 6px;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+}
+
+.inventory-page-tabs .zt-page-tab {
+    display: inline-flex;
+    align-items: center;
+    padding: 9px 18px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+}
+
+.inventory-page-tabs .zt-page-tab:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.inventory-page-tabs .zt-page-tab.is-active {
+    color: var(--red, #ff5e4f);
+    border-color: rgba(255, 94, 79, 0.45);
+    background: rgba(255, 94, 79, 0.14);
+}
+
 .settings-header-actions .btn svg {
     width: 16px;
     height: 16px;

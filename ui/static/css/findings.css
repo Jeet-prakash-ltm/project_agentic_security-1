@@ -175,7 +175,12 @@
 .findings-toolbar:not(.is-zt) #pillarField,
 .findings-toolbar:not(.is-zt) #categoryField,
 .findings-toolbar:not(.is-zt) #sortField,
-.findings-toolbar:not(.is-zt) #viewField {
+.findings-toolbar:not(.is-zt) #viewField,
+.findings-toolbar:not(.is-zt) #resetField,
+.findings-toolbar:not(.is-zt) #severityField,
+.findings-toolbar:not(.is-zt) #statusField,
+.findings-toolbar:not(.is-zt) #riskField,
+.findings-toolbar:not(.is-zt) .fw-combo-group {
     display: none !important;
 }
 
@@ -195,7 +200,8 @@
 .findings-toolbar.is-zt #searchField { order: 1; }
 .findings-toolbar.is-zt #dateField { order: 2; }
 .findings-toolbar.is-zt #assessmentField { order: 3; }
-.findings-toolbar.is-zt #ztFilterField {
+.findings-toolbar.is-zt #ztFilterField,
+.findings-toolbar:not(.is-zt) #faFilterField {
     order: 99;
     margin-left: auto;
     flex: 0 0 auto;
@@ -203,11 +209,21 @@
     position: relative;
     z-index: 80;
 }
-.findings-toolbar.is-zt .reports-filter {
+.findings-toolbar:not(.is-zt) .toolbar-row {
+    display: flex;
+}
+.findings-toolbar:not(.is-zt) #searchField { order: 1; }
+.findings-toolbar:not(.is-zt) #assessmentField { order: 2; }
+.findings-toolbar:not(.is-zt) #dateField { order: 3; }
+.findings-toolbar:not(.is-zt) #faFilterField {
+    display: flex !important;
+}
+.findings-toolbar .reports-filter {
     position: relative;
     z-index: 80;
 }
-.findings-toolbar.is-zt .reports-filter-btn {
+.findings-toolbar.is-zt .reports-filter-btn,
+.findings-toolbar:not(.is-zt) .reports-filter-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -220,23 +236,23 @@
     cursor: pointer;
     transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
-.findings-toolbar.is-zt .reports-filter-btn svg {
+.findings-toolbar .reports-filter-btn svg {
     width: 16px;
     height: 16px;
 }
-.findings-toolbar.is-zt .reports-filter-btn:hover {
+.findings-toolbar .reports-filter-btn:hover {
     color: var(--text);
     border-color: rgba(255, 94, 79, 0.4);
     background: rgba(255, 94, 79, 0.1);
 }
-.findings-toolbar.is-zt .reports-filter-btn.is-active,
-.findings-toolbar.is-zt .reports-filter-btn.has-filters {
+.findings-toolbar .reports-filter-btn.is-active,
+.findings-toolbar .reports-filter-btn.has-filters {
     background: var(--gradient-red, linear-gradient(135deg, #ff5e4f, #e11d48));
     color: #fff;
     border-color: transparent;
     box-shadow: 0 8px 20px rgba(255, 94, 79, 0.32);
 }
-.findings-toolbar.is-zt .reports-filter-panel {
+.findings-toolbar .reports-filter-panel {
     position: absolute;
     top: calc(100% + 10px);
     right: 0;
@@ -257,20 +273,20 @@
     flex-direction: column;
     gap: 16px;
 }
-.findings-toolbar.is-zt .reports-filter-panel[hidden] {
+.findings-toolbar .reports-filter-panel[hidden] {
     display: none !important;
 }
-.findings-toolbar.is-zt .rep-filter-head {
+.findings-toolbar .rep-filter-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
 }
-.findings-toolbar.is-zt .rep-filter-title {
+.findings-toolbar .rep-filter-title {
     font-size: 15px;
     font-weight: 700;
     color: var(--text);
 }
-.findings-toolbar.is-zt .rep-filter-close {
+.findings-toolbar .rep-filter-close {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -283,37 +299,37 @@
     color: var(--text-3);
     cursor: pointer;
 }
-.findings-toolbar.is-zt .rep-filter-close svg {
+.findings-toolbar .rep-filter-close svg {
     width: 16px;
     height: 16px;
 }
-.findings-toolbar.is-zt .rep-filter-close:hover {
+.findings-toolbar .rep-filter-close:hover {
     background: rgba(255, 255, 255, 0.08);
     color: var(--text);
 }
-.findings-toolbar.is-zt .rep-filter-section {
+.findings-toolbar .rep-filter-section {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
-.findings-toolbar.is-zt .rep-filter-label {
+.findings-toolbar .rep-filter-label {
     font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.6px;
     color: var(--text-3);
 }
-.findings-toolbar.is-zt .rep-filter-pills {
+.findings-toolbar .rep-filter-pills {
     display: flex;
     flex-wrap: nowrap;
     gap: 6px;
     overflow-x: auto;
     scrollbar-width: none;
 }
-.findings-toolbar.is-zt .rep-filter-pills::-webkit-scrollbar {
+.findings-toolbar .rep-filter-pills::-webkit-scrollbar {
     display: none;
 }
-.findings-toolbar.is-zt .rep-pill {
+.findings-toolbar .rep-pill {
     font-size: 12px;
     font-weight: 600;
     padding: 7px 11px;
@@ -326,24 +342,32 @@
     white-space: nowrap;
     flex: 0 0 auto;
 }
-.findings-toolbar.is-zt .rep-pill:hover {
+.findings-toolbar .rep-pill:hover {
     border-color: rgba(255, 94, 79, 0.5);
     color: var(--text);
 }
-.findings-toolbar.is-zt .rep-pill.is-active {
+.findings-toolbar .rep-pill.is-active {
     background: var(--gradient-red, linear-gradient(135deg, #ff5e4f, #e11d48));
     color: #fff;
     border-color: transparent;
     box-shadow: 0 5px 14px rgba(255, 94, 79, 0.28);
 }
-.findings-toolbar.is-zt .rep-filter-actions {
+.findings-toolbar .rep-filter-actions {
     display: flex;
     gap: 10px;
     justify-content: flex-end;
 }
-.findings-toolbar.is-zt .zt-date-input {
+.findings-toolbar .zt-date-input {
     color-scheme: dark;
     min-width: 150px;
+}
+.findings-toolbar .fa-filter-fw .fw-combobox {
+    width: 100%;
+}
+.findings-toolbar .fa-filter-fw .fw-combo-input {
+    background: var(--bg);
+    color: var(--text);
+    border-color: var(--border);
 }
 
 .toolbar-row > .toolbar-field {
@@ -831,24 +855,30 @@
    ============================================================ */
 
 .copilot-backdrop {
-    position: fixed; inset: 0;
+    position: fixed;
+    top: var(--top-navbar-height, 64px);
+    right: 0;
+    bottom: 0;
+    left: 0;
     background: rgba(11, 27, 43, 0.42);
     backdrop-filter: blur(3px);
     opacity: 0; pointer-events: none;
     transition: opacity 0.2s ease;
-    z-index: 90;
+    z-index: 140;
 }
 .copilot-backdrop.show { opacity: 1; pointer-events: auto; }
 
 .copilot-panel {
     position: fixed;
-    right: 0; top: 0; bottom: 0;
+    right: 0;
+    top: var(--top-navbar-height, 64px);
+    bottom: 0;
     width: 440px; max-width: 92vw;
     background: var(--surface);
     box-shadow: var(--shadow-md);
     transform: translateX(100%);
     transition: transform 0.26s cubic-bezier(0.34, 1.2, 0.64, 1);
-    z-index: 91;
+    z-index: 141;
     display: flex;
     flex-direction: column;
 }

@@ -3,7 +3,6 @@
     if (!app) return;
 
     var STORAGE_KEY = "ltm_zt_assessment_id";
-    var THEME_KEY = "ltm_zt_theme";
     var PAGE_SIZE = 12;
     var OVERVIEW_FINDINGS = 5;
     var POLL_MS = 2500;
@@ -791,8 +790,6 @@
 
         html += pillarRiskChart(heat);
 
-        html += pillarTelemetrySection(viz);
-
         var ranked = sortTests(tests);
         var top = ranked.slice(0, OVERVIEW_FINDINGS);
         html += '<div class="zt-grid-2 zt-health-findings">' +
@@ -858,29 +855,6 @@
         }
         if (item.value != null) return metric(item.value);
         return null;
-    }
-
-    function pillarTelemetrySection(viz) {
-        var metrics = (viz && viz.pillarMetrics) || {};
-        var cards = [];
-        PILLAR_ORDER.forEach(function (p) {
-            var fields = PILLAR_METRIC_FIELDS[p.key] || [];
-            var data = metrics[p.key];
-            if (!data) return;
-            var rows = "";
-            fields.forEach(function (field) {
-                var shown = formatPillarMetric(data[field.key]);
-                if (shown == null) return;
-                rows += '<div class="zt-metric-row"><span>' + esc(field.label) + "</span><strong>" + esc(shown) + "</strong></div>";
-            });
-            if (!rows) return;
-            cards.push(
-                '<button type="button" class="zt-metric-pillar" data-view="' + esc(p.view) + '">' +
-                "<h3>" + esc(p.name) + "</h3>" + rows + "</button>"
-            );
-        });
-        if (!cards.length) return "";
-        return '<section class="zt-card zt-metric-section"><h2>Pillar telemetry</h2><div class="zt-metric-pillars">' + cards.join("") + "</div></section>";
     }
 
     function kpiFilter(label, value, risk, status, ic) {
@@ -1076,6 +1050,7 @@
         var rows = [
             ["Tenant name", tenantValue(t.tenantName)],
             ["Tenant ID", tenantValue(state.isAdmin ? t.tenantId : maskTenant(t.tenantId))],
+            ["Cloud provider name", "Azure"],
             ["Host name", tenantValue(t.hostName || t.hostname || t.primaryDomain)],
             ["Domain", tenantValue(t.primaryDomain)]
         ];
@@ -1964,11 +1939,6 @@
         w.print();
     }
 
-    function applyTheme() {
-        var dark = localStorage.getItem(THEME_KEY) === "dark";
-        app.classList.toggle("is-dark", dark);
-    }
-
     function bindPillGroup(container, attr, key) {
         if (!container) return;
         container.addEventListener("click", function (event) {
@@ -2068,11 +2038,6 @@
     });
     document.getElementById("ztDrawerClose").addEventListener("click", closeDrawer);
     if (drawerBackdrop) drawerBackdrop.addEventListener("click", closeDrawer);
-    document.getElementById("ztThemeBtn").addEventListener("click", function () {
-        var next = app.classList.contains("is-dark") ? "light" : "dark";
-        localStorage.setItem(THEME_KEY, next);
-        applyTheme();
-    });
     if (exportBtn) exportBtn.addEventListener("click", function () {
         var open = exportMenu.hidden;
         exportMenu.hidden = !open;
@@ -2099,7 +2064,6 @@
         }
     });
     window.addEventListener("beforeunload", stopPoll);
-    applyTheme();
     setView(state.view, false);
     restore();
 })();

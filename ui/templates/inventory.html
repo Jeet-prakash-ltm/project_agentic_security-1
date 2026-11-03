@@ -7,7 +7,7 @@
 {% block hero_eyebrow %}Settings / Asset Inventory{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=44">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=45">
 {% endblock %}
 
 {% block content %}
@@ -15,10 +15,10 @@
 <div class="settings-header">
     <div>
         <h1>Asset Inventory</h1>
-        {% if not is_admin %}<p>Registered firewalls and their live status.</p>{% endif %}
+        {% if not is_admin %}<p>Registered assets and their live status.</p>{% endif %}
     </div>
     {% if is_admin %}
-    <div class="settings-header-actions">
+    <div class="settings-header-actions" id="fwHeaderActions">
         <button class="btn btn-ghost" id="fwSingularBtn" type="button" aria-pressed="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
             Add Device
@@ -28,8 +28,23 @@
             Bulk Inventory
         </button>
     </div>
+    <div class="settings-header-actions" id="tnHeaderActions" hidden>
+        <button class="btn btn-ghost" id="tnSingularBtn" type="button" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            Add Tenant
+        </button>
+        <button class="btn btn-primary" id="tnBulkBtn" type="button" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8"/><path d="M8 13h8"/><path d="M8 17h4"/></svg>
+            Bulk Tenant
+        </button>
+    </div>
     {% endif %}
 </div>
+
+<nav class="zt-page-tabs inventory-page-tabs" id="inventoryPageTabs" role="tablist" aria-label="Asset Inventory views">
+    <button type="button" role="tab" class="zt-page-tab is-active" id="invTabNetwork" data-tab="network" aria-selected="true">Network Security</button>
+    <button type="button" role="tab" class="zt-page-tab" id="invTabCloud" data-tab="cloud" aria-selected="false">Cloud</button>
+</nav>
 
 <section class="settings-grid" id="fwInventorySections" data-is-admin="{{ 'true' if is_admin else 'false' }}">
 
@@ -65,6 +80,41 @@
         </div>
     </div>
 
+</section>
+
+<section class="settings-grid" id="tnInventorySections" hidden data-is-admin="{{ 'true' if is_admin else 'false' }}">
+    <div class="settings-card card settings-card-wide">
+        <div class="settings-card-head">
+            <span class="settings-icon settings-icon-cyan">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-8h6v8"/></svg>
+            </span>
+            <div>
+                <h3>Cloud Tenant Inventory</h3>
+            </div>
+            <span class="status-chip status-on" id="tnCountChip">Total 0</span>
+        </div>
+        <div class="settings-body">
+            <div class="users-table-wrap" id="tnInventoryCard" data-is-admin="{{ 'true' if is_admin else 'false' }}">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Tenant name</th>
+                            <th>Tenant ID</th>
+                            <th>Cloud provider name</th>
+                            <th>Primary domain</th>
+                            <th>Status</th>
+                            {% if is_admin %}
+                            <th>Action</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody id="tnInventoryBody">
+                        <tr><td colspan="{{ 6 if is_admin else 5 }}" class="users-empty"><span class="table-loading"><span class="spinner"></span>Loading tenant inventory…</span></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </section>
 
 {% if is_admin %}
@@ -120,10 +170,59 @@
         </div>
     </div>
 </aside>
+
+<div class="fw-drawer-backdrop" id="tnDrawerBackdrop" hidden></div>
+<aside class="fw-drawer" id="tnDrawer" hidden aria-label="Cloud tenant inventory actions">
+    <div class="fw-drawer-head">
+        <h3 id="tnDrawerTitle">Add tenant</h3>
+        <button type="button" class="fw-drawer-close" id="tnDrawerClose" aria-label="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+    </div>
+    <div class="fw-drawer-body">
+        <div class="fw-drawer-panel" id="tnPanelSingular">
+            <div class="invite-user">
+                <strong>Add a tenant</strong>
+                <div class="invite-user-row invite-user-row--fw">
+                    <input type="text" id="tnTenantName" placeholder="Tenant name" autocomplete="off">
+                    <input type="text" id="tnTenantId" placeholder="Tenant ID" autocomplete="off">
+                    <select id="tnCloudProvider">
+                        <option value="Azure" selected>Azure</option>
+                        <option value="AWS">AWS</option>
+                        <option value="GCP">GCP</option>
+                    </select>
+                    <input type="text" id="tnPrimaryDomain" placeholder="Primary domain, e.g. contoso.onmicrosoft.com" autocomplete="off">
+                    <select id="tnStatus">
+                        <option value="active" selected>Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                    <button class="btn btn-primary" id="tnAddBtn" type="button">Add Tenant</button>
+                </div>
+            </div>
+        </div>
+        <div class="fw-drawer-panel" id="tnPanelBulk" hidden>
+            <div class="bulk-import">
+                <strong>Bulk tenant addition</strong>
+                <div class="bulk-actions">
+                    <a class="bulk-btn bulk-btn-template" id="tnTemplateBtn" href="{{ url_for('api_admin_tenants_template') }}" download>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+                        <span>Cloud Tenant Inventory Template</span>
+                    </a>
+                    <button class="bulk-btn bulk-btn-upload" id="tnUploadBtn" type="button">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M7 14l5-5 5 5"/><path d="M5 3h14"/></svg>
+                        <span>Upload Tenant Inventory</span>
+                    </button>
+                </div>
+                <input type="file" id="tnUploadInput" accept=".xlsx" hidden>
+                <div class="bulk-messages" id="tnBulkMessages" role="status" aria-live="polite"></div>
+            </div>
+        </div>
+    </div>
+</aside>
 {% endif %}
 
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=20"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=21"></script>
 {% endblock %}

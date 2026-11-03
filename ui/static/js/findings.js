@@ -652,19 +652,21 @@
 
     function populateStatusSelect() {
         var el = document.getElementById("statusSelect");
-        if (!el) return;
-        var options = domainStatusOptions();
-        var html = '<option value="all">All</option>';
-        options.forEach(function (o) {
-            html += '<option value="' + escapeHtml(o.value) + '">' + escapeHtml(o.label) + "</option>";
-        });
-        el.innerHTML = html;
-        el.value = state.filters.status || "all";
-        if (el.value !== (state.filters.status || "all")) {
-            state.filters.status = "all";
-            el.value = "all";
+        if (el) {
+            var options = domainStatusOptions();
+            var html = '<option value="all">All</option>';
+            options.forEach(function (o) {
+                html += '<option value="' + escapeHtml(o.value) + '">' + escapeHtml(o.label) + "</option>";
+            });
+            el.innerHTML = html;
+            el.value = state.filters.status || "all";
+            if (el.value !== (state.filters.status || "all")) {
+                state.filters.status = "all";
+                el.value = "all";
+            }
         }
         populateZtFilterPills();
+        populateFaFilterPills();
     }
 
     function populateDateSelect() {
@@ -813,6 +815,7 @@
         var sortEl = document.getElementById("sortSelect");
         if (sortEl) sortEl.value = state.filters.sort;
         syncZtFilterButton();
+        syncFaFilterButton();
     }
 
     function syncChipGroup(id, value) {
@@ -906,9 +909,12 @@
     }
 
     var ztFilterDraft = { status: "all", riskRange: "all", pillar: "all" };
+    var faFilterDraft = { severity: "all", status: "all", riskRange: "all", firewall: "all" };
 
     function ztFilterBtn() { return document.getElementById("ztIcFilterBtn"); }
     function ztFilterPanel() { return document.getElementById("ztIcFilterPanel"); }
+    function faFilterBtn() { return document.getElementById("faIcFilterBtn"); }
+    function faFilterPanel() { return document.getElementById("faIcFilterPanel"); }
 
     function ztHasPanelFilters() {
         return state.filters.status !== "all" || state.filters.riskRange !== "all" || state.filters.pillar !== "all";
@@ -918,6 +924,17 @@
         var btn = ztFilterBtn();
         if (!btn) return;
         btn.classList.toggle("has-filters", PAGE_DOMAIN === "zero_trust" && ztHasPanelFilters());
+    }
+
+    function faHasPanelFilters() {
+        return state.filters.severity !== "all" || state.filters.status !== "all" ||
+            state.filters.riskRange !== "all" || state.filters.firewall !== "all";
+    }
+
+    function syncFaFilterButton() {
+        var btn = faFilterBtn();
+        if (!btn) return;
+        btn.classList.toggle("has-filters", PAGE_DOMAIN !== "zero_trust" && faHasPanelFilters());
     }
 
     function setZtPillActive(container, attr, value) {
@@ -976,6 +993,53 @@
     function closeZtFilter() {
         var panel = ztFilterPanel();
         var btn = ztFilterBtn();
+        if (!panel) return;
+        panel.hidden = true;
+        if (btn) {
+            btn.classList.remove("is-active");
+            btn.setAttribute("aria-expanded", "false");
+        }
+    }
+
+    function populateFaFilterPills() {
+        if (PAGE_DOMAIN === "zero_trust") return;
+        var statusEl = document.getElementById("faIcStatusPills");
+        if (statusEl) {
+            var html = '<button type="button" class="rep-pill" data-status="all">All</button>';
+            domainStatusOptions().forEach(function (o) {
+                html += '<button type="button" class="rep-pill" data-status="' + escapeHtml(o.value) + '">' + escapeHtml(o.label) + "</button>";
+            });
+            statusEl.innerHTML = html;
+            setZtPillActive(statusEl, "data-status", faFilterDraft.status);
+        }
+        setZtPillActive(document.getElementById("faIcSeverityPills"), "data-severity", faFilterDraft.severity);
+        setZtPillActive(document.getElementById("faIcRiskPills"), "data-risk", faFilterDraft.riskRange);
+        syncFaFilterButton();
+    }
+
+    function syncFaFilterDraft() {
+        faFilterDraft.severity = state.filters.severity || "all";
+        faFilterDraft.status = state.filters.status || "all";
+        faFilterDraft.riskRange = state.filters.riskRange || "all";
+        faFilterDraft.firewall = state.filters.firewall || "all";
+        populateFaFilterPills();
+    }
+
+    function openFaFilter() {
+        var panel = faFilterPanel();
+        var btn = faFilterBtn();
+        if (!panel) return;
+        syncFaFilterDraft();
+        panel.hidden = false;
+        if (btn) {
+            btn.classList.add("is-active");
+            btn.setAttribute("aria-expanded", "true");
+        }
+    }
+
+    function closeFaFilter() {
+        var panel = faFilterPanel();
+        var btn = faFilterBtn();
         if (!panel) return;
         panel.hidden = true;
         if (btn) {
@@ -1490,6 +1554,63 @@
         document.addEventListener("click", function () { closeZtFilter(); });
     }
 
+    function bindFaFilterEvents() {
+        if (PAGE_DOMAIN === "zero_trust") return;
+        var btn = faFilterBtn();
+        var panel = faFilterPanel();
+        var closeBtn = document.getElementById("faIcFilterClose");
+        var applyBtn = document.getElementById("faIcFilterApply");
+        var resetBtn = document.getElementById("faIcFilterReset");
+        if (btn) {
+            btn.addEventListener("click", function (event) {
+                event.stopPropagation();
+                if (panel && panel.hidden) openFaFilter(); else closeFaFilter();
+            });
+        }
+        if (closeBtn) closeBtn.addEventListener("click", closeFaFilter);
+        if (panel) {
+            panel.addEventListener("click", function (event) { event.stopPropagation(); });
+            panel.addEventListener("click", function (event) {
+                var pill = event.target.closest(".rep-pill");
+                if (!pill) return;
+                if (pill.hasAttribute("data-severity")) {
+                    faFilterDraft.severity = pill.getAttribute("data-severity") || "all";
+                    setZtPillActive(document.getElementById("faIcSeverityPills"), "data-severity", faFilterDraft.severity);
+                } else if (pill.hasAttribute("data-status")) {
+                    faFilterDraft.status = pill.getAttribute("data-status") || "all";
+                    setZtPillActive(document.getElementById("faIcStatusPills"), "data-status", faFilterDraft.status);
+                } else if (pill.hasAttribute("data-risk")) {
+                    faFilterDraft.riskRange = pill.getAttribute("data-risk") || "all";
+                    setZtPillActive(document.getElementById("faIcRiskPills"), "data-risk", faFilterDraft.riskRange);
+                }
+            });
+        }
+        if (applyBtn) {
+            applyBtn.addEventListener("click", function () {
+                state.filters.severity = faFilterDraft.severity || "all";
+                state.filters.status = faFilterDraft.status || "all";
+                state.filters.riskRange = faFilterDraft.riskRange || "all";
+                closeFaFilter();
+                loadData();
+            });
+        }
+        if (resetBtn) {
+            resetBtn.addEventListener("click", function () {
+                faFilterDraft.severity = "all";
+                faFilterDraft.status = "all";
+                faFilterDraft.riskRange = "all";
+                faFilterDraft.firewall = "all";
+                populateFaFilterPills();
+                state.filters.severity = "all";
+                state.filters.status = "all";
+                state.filters.riskRange = "all";
+                handleFirewallChange("all");
+                closeFaFilter();
+            });
+        }
+        document.addEventListener("click", function () { closeFaFilter(); });
+    }
+
     var ztDetails = {
         drawer: document.getElementById("ztIcDrawer"),
         backdrop: document.getElementById("ztIcDrawerBackdrop"),
@@ -1798,6 +1919,7 @@
             });
         }
         bindZtFilterEvents();
+        bindFaFilterEvents();
 
         var activeFilters = document.getElementById("activeFilters");
         if (activeFilters) {
@@ -1979,6 +2101,7 @@
         populateDateSelect();
         populateViewSelect();
         syncZtFilterDraft();
+        syncFaFilterDraft();
         if (sortSelect) sortSelect.value = state.filters.sort;
         if (searchInput) searchInput.value = state.filters.search || "";
         syncFilterChips();
@@ -1990,16 +2113,12 @@
 
     function reflectTabUI() {
         var zt = PAGE_DOMAIN === "zero_trust";
-        ["pillarField", "categoryField", "sortField", "viewField"].forEach(function (id) {
+        ["pillarField", "categoryField", "sortField", "viewField", "resetField"].forEach(function (id) {
             var el = document.getElementById(id);
             if (el) el.hidden = true;
         });
-        ["severityField", "resetField", "statusField", "riskField"].forEach(function (id) {
-            var el = document.getElementById(id);
-            if (el) el.hidden = zt;
-        });
-        var fwField = document.querySelector(".fw-combo-group");
-        if (fwField) fwField.hidden = zt;
+        var faFilterField = document.getElementById("faFilterField");
+        if (faFilterField) faFilterField.hidden = zt;
         if (zt) {
             state.filters.category = "all";
             state.filters.severity = "all";

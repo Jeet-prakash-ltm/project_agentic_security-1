@@ -116,53 +116,86 @@
                 <option value="all">All categories</option>
             </select>
         </div>
-        <div class="filter-group toolbar-field" id="severityField"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
-            <label class="filter-label" for="severitySelect">Severity</label>
-            <select id="severitySelect" class="filter-select">
+        <div class="filter-group toolbar-field" id="dateField">
+            <label class="filter-label" for="ztDateInput">Assessed</label>
+            <input type="date" id="ztDateInput" class="filter-select zt-date-input" aria-label="Assessed date">
+            <select id="dateSelect" class="filter-select" hidden><option value="all">All dates</option></select>
+        </div>
+        {% if findings_view != 'zero_trust' %}
+        <div class="filter-group toolbar-field" id="faFilterField">
+            <label class="filter-label" for="faIcFilterBtn">Filters</label>
+            <div class="reports-filter" id="faIcFilterWrap">
+                <button type="button" class="reports-filter-btn" id="faIcFilterBtn" aria-label="Filters" aria-haspopup="true" aria-expanded="false" aria-controls="faIcFilterPanel">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/></svg>
+                </button>
+                <div class="reports-filter-panel" id="faIcFilterPanel" hidden>
+                    <div class="rep-filter-head">
+                        <span class="rep-filter-title">Filter</span>
+                        <button type="button" class="rep-filter-close" id="faIcFilterClose" aria-label="Close filters">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                    <div class="rep-filter-section">
+                        <span class="rep-filter-label">Severity</span>
+                        <div class="rep-filter-pills" id="faIcSeverityPills" role="group" aria-label="Severity">
+                            <button type="button" class="rep-pill is-active" data-severity="all" aria-pressed="true">All</button>
+                            <button type="button" class="rep-pill" data-severity="critical" aria-pressed="false">Critical</button>
+                            <button type="button" class="rep-pill" data-severity="high" aria-pressed="false">High</button>
+                            <button type="button" class="rep-pill" data-severity="medium" aria-pressed="false">Medium</button>
+                            <button type="button" class="rep-pill" data-severity="low" aria-pressed="false">Low</button>
+                        </div>
+                    </div>
+                    <div class="rep-filter-section">
+                        <span class="rep-filter-label">Status</span>
+                        <div class="rep-filter-pills" id="faIcStatusPills" role="group" aria-label="Status"></div>
+                    </div>
+                    <div class="rep-filter-section">
+                        <span class="rep-filter-label">Risk score</span>
+                        <div class="rep-filter-pills" id="faIcRiskPills" role="group" aria-label="Risk score">
+                            <button type="button" class="rep-pill is-active" data-risk="all" aria-pressed="true">All</button>
+                            <button type="button" class="rep-pill" data-risk="critical" aria-pressed="false">90–100</button>
+                            <button type="button" class="rep-pill" data-risk="high" aria-pressed="false">70–89</button>
+                            <button type="button" class="rep-pill" data-risk="medium" aria-pressed="false">40–69</button>
+                            <button type="button" class="rep-pill" data-risk="low" aria-pressed="false">0–39</button>
+                        </div>
+                    </div>
+                    <div class="rep-filter-section fa-filter-fw">
+                        <span class="rep-filter-label">Firewall</span>
+                        <div class="fw-combobox" id="fwCombobox">
+                            <svg class="fw-combo-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                            <input type="text" id="fwSearchInput" class="fw-combo-input" placeholder="All devices — search inventory" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Search firewall inventory">
+                            <button type="button" class="fw-combo-clear" id="fwSearchClear" hidden aria-label="Clear firewall filter">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                            <ul class="fw-combo-list" id="fwSearchList" role="listbox" hidden></ul>
+                        </div>
+                    </div>
+                    <div class="rep-filter-actions">
+                        <button type="button" class="btn btn-ghost rep-filter-reset" id="faIcFilterReset">Reset</button>
+                        <button type="button" class="btn btn-primary rep-filter-apply" id="faIcFilterApply">Apply</button>
+                    </div>
+                </div>
+            </div>
+            <select id="severitySelect" class="filter-select" hidden>
                 <option value="all">All</option>
                 <option value="critical">Critical</option>
                 <option value="high">High</option>
                 <option value="medium">Medium</option>
                 <option value="low">Low</option>
             </select>
-        </div>
-        <div class="filter-group toolbar-field" id="statusField"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
-            <label class="filter-label" for="statusSelect">Status</label>
-            <select id="statusSelect" class="filter-select">
+            <select id="statusSelect" class="filter-select" hidden>
                 <option value="all">All</option>
             </select>
-        </div>
-        <div class="filter-group toolbar-field fw-combo-group"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
-            <label class="filter-label" for="fwSearchInput">Firewall</label>
-            <div class="fw-combobox" id="fwCombobox">
-                <svg class="fw-combo-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-                <input type="text" id="fwSearchInput" class="fw-combo-input" placeholder="All devices — search inventory" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Search firewall inventory">
-                <button type="button" class="fw-combo-clear" id="fwSearchClear" hidden aria-label="Clear firewall filter">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                </button>
-                <ul class="fw-combo-list" id="fwSearchList" role="listbox" hidden></ul>
-            </div>
-            <select id="firewallSelect" class="filter-select" hidden><option value="all">All</option></select>
-        </div>
-        <div class="filter-group toolbar-field" id="riskField"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
-            <label class="filter-label" for="riskRangeSelect">{{ 'Risk' if findings_view == 'zero_trust' else 'Risk Score' }}</label>
-            <select id="riskRangeSelect" class="filter-select">
+            <select id="riskRangeSelect" class="filter-select" hidden>
                 <option value="all">All</option>
                 <option value="critical">90–100 (Critical)</option>
                 <option value="high">70–89 (High)</option>
                 <option value="medium">40–69 (Medium)</option>
                 <option value="low">0–39 (Low)</option>
             </select>
+            <select id="firewallSelect" class="filter-select" hidden><option value="all">All</option></select>
         </div>
-        <div class="filter-group toolbar-field" id="dateField">
-            <label class="filter-label" for="{{ 'ztDateInput' if findings_view == 'zero_trust' else 'dateSelect' }}">Assessed</label>
-            {% if findings_view == 'zero_trust' %}
-            <input type="date" id="ztDateInput" class="filter-select zt-date-input" aria-label="Assessed date">
-            <select id="dateSelect" class="filter-select" hidden><option value="all">All dates</option></select>
-            {% else %}
-            <select id="dateSelect" class="filter-select"><option value="all">All dates</option></select>
-            {% endif %}
-        </div>
+        {% endif %}
         {% if findings_view == 'zero_trust' %}
         <div class="filter-group toolbar-field" id="ztFilterField">
             <label class="filter-label" for="ztIcFilterBtn">Filters</label>
@@ -222,7 +255,7 @@
                 <option value="all">All Findings</option>
             </select>
         </div>
-        <div class="toolbar-field" id="resetField"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
+        <div class="toolbar-field" id="resetField" hidden>
             <button class="btn btn-ghost btn-sm" id="btnResetFilters" type="button">Reset</button>
         </div>
     </div>
@@ -327,6 +360,6 @@
 {% block scripts %}
 {% if not assessment_blocked %}
 <script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=8"></script>
-<script src="{{ url_for('static', filename='js/findings.js') }}?v=22"></script>
+<script src="{{ url_for('static', filename='js/findings.js') }}?v=23"></script>
 {% endif %}
 {% endblock %}

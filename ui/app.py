@@ -22,12 +22,14 @@ from services import demo_request_service
 from services import insights_service
 from services import investigation_service
 from services import mailer
+from services import cloud_tenants_service
 from services import managed_firewalls_service
 from services import report_history_service
 from services import system_status_service
 from services import telemetry_map_service
 from services import firewall_data_service
 from services import firewall_bulk_service
+from services import tenant_bulk_service
 from services import foundry_incidents
 from services import timeutil
 from services import users_service
@@ -2227,6 +2229,75 @@ def api_admin_firewalls_bulk():
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     return jsonify(summary)
+
+
+# --------------------------------------------------
+# CLOUD TENANT INVENTORY API
+# --------------------------------------------------
+
+@app.route("/api/admin/tenants")
+@login_required
+def api_admin_tenants():
+    """List the cloud tenant inventory."""
+
+    entries = cloud_tenants_service.list_tenants()
+    return jsonify({"tenants": entries})
+
+
+@app.route("/api/admin/tenants", methods=["POST"])
+@admin_required
+def api_admin_tenants_add():
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        entry = cloud_tenants_service.add_tenant(
+            payload.get("tenant_name") or "",
+            payload.get("tenant_id") or "",
+            cloud_provider=payload.get("cloud_provider") or "Azure",
+            primary_domain=payload.get("primary_domain") or "",
+            status=payload.get("status") or "active",
+        )
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"tenant": entry}), 201
+
+
+@app.route("/api/admin/tenants/template")
+@admin_required
+def api_admin_tenants_template():
+    """Download the Cloud Tenant Inventory Excel template."""
+
+    buffer = tenant_bulk_service.build_template_bytes()
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name="cloud-tenant-inventory-template.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/api/admin/tenants/bulk", methods=["POST"])
+@admin_required
+def api_admin_tenants_bulk():
+    """Apply a filled-in Cloud Tenant Inventory workbook (add/remove rows)."""
+
+    file = request.files.get("file")
+    try:
+        summary = tenant_bulk_service.process_upload(file)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify(summary)
+
+
+@app.route("/api/admin/tenants/<int:tenant_id>", methods=["DELETE"])
+@admin_required
+def api_admin_tenants_delete(tenant_id):
+
+    try:
+        cloud_tenants_service.remove_tenant(tenant_id)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 404
+    return jsonify({"deleted": True, "id": tenant_id})
 
 
 # --------------------------------------------------

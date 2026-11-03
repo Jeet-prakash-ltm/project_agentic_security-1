@@ -2260,12 +2260,15 @@
 }
 
 .zt-heat-cell {
+    display: block;
     width: 100%;
     min-width: 44px;
     border: 0;
     border-radius: 10px;
     padding: 8px 0;
     font-weight: 700;
+    text-align: center;
+    text-decoration: none;
     cursor: pointer;
     background: rgba(255, 255, 255, 0.04);
     color: inherit;
@@ -2333,12 +2336,14 @@
 
 .zt-pillar-card {
     position: relative;
+    display: block;
     background: var(--zt-surface);
     border: 1px solid var(--zt-border);
     border-radius: 16px;
     padding: 16px;
     text-align: left;
     color: inherit;
+    text-decoration: none;
     cursor: pointer;
     box-shadow: var(--shadow-soft);
     transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
@@ -2583,6 +2588,8 @@
     gap: 2px;
     min-height: 50px;
     text-align: center;
+    color: inherit;
+    text-decoration: none;
 }
 
 .zt-domain-summary strong {
@@ -2625,6 +2632,9 @@
     gap: 4px;
     width: 22px;
     height: 100%;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
 }
 
 .zt-domain-value {
@@ -2641,6 +2651,8 @@
 }
 
 .zt-domain-label {
+    color: inherit;
+    text-decoration: none;
     font-size: 11px;
     font-weight: 700;
     color: #D1D5DB;

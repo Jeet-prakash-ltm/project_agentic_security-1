@@ -160,10 +160,22 @@
     gap: 14px;
     padding: 15px 17px;
     margin-bottom: 18px;
+    overflow: visible;
+    position: relative;
+    z-index: 40;
 }
-.toolbar-row { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+.findings-toolbar.card:hover {
+    transform: none;
+}
+.toolbar-row { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; overflow: visible; }
 
 .findings-toolbar [hidden] {
+    display: none !important;
+}
+.findings-toolbar:not(.is-zt) #pillarField,
+.findings-toolbar:not(.is-zt) #categoryField,
+.findings-toolbar:not(.is-zt) #sortField,
+.findings-toolbar:not(.is-zt) #viewField {
     display: none !important;
 }
 
@@ -181,15 +193,19 @@
     order: 0;
 }
 .findings-toolbar.is-zt #searchField { order: 1; }
-.findings-toolbar.is-zt #ztFilterField { order: 2; }
-.findings-toolbar.is-zt #dateField { order: 3; }
-.findings-toolbar.is-zt #assessmentField { order: 4; }
+.findings-toolbar.is-zt #dateField { order: 2; }
+.findings-toolbar.is-zt #assessmentField { order: 3; }
 .findings-toolbar.is-zt #ztFilterField {
+    order: 99;
+    margin-left: auto;
     flex: 0 0 auto;
     min-width: 42px;
+    position: relative;
+    z-index: 80;
 }
 .findings-toolbar.is-zt .reports-filter {
     position: relative;
+    z-index: 80;
 }
 .findings-toolbar.is-zt .reports-filter-btn {
     display: inline-flex;
@@ -224,8 +240,9 @@
     position: absolute;
     top: calc(100% + 10px);
     right: 0;
+    left: auto;
     width: 380px;
-    max-width: calc(100vw - 40px);
+    max-width: min(380px, calc(100vw - 24px));
     max-height: min(72vh, 640px);
     overflow: auto;
     padding: 18px;
@@ -235,7 +252,7 @@
     -webkit-backdrop-filter: blur(34px) saturate(170%);
     backdrop-filter: blur(34px) saturate(170%);
     box-shadow: var(--shadow-glass, 0 18px 48px rgba(0, 0, 0, 0.45));
-    z-index: 70;
+    z-index: 90;
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -533,6 +550,16 @@
     gap: 9px;
     flex-wrap: wrap;
 }
+.finding-card-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+.finding-card-actions .action-btn {
+    padding: 5px 10px;
+}
 .finding-card-id {
     font-size: 12px; font-weight: 800; color: var(--text);
     font-family: "SF Mono", "Fira Code", monospace;
@@ -570,7 +597,6 @@
 .status-badge {
     font-size: 10px; font-weight: 800; letter-spacing: 0.4px;
     padding: 3px 9px; border-radius: 6px; text-transform: uppercase;
-    margin-left: auto;
 }
 .status-badge.compliant { background: var(--success-soft); color: var(--success); }
 .status-badge.non-compliant { background: var(--danger-soft); color: var(--crimson); }

@@ -32,6 +32,25 @@
         return { severity: "all", status: "all", domain: PAGE_DOMAIN, assessment: "all", pillar: "all", category: "all", firewall: "all", riskRange: "all", date: "all", search: "", sort: "severity" };
     }
 
+    function normalizePillarParam(value) {
+        var raw = String(value || "all").trim();
+        if (!raw || raw.toLowerCase() === "all") return "all";
+        var key = raw.toLowerCase().replace(/[\s_-]+/g, "");
+        if (key === "identity") return "Identity";
+        if (key === "devices" || key === "endpointdevice" || key === "endpointdevices") return "Devices";
+        if (key === "network") return "Network";
+        if (key === "data") return "Data";
+        if (key === "infrastructure") return "Infrastructure";
+        return raw;
+    }
+
+    function normalizeRiskParam(value) {
+        var raw = String(value || "all").trim().toLowerCase();
+        if (!raw || raw === "all") return "all";
+        if (raw === "critical" || raw === "high" || raw === "medium" || raw === "low") return raw;
+        return "all";
+    }
+
     var state = {
         data: null,
         records: [],
@@ -418,6 +437,12 @@
             '<span class="sev-badge sev-' + sev + '">' + escapeHtml(rec.risk) + '</span>' +
             '<span class="risk-score" title="Risk score"><span class="risk-score-meter"><span class="risk-score-fill ' + sev + '" style="width:' + score + '%"></span></span><span class="risk-score-num">' + score + '</span></span>' +
             '<span class="status-badge ' + statusClass + '">' + escapeHtml(statusKey) + '</span>' +
+            (PAGE_DOMAIN === "zero_trust"
+                ? '<span class="finding-card-actions">' +
+                    '<button class="action-btn ai" data-act="copilot" type="button">' + ICONS.spark + ' Copilot</button>' +
+                    '<button class="action-btn" data-act="export" type="button">Export</button>' +
+                    '</span>'
+                : '') +
             '</div>' +
             '<div class="finding-card-title">' + title + '</div>' +
             '<div class="finding-summary">' + escapeHtml(summary) + '</div>' +
@@ -433,7 +458,7 @@
             '<span class="finding-chevron">' + ICONS.chevron + '</span>' +
             '<div class="finding-body">' +
             findingBodyHtml(rec) +
-            actionsHtml(rec, isReviewed, !!assignee) +
+            (PAGE_DOMAIN === "zero_trust" ? "" : actionsHtml(rec, isReviewed, !!assignee)) +
             '</div>' +
             '</div>' +
             '</div>';
@@ -1035,6 +1060,8 @@
             });
             if (params.get("risk")) state.filters.riskRange = params.get("risk");
             if (params.get("firewall")) state.filters.firewall = params.get("firewall");
+            state.filters.pillar = normalizePillarParam(state.filters.pillar);
+            state.filters.riskRange = normalizeRiskParam(state.filters.riskRange);
         } catch (e) { /* ignore */ }
         lockDomain();
         try {
@@ -1547,10 +1574,6 @@
             '<div class="rc-item"><span class="rc-label">Exploitability</span><span class="rc-value">' + escapeHtml(rc.exploit) + "</span></div>" +
             '<div class="rc-item"><span class="rc-label">Risk Trend</span><span class="rc-value">' + escapeHtml(rc.trend) + "</span></div>" +
             "</div></section>" +
-            '<div class="zt-ms-actions">' +
-            '<button class="action-btn ai" type="button" data-zt-act="copilot">' + ICONS.spark + " Copilot</button>" +
-            '<button class="action-btn" type="button" data-zt-act="export">Export JSON</button>' +
-            "</div>" +
             "</div>";
         ztDetails.drawer.hidden = false;
         if (ztDetails.backdrop) ztDetails.backdrop.hidden = false;
@@ -1967,7 +1990,11 @@
 
     function reflectTabUI() {
         var zt = PAGE_DOMAIN === "zero_trust";
-        ["categoryField", "severityField", "sortField", "viewField", "resetField", "statusField", "riskField", "pillarField"].forEach(function (id) {
+        ["pillarField", "categoryField", "sortField", "viewField"].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) el.hidden = true;
+        });
+        ["severityField", "resetField", "statusField", "riskField"].forEach(function (id) {
             var el = document.getElementById(id);
             if (el) el.hidden = zt;
         });
@@ -1977,6 +2004,8 @@
             state.filters.category = "all";
             state.filters.severity = "all";
             state.filters.firewall = "all";
+        } else {
+            state.filters.pillar = "all";
         }
     }
 

@@ -568,18 +568,18 @@
         html += '</div><div class="zt-domain-stage"><div class="zt-domain-grid" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>';
         html += '<div class="zt-domain-axis">';
         ranked.forEach(function (row) {
-            html += '<button type="button" class="zt-domain-group' + (row.name === highest ? " is-highest" : "") + '" data-area="' + esc(row.name) + '" data-risk="all" data-status="Failed">';
-            html += '<div class="zt-domain-summary"><strong>' + esc(row.name) + "</strong><span>Total Risk: " + (row.total || 0) + "</span>";
+            html += '<div class="zt-domain-group' + (row.name === highest ? " is-highest" : "") + '">';
+            html += '<a class="zt-domain-summary" href="' + esc(investigationUrl(row.view || row.name)) + '"><strong>' + esc(row.name) + "</strong><span>Total Risk: " + (row.total || 0) + "</span>";
             if (row.name === highest) html += '<em class="zt-domain-badge">Highest Risk Pillar</em>';
-            html += '</div><div class="zt-domain-cols">';
+            html += '</a><div class="zt-domain-cols">';
             levels.forEach(function (s) {
                 var n = row[s.key] || 0;
                 var h = top ? Math.round(n / top * 100) : 0;
-                html += '<span class="zt-domain-col">';
+                html += '<a class="zt-domain-col" href="' + esc(investigationUrl(row.view || row.name, s.key)) + '" aria-label="' + esc(row.name + " " + s.key) + '">';
                 if (n > 0) html += '<span class="zt-domain-value">' + n + '</span><span class="zt-domain-fill" style="height:' + h + "%;background:" + s.color + '"></span>';
-                html += "</span>";
+                html += "</a>";
             });
-            html += '</div><span class="zt-domain-label">' + esc(row.name) + "</span></button>";
+            html += '</div><a class="zt-domain-label" href="' + esc(investigationUrl(row.view || row.name)) + '">' + esc(row.name) + "</a></div>";
         });
         html += "</div></div></div></section>";
         return html;
@@ -668,6 +668,26 @@
                 { value: Number(signEl.getAttribute("data-failure") || 0), color: STATUS_COLORS.Failed }
             ]);
         }
+    }
+
+    function investigationPillar(value) {
+        var key = String(value || "").toLowerCase().replace(/[\s_-]+/g, "");
+        if (key === "identity") return "Identity";
+        if (key === "devices" || key === "endpointdevice" || key === "endpointdevices") return "Devices";
+        if (key === "network") return "Network";
+        if (key === "data") return "Data";
+        if (key === "infrastructure") return "Infrastructure";
+        return "";
+    }
+
+    function investigationUrl(pillar, risk) {
+        var params = new URLSearchParams();
+        params.set("view", "zero_trust");
+        var p = investigationPillar(pillar);
+        if (p) params.set("pillar", p);
+        var r = String(risk || "").toLowerCase();
+        if (r && r !== "all") params.set("risk", r);
+        return "/findings?" + params.toString();
     }
 
     function setFindingFilter(area, risk, status) {
@@ -762,11 +782,11 @@
             "</div></article></section>";
 
         html += '<div class="zt-pillar-cards">' + pillars.map(function (p) {
-            return '<button type="button" class="zt-pillar-card" data-view="' + esc(p.view) + '">' +
+            return '<a class="zt-pillar-card" href="' + esc(investigationUrl(p.key)) + '">' +
                 "<h3>" + esc(p.name) + "</h3>" +
                 '<div class="zt-pillar-count"><strong>' + (p.passRate == null ? "—" : p.passRate + "%") + "</strong></div>" +
                 '<p class="zt-muted">' + p.passed + " passed · " + p.failed + " failed · " + p.high + " high</p>" +
-                '<span class="zt-pillar-track"><span class="zt-pillar-fill is-' + scoreTone(p.passRate) + '" style="width:' + (p.passRate || 0) + '%"></span></span></button>';
+                '<span class="zt-pillar-track"><span class="zt-pillar-fill is-' + scoreTone(p.passRate) + '" style="width:' + (p.passRate || 0) + '%"></span></span></a>';
         }).join("") + "</div>";
 
         html += pillarRiskChart(heat);
@@ -886,7 +906,7 @@
 
     function heatCell(area, risk, value) {
         var level = !value ? "none" : (value >= 4 ? "hot" : (value >= 2 ? "warm" : "cool"));
-        return '<td><button type="button" class="zt-heat-cell is-' + level + '" data-area="' + esc(area) + '" data-risk="' + esc(risk) + '" data-status="Failed">' + value + "</button></td>";
+        return '<td><a class="zt-heat-cell is-' + level + '" href="' + esc(investigationUrl(area, risk)) + '">' + value + "</a></td>";
     }
 
     function authCoverageCard(userAuth, privileged) {

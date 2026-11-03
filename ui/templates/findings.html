@@ -104,13 +104,13 @@
                 <option value="all">Latest per scope</option>
             </select>
         </div>
-        <div class="filter-group toolbar-field" id="pillarField"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
+        <div class="filter-group toolbar-field" id="pillarField" hidden>
             <label class="filter-label" for="pillarSelect">Pillar</label>
             <select id="pillarSelect" class="filter-select">
                 <option value="all">All pillars</option>
             </select>
         </div>
-        <div class="filter-group toolbar-field" id="categoryField"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
+        <div class="filter-group toolbar-field" id="categoryField" hidden>
             <label class="filter-label" for="categorySelect">Category</label>
             <select id="categorySelect" class="filter-select">
                 <option value="all">All categories</option>
@@ -203,7 +203,7 @@
             </div>
         </div>
         {% endif %}
-        <div class="filter-group toolbar-field" id="sortField"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
+        <div class="filter-group toolbar-field" id="sortField" hidden>
             <label class="filter-label" for="sortSelect">Sort</label>
             <select id="sortSelect" class="filter-select">
                 <option value="severity">Severity</option>
@@ -216,7 +216,7 @@
                 <option value="control">Control</option>
             </select>
         </div>
-        <div class="filter-group toolbar-field" id="viewField"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
+        <div class="filter-group toolbar-field" id="viewField" hidden>
             <label class="filter-label" for="viewSelect">Saved view</label>
             <select id="viewSelect" class="filter-select">
                 <option value="all">All Findings</option>
@@ -327,6 +327,6 @@
 {% block scripts %}
 {% if not assessment_blocked %}
 <script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=8"></script>
-<script src="{{ url_for('static', filename='js/findings.js') }}?v=21"></script>
+<script src="{{ url_for('static', filename='js/findings.js') }}?v=22"></script>
 {% endif %}
 {% endblock %}

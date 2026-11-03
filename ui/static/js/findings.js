@@ -111,7 +111,8 @@
             _run_id: row.assessment_id,
             _firewall: row.firewall_id || "\u2014",
             _model: "",
-            _version: ""
+            _version: "",
+            _ms: row.ms_details || null
         };
     }
 
@@ -579,26 +580,28 @@
         fillSelect("assessmentSelect", options, state.filters.assessment, "Latest per scope");
     }
 
+    function ztPillarOptions() {
+        var pillars = (state.facets && state.facets.pillars) || [];
+        if (pillars.length) return pillars;
+        return [
+            { value: "Identity", label: "Identity" },
+            { value: "Devices", label: "Endpoint Device" },
+            { value: "Network", label: "Network" },
+            { value: "Data", label: "Data" },
+            { value: "Infrastructure", label: "Infrastructure" }
+        ];
+    }
+
     function populatePillarSelect() {
         var field = document.getElementById("pillarField");
-        var facets = state.facets || {};
-        var pillars = facets.pillars || [];
         var show = PAGE_DOMAIN === "zero_trust";
-        if (field) field.hidden = !show;
+        if (field) field.hidden = true;
         if (!show) {
             state.filters.pillar = "all";
             return;
         }
-        if (!pillars.length) {
-            pillars = [
-                { value: "Identity", label: "Identity" },
-                { value: "Devices", label: "Endpoint Device" },
-                { value: "Network", label: "Network" },
-                { value: "Data", label: "Data" },
-                { value: "Infrastructure", label: "Infrastructure" }
-            ];
-        }
-        fillSelect("pillarSelect", pillars, state.filters.pillar, "All pillars");
+        fillSelect("pillarSelect", ztPillarOptions(), state.filters.pillar, "All pillars");
+        populateZtFilterPills();
     }
 
     function populateCategorySelect() {
@@ -636,18 +639,24 @@
             state.filters.status = "all";
             el.value = "all";
         }
+        populateZtFilterPills();
     }
 
     function populateDateSelect() {
         var el = document.getElementById("dateSelect");
-        if (!el) return;
-        var facets = state.facets || {};
-        var html = '<option value="all">All dates</option>';
-        (facets.dates || []).forEach(function (d) {
-            html += '<option value="' + escapeHtml(d.value) + '">' + escapeHtml(d.value) + " (" + d.count + ")</option>";
-        });
-        el.innerHTML = html;
-        el.value = state.filters.date || "all";
+        if (el) {
+            var facets = state.facets || {};
+            var html = '<option value="all">All dates</option>';
+            (facets.dates || []).forEach(function (d) {
+                html += '<option value="' + escapeHtml(d.value) + '">' + escapeHtml(d.value) + " (" + d.count + ")</option>";
+            });
+            el.innerHTML = html;
+            el.value = state.filters.date || "all";
+        }
+        var dateInput = document.getElementById("ztDateInput");
+        if (dateInput) {
+            dateInput.value = state.filters.date && state.filters.date !== "all" ? state.filters.date : "";
+        }
     }
 
     function fwComboSource() {
@@ -774,8 +783,11 @@
         if (rr) rr.value = state.filters.riskRange;
         var dt = document.getElementById("dateSelect");
         if (dt) dt.value = state.filters.date;
+        var dateInput = document.getElementById("ztDateInput");
+        if (dateInput) dateInput.value = state.filters.date && state.filters.date !== "all" ? state.filters.date : "";
         var sortEl = document.getElementById("sortSelect");
         if (sortEl) sortEl.value = state.filters.sort;
+        syncZtFilterButton();
     }
 
     function syncChipGroup(id, value) {
@@ -866,6 +878,85 @@
             }
             loadData();
         });
+    }
+
+    var ztFilterDraft = { status: "all", riskRange: "all", pillar: "all" };
+
+    function ztFilterBtn() { return document.getElementById("ztIcFilterBtn"); }
+    function ztFilterPanel() { return document.getElementById("ztIcFilterPanel"); }
+
+    function ztHasPanelFilters() {
+        return state.filters.status !== "all" || state.filters.riskRange !== "all" || state.filters.pillar !== "all";
+    }
+
+    function syncZtFilterButton() {
+        var btn = ztFilterBtn();
+        if (!btn) return;
+        btn.classList.toggle("has-filters", PAGE_DOMAIN === "zero_trust" && ztHasPanelFilters());
+    }
+
+    function setZtPillActive(container, attr, value) {
+        if (!container) return;
+        container.querySelectorAll(".rep-pill").forEach(function (pill) {
+            var on = (pill.getAttribute(attr) || "all") === value;
+            pill.classList.toggle("is-active", on);
+            pill.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+    }
+
+    function populateZtFilterPills() {
+        if (PAGE_DOMAIN !== "zero_trust") return;
+        var statusEl = document.getElementById("ztIcStatusPills");
+        if (statusEl) {
+            var html = '<button type="button" class="rep-pill" data-status="all">All</button>';
+            domainStatusOptions().forEach(function (o) {
+                html += '<button type="button" class="rep-pill" data-status="' + escapeHtml(o.value) + '">' + escapeHtml(o.label) + "</button>";
+            });
+            statusEl.innerHTML = html;
+            setZtPillActive(statusEl, "data-status", ztFilterDraft.status);
+        }
+        setZtPillActive(document.getElementById("ztIcRiskPills"), "data-risk", ztFilterDraft.riskRange);
+        var pillarEl = document.getElementById("ztIcPillarPills");
+        if (pillarEl) {
+            var htmlP = '<button type="button" class="rep-pill" data-pillar="all">All</button>';
+            ztPillarOptions().forEach(function (o) {
+                var label = o.value === "Devices" ? "Endpoint Device" : (o.label || o.value);
+                htmlP += '<button type="button" class="rep-pill" data-pillar="' + escapeHtml(o.value) + '">' + escapeHtml(label) + "</button>";
+            });
+            pillarEl.innerHTML = htmlP;
+            setZtPillActive(pillarEl, "data-pillar", ztFilterDraft.pillar);
+        }
+        syncZtFilterButton();
+    }
+
+    function syncZtFilterDraft() {
+        ztFilterDraft.status = state.filters.status || "all";
+        ztFilterDraft.riskRange = state.filters.riskRange || "all";
+        ztFilterDraft.pillar = state.filters.pillar || "all";
+        populateZtFilterPills();
+    }
+
+    function openZtFilter() {
+        var panel = ztFilterPanel();
+        var btn = ztFilterBtn();
+        if (!panel) return;
+        syncZtFilterDraft();
+        panel.hidden = false;
+        if (btn) {
+            btn.classList.add("is-active");
+            btn.setAttribute("aria-expanded", "true");
+        }
+    }
+
+    function closeZtFilter() {
+        var panel = ztFilterPanel();
+        var btn = ztFilterBtn();
+        if (!panel) return;
+        panel.hidden = true;
+        if (btn) {
+            btn.classList.remove("is-active");
+            btn.setAttribute("aria-expanded", "false");
+        }
     }
 
     function applyFilters() {
@@ -1255,6 +1346,7 @@
             verification_method: rec._method,
             evidence: rec._evidence,
             risk_context: riskContext(rec),
+            ms_details: rec._ms || null,
             firewall: { hostname: rec._firewall, model: rec._model, version: rec._version },
             detected_at: rec._detected,
             run_id: rec._run_id,
@@ -1315,6 +1407,188 @@
         renderAll();
     }
 
+    function bindZtFilterEvents() {
+        if (PAGE_DOMAIN !== "zero_trust") return;
+        var btn = ztFilterBtn();
+        var panel = ztFilterPanel();
+        var closeBtn = document.getElementById("ztIcFilterClose");
+        var applyBtn = document.getElementById("ztIcFilterApply");
+        var resetBtn = document.getElementById("ztIcFilterReset");
+        if (btn) {
+            btn.addEventListener("click", function (event) {
+                event.stopPropagation();
+                if (panel && panel.hidden) openZtFilter(); else closeZtFilter();
+            });
+        }
+        if (closeBtn) closeBtn.addEventListener("click", closeZtFilter);
+        if (panel) {
+            panel.addEventListener("click", function (event) { event.stopPropagation(); });
+            panel.addEventListener("click", function (event) {
+                var pill = event.target.closest(".rep-pill");
+                if (!pill) return;
+                if (pill.hasAttribute("data-status")) {
+                    ztFilterDraft.status = pill.getAttribute("data-status") || "all";
+                    setZtPillActive(document.getElementById("ztIcStatusPills"), "data-status", ztFilterDraft.status);
+                } else if (pill.hasAttribute("data-risk")) {
+                    ztFilterDraft.riskRange = pill.getAttribute("data-risk") || "all";
+                    setZtPillActive(document.getElementById("ztIcRiskPills"), "data-risk", ztFilterDraft.riskRange);
+                } else if (pill.hasAttribute("data-pillar")) {
+                    ztFilterDraft.pillar = pill.getAttribute("data-pillar") || "all";
+                    setZtPillActive(document.getElementById("ztIcPillarPills"), "data-pillar", ztFilterDraft.pillar);
+                }
+            });
+        }
+        if (applyBtn) {
+            applyBtn.addEventListener("click", function () {
+                state.filters.status = ztFilterDraft.status || "all";
+                state.filters.riskRange = ztFilterDraft.riskRange || "all";
+                state.filters.pillar = ztFilterDraft.pillar || "all";
+                closeZtFilter();
+                loadData();
+            });
+        }
+        if (resetBtn) {
+            resetBtn.addEventListener("click", function () {
+                ztFilterDraft.status = "all";
+                ztFilterDraft.riskRange = "all";
+                ztFilterDraft.pillar = "all";
+                populateZtFilterPills();
+                state.filters.status = "all";
+                state.filters.riskRange = "all";
+                state.filters.pillar = "all";
+                closeZtFilter();
+                loadData();
+            });
+        }
+        document.addEventListener("click", function () { closeZtFilter(); });
+    }
+
+    var ztDetails = {
+        drawer: document.getElementById("ztIcDrawer"),
+        backdrop: document.getElementById("ztIcDrawerBackdrop"),
+        body: document.getElementById("ztIcDrawerBody"),
+        title: document.getElementById("ztIcDrawerTitle"),
+        current: null
+    };
+
+    function ztMsStatus(rec) {
+        if (rec._ms && rec._ms.status) return rec._ms.status;
+        if (rec.status === "pass" || rec.status === "compliant") return "Passed";
+        if (rec.status === "fail" || rec.status === "not_compliant") return "Failed";
+        return "Investigate";
+    }
+
+    function ztMsRisk(rec) {
+        if (rec._ms && rec._ms.risk) return rec._ms.risk;
+        var sev = String(rec.risk || "").toLowerCase();
+        if (sev === "critical" || sev === "high") return "High";
+        if (sev === "low") return "Low";
+        return "Medium";
+    }
+
+    function ztMsBadge(kind, label) {
+        return '<span class="zt-badge zt-badge-' + escapeHtml(kind) + '">' + escapeHtml(label || kind) + "</span>";
+    }
+
+    function ztMsRow(label, value) {
+        return '<div class="zt-ms-row"><span>' + escapeHtml(label) + "</span><strong>" + escapeHtml(value || "Unavailable") + "</strong></div>";
+    }
+
+    function ztEvidenceTableHtml(table) {
+        if (!table || !table.columns || !table.rows || !table.rows.length) return "";
+        var head = table.columns.map(function (col) {
+            return "<th>" + escapeHtml(col.label || col.key) + "</th>";
+        }).join("");
+        var body = table.rows.map(function (row) {
+            return "<tr>" + table.columns.map(function (col) {
+                return "<td>" + escapeHtml(row[col.key] == null ? "" : row[col.key]) + "</td>";
+            }).join("") + "</tr>";
+        }).join("");
+        var more = table.truncated ? '<p class="zt-ms-more">Showing ' + table.rows.length + " of " + table.total + "</p>" : "";
+        return '<section class="zt-ms-table-wrap"><h4>' + escapeHtml(table.title) + '</h4><div class="zt-ms-table-scroll"><table class="zt-ms-table"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>' + more + "</section>";
+    }
+
+    function openZtDetails(rec) {
+        if (!ztDetails.drawer || !rec) return;
+        ztDetails.current = rec;
+        var ms = rec._ms || {};
+        if (ztDetails.title) ztDetails.title.textContent = ms.name || rec._check || rec.control || "Control details";
+        var finding = ms.impact || rec._gap || rec._finding || ms.description || "No finding summary returned.";
+        var actions = (ms.remediationActions && ms.remediationActions.length)
+            ? ms.remediationActions
+            : (rec._remediation ? [rec._remediation] : (ms.recommendation ? [ms.recommendation] : []));
+        var tables = (ms.evidenceTables || []).map(ztEvidenceTableHtml).join("");
+        var docs = [];
+        if (ms.documentationUrl) docs.push('<a href="' + escapeHtml(ms.documentationUrl) + '" target="_blank" rel="noopener noreferrer">Learn more</a>');
+        if (ms.portalUrl) docs.push('<a href="' + escapeHtml(ms.portalUrl) + '" target="_blank" rel="noopener noreferrer">Open portal</a>');
+        var rc = riskContext(rec);
+        ztDetails.body.innerHTML =
+            '<div class="zt-ms">' +
+            ztMsRow("Risk", ztMsRisk(rec)) +
+            ztMsRow("User Impact", ms.userImpact) +
+            ztMsRow("Implementation Effort", ms.implementationEffort) +
+            ztMsRow("Test ID", ms.id || rec.control) +
+            ztMsRow("License", ms.license) +
+            '<div class="zt-ms-result"><span>Test result</span>' + ztMsBadge(ztMsStatus(rec), rec.status_label || ztMsStatus(rec)) + "</div>" +
+            '<p class="zt-ms-finding">' + escapeHtml(finding) + "</p>" +
+            tables +
+            (ms.error ? '<section class="zt-ms-block is-error"><h4>Error</h4><p>' + escapeHtml(ms.error.message || ms.error) + "</p></section>" : "") +
+            '<section class="zt-ms-block"><h4>What was checked</h4><p>' + escapeHtml(ms.whatWasChecked || rec._check || "No check summary returned.") + "</p>" +
+            (ms.howToCheck ? "<p>" + escapeHtml(ms.howToCheck) + "</p>" : "") +
+            "</section>" +
+            '<section class="zt-ms-block"><h4>Remediation action</h4>' +
+            (actions.length ? "<ul>" + actions.map(function (item) { return "<li>" + escapeHtml(item) + "</li>"; }).join("") + "</ul>" : "<p>No remediation summary returned.</p>") +
+            (docs.length ? '<p class="zt-ms-links">' + docs.join(" · ") + "</p>" : "") +
+            "</section>" +
+            '<section class="zt-ms-block"><h4>Risk context</h4>' +
+            '<div class="risk-context-grid">' +
+            '<div class="rc-item"><span class="rc-label">Business Impact</span><span class="rc-value">' + escapeHtml(rc.impact) + "</span></div>" +
+            '<div class="rc-item"><span class="rc-label">Likelihood</span><span class="rc-value">' + escapeHtml(rc.likelihood) + "</span></div>" +
+            '<div class="rc-item"><span class="rc-label">Exploitability</span><span class="rc-value">' + escapeHtml(rc.exploit) + "</span></div>" +
+            '<div class="rc-item"><span class="rc-label">Risk Trend</span><span class="rc-value">' + escapeHtml(rc.trend) + "</span></div>" +
+            "</div></section>" +
+            '<div class="zt-ms-actions">' +
+            '<button class="action-btn ai" type="button" data-zt-act="copilot">' + ICONS.spark + " Copilot</button>" +
+            '<button class="action-btn" type="button" data-zt-act="export">Export JSON</button>' +
+            "</div>" +
+            "</div>";
+        ztDetails.drawer.hidden = false;
+        if (ztDetails.backdrop) ztDetails.backdrop.hidden = false;
+        requestAnimationFrame(function () {
+            ztDetails.drawer.classList.add("is-open");
+            if (ztDetails.backdrop) ztDetails.backdrop.classList.add("is-open");
+        });
+    }
+
+    function closeZtDetails() {
+        if (!ztDetails.drawer) return;
+        ztDetails.drawer.classList.remove("is-open");
+        if (ztDetails.backdrop) ztDetails.backdrop.classList.remove("is-open");
+        setTimeout(function () {
+            ztDetails.drawer.hidden = true;
+            if (ztDetails.backdrop) ztDetails.backdrop.hidden = true;
+        }, 180);
+        ztDetails.current = null;
+    }
+
+    function bindZtDetailsEvents() {
+        var closeBtn = document.getElementById("ztIcDrawerClose");
+        if (closeBtn) closeBtn.addEventListener("click", closeZtDetails);
+        if (ztDetails.backdrop) ztDetails.backdrop.addEventListener("click", closeZtDetails);
+        if (ztDetails.body) {
+            ztDetails.body.addEventListener("click", function (e) {
+                var btn = e.target.closest("[data-zt-act]");
+                if (!btn || !ztDetails.current) return;
+                var act = btn.getAttribute("data-zt-act");
+                if (act === "copilot") openCopilot(ztDetails.current);
+                else if (act === "export") {
+                    downloadJson((ztDetails.current.control || "finding") + "_finding.json", buildExportPayload(ztDetails.current));
+                    if (window.showToast) window.showToast("Exported " + ztDetails.current.control + ".", "success");
+                }
+            });
+        }
+    }
+
     // ============================================================
     // EVENT BINDING
     // ============================================================
@@ -1352,6 +1626,11 @@
 
             var card = e.target.closest(".finding-card");
             if (card) {
+                if (PAGE_DOMAIN === "zero_trust") {
+                    var rec = findRecord(card.getAttribute("data-control"), card.getAttribute("data-fw"));
+                    if (rec) openZtDetails(rec);
+                    return;
+                }
                 var wasActive = card.classList.contains("is-active");
                 card.classList.toggle("is-active");
                 card.setAttribute("aria-expanded", String(!wasActive));
@@ -1361,6 +1640,11 @@
         root.addEventListener("keydown", function (e) {
             if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("finding-card")) {
                 e.preventDefault();
+                if (PAGE_DOMAIN === "zero_trust") {
+                    var rec = findRecord(e.target.getAttribute("data-control"), e.target.getAttribute("data-fw"));
+                    if (rec) openZtDetails(rec);
+                    return;
+                }
                 e.target.classList.toggle("is-active");
                 e.target.setAttribute("aria-expanded", String(e.target.classList.contains("is-active")));
             }
@@ -1483,6 +1767,14 @@
                 loadData();
             });
         }
+        var ztDateInput = document.getElementById("ztDateInput");
+        if (ztDateInput) {
+            ztDateInput.addEventListener("change", function () {
+                state.filters.date = ztDateInput.value || "all";
+                loadData();
+            });
+        }
+        bindZtFilterEvents();
 
         var activeFilters = document.getElementById("activeFilters");
         if (activeFilters) {
@@ -1537,8 +1829,9 @@
         }
 
         document.addEventListener("keydown", function (e) {
-            if (e.key === "Escape") { closeCopilot(); closeEvidence(); }
+            if (e.key === "Escape") { closeCopilot(); closeEvidence(); closeZtDetails(); closeZtFilter(); }
         });
+        bindZtDetailsEvents();
     }
 
     function findRecord(cid, fw) {
@@ -1662,6 +1955,7 @@
         populateFirewallSelect();
         populateDateSelect();
         populateViewSelect();
+        syncZtFilterDraft();
         if (sortSelect) sortSelect.value = state.filters.sort;
         if (searchInput) searchInput.value = state.filters.search || "";
         syncFilterChips();
@@ -1673,12 +1967,10 @@
 
     function reflectTabUI() {
         var zt = PAGE_DOMAIN === "zero_trust";
-        ["categoryField", "severityField", "sortField", "viewField", "resetField"].forEach(function (id) {
+        ["categoryField", "severityField", "sortField", "viewField", "resetField", "statusField", "riskField", "pillarField"].forEach(function (id) {
             var el = document.getElementById(id);
             if (el) el.hidden = zt;
         });
-        var pillarField = document.getElementById("pillarField");
-        if (pillarField) pillarField.hidden = !zt;
         var fwField = document.querySelector(".fw-combo-group");
         if (fwField) fwField.hidden = zt;
         if (zt) {

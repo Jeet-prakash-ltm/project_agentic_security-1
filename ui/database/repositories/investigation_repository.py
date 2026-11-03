@@ -631,6 +631,28 @@ class InvestigationRepository:
             for row in rows
         ]
 
+    def evidence_map(self, assessment_id):
+        """Collector payloads for one assessment, keyed like Cloud Security evidence."""
+        if not assessment_id or self.session is None:
+            return {}
+        rows = self.session.execute(
+            text(
+                """
+                SELECT pillar, collector, evidence_type, source, payload
+                FROM assessment_evidence
+                WHERE assessment_id = :assessment_id
+                ORDER BY collector
+                """
+            ),
+            {"assessment_id": assessment_id},
+        ).mappings()
+        evidence = {}
+        for item in rows:
+            collector = item["collector"] or item["pillar"]
+            if collector:
+                evidence[collector] = _json(item["payload"])
+        return evidence
+
     def evidence_payload(self, assessment_id, evidence_id=None, collector=None, pillar=None):
         """Full payload for exactly one evidence row."""
         where = ["assessment_id = :assessment_id"]

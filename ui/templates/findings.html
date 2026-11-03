@@ -104,7 +104,7 @@
                 <option value="all">Latest per scope</option>
             </select>
         </div>
-        <div class="filter-group toolbar-field" id="pillarField"{% if findings_view != 'zero_trust' %} hidden{% endif %}>
+        <div class="filter-group toolbar-field" id="pillarField"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
             <label class="filter-label" for="pillarSelect">Pillar</label>
             <select id="pillarSelect" class="filter-select">
                 <option value="all">All pillars</option>
@@ -126,7 +126,7 @@
                 <option value="low">Low</option>
             </select>
         </div>
-        <div class="filter-group toolbar-field" id="statusField">
+        <div class="filter-group toolbar-field" id="statusField"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
             <label class="filter-label" for="statusSelect">Status</label>
             <select id="statusSelect" class="filter-select">
                 <option value="all">All</option>
@@ -144,7 +144,7 @@
             </div>
             <select id="firewallSelect" class="filter-select" hidden><option value="all">All</option></select>
         </div>
-        <div class="filter-group toolbar-field" id="riskField">
+        <div class="filter-group toolbar-field" id="riskField"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
             <label class="filter-label" for="riskRangeSelect">{{ 'Risk' if findings_view == 'zero_trust' else 'Risk Score' }}</label>
             <select id="riskRangeSelect" class="filter-select">
                 <option value="all">All</option>
@@ -155,9 +155,54 @@
             </select>
         </div>
         <div class="filter-group toolbar-field" id="dateField">
-            <label class="filter-label" for="dateSelect">Assessed</label>
+            <label class="filter-label" for="{{ 'ztDateInput' if findings_view == 'zero_trust' else 'dateSelect' }}">Assessed</label>
+            {% if findings_view == 'zero_trust' %}
+            <input type="date" id="ztDateInput" class="filter-select zt-date-input" aria-label="Assessed date">
+            <select id="dateSelect" class="filter-select" hidden><option value="all">All dates</option></select>
+            {% else %}
             <select id="dateSelect" class="filter-select"><option value="all">All dates</option></select>
+            {% endif %}
         </div>
+        {% if findings_view == 'zero_trust' %}
+        <div class="filter-group toolbar-field" id="ztFilterField">
+            <label class="filter-label" for="ztIcFilterBtn">Filters</label>
+            <div class="reports-filter" id="ztIcFilterWrap">
+                <button type="button" class="reports-filter-btn" id="ztIcFilterBtn" aria-label="Filters" aria-haspopup="true" aria-expanded="false" aria-controls="ztIcFilterPanel">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v5l-4 2v-7L3 5z"/></svg>
+                </button>
+                <div class="reports-filter-panel" id="ztIcFilterPanel" hidden>
+                    <div class="rep-filter-head">
+                        <span class="rep-filter-title">Filter</span>
+                        <button type="button" class="rep-filter-close" id="ztIcFilterClose" aria-label="Close filters">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                    <div class="rep-filter-section">
+                        <span class="rep-filter-label">Status</span>
+                        <div class="rep-filter-pills" id="ztIcStatusPills" role="group" aria-label="Status"></div>
+                    </div>
+                    <div class="rep-filter-section">
+                        <span class="rep-filter-label">Risk</span>
+                        <div class="rep-filter-pills" id="ztIcRiskPills" role="group" aria-label="Risk">
+                            <button type="button" class="rep-pill is-active" data-risk="all" aria-pressed="true">All</button>
+                            <button type="button" class="rep-pill" data-risk="critical" aria-pressed="false">Critical</button>
+                            <button type="button" class="rep-pill" data-risk="high" aria-pressed="false">High</button>
+                            <button type="button" class="rep-pill" data-risk="medium" aria-pressed="false">Medium</button>
+                            <button type="button" class="rep-pill" data-risk="low" aria-pressed="false">Low</button>
+                        </div>
+                    </div>
+                    <div class="rep-filter-section">
+                        <span class="rep-filter-label">Pillar</span>
+                        <div class="rep-filter-pills" id="ztIcPillarPills" role="group" aria-label="Pillar"></div>
+                    </div>
+                    <div class="rep-filter-actions">
+                        <button type="button" class="btn btn-ghost rep-filter-reset" id="ztIcFilterReset">Reset</button>
+                        <button type="button" class="btn btn-primary rep-filter-apply" id="ztIcFilterApply">Apply</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
         <div class="filter-group toolbar-field" id="sortField"{% if findings_view == 'zero_trust' %} hidden{% endif %}>
             <label class="filter-label" for="sortSelect">Sort</label>
             <select id="sortSelect" class="filter-select">
@@ -243,6 +288,16 @@
 </div>
 
 {% if findings_view == 'zero_trust' %}
+<div class="fw-drawer-backdrop" id="ztIcDrawerBackdrop" hidden></div>
+<aside class="fw-drawer zt-drawer" id="ztIcDrawer" hidden aria-label="Assessment result details">
+    <div class="fw-drawer-head">
+        <h3 id="ztIcDrawerTitle">Control details</h3>
+        <button type="button" class="fw-drawer-close" id="ztIcDrawerClose" aria-label="Close details">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+    </div>
+    <div class="fw-drawer-body" id="ztIcDrawerBody"></div>
+</aside>
 <div class="modal-backdrop" id="ztConfirmModal" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ztConfirmTitle">
         <div class="modal-head">
@@ -272,6 +327,6 @@
 {% block scripts %}
 {% if not assessment_blocked %}
 <script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=8"></script>
-<script src="{{ url_for('static', filename='js/findings.js') }}?v=20"></script>
+<script src="{{ url_for('static', filename='js/findings.js') }}?v=21"></script>
 {% endif %}
 {% endblock %}

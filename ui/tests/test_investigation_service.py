@@ -20,6 +20,7 @@ from services.investigation_service import (  # noqa: E402
     FINDINGS_VIEW_DOMAINS,
     STATUS_VOCABULARY,
     _clean_filters,
+    attach_zero_trust_details,
     get_evidence,
     resolve_findings_view,
 )
@@ -162,6 +163,43 @@ class RowMappingTests(unittest.TestCase):
         repo = InvestigationRepository(session=None)
         mapped = repo._finding_row(self._row(finding={"a": 1}))
         self.assertIn('"a": 1', mapped["finding"])
+
+
+class ZeroTrustDetailsTests(unittest.TestCase):
+    def test_network_rows_are_unchanged(self):
+        records = [{"domain": "network_security", "control_id": "PA-02"}]
+        attach_zero_trust_details(records, {})
+        self.assertNotIn("ms_details", records[0])
+
+    def test_zero_trust_row_gets_catalog_fields(self):
+        records = [
+            {
+                "domain": "zero_trust",
+                "assessment_id": "A1",
+                "control_id": "ZT-ID-ID02-MFA",
+                "control_name": "ZT-ID-ID02-MFA",
+                "title": "MFA coverage",
+                "detail": "Registration is below 80%.",
+                "finding": "Registration is below 80%.",
+                "pillar": "Identity",
+                "category": "Authentication",
+                "status": "fail",
+                "severity": "high",
+                "remediation": "Require MFA for all users",
+                "completed_at": "2026-11-03T00:00:00Z",
+            }
+        ]
+        attach_zero_trust_details(records, {"A1": {}})
+        details = records[0]["ms_details"]
+        self.assertEqual(details["id"], "ZT-ID-ID02-MFA")
+        self.assertEqual(details["userImpact"], "Medium")
+        self.assertEqual(details["implementationEffort"], "High")
+        self.assertEqual(details["license"], "Free")
+        self.assertTrue(details["whatWasChecked"])
+        self.assertTrue(details["howToCheck"])
+        self.assertGreaterEqual(len(details["remediationActions"]), 1)
+        self.assertIn("documentationUrl", details)
+        self.assertIsInstance(details["evidenceTables"], list)
 
 
 class EvidenceValidationTests(unittest.TestCase):

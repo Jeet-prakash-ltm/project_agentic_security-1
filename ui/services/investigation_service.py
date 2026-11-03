@@ -19,6 +19,8 @@ from database.repositories.investigation_repository import (
     status_label,
 )
 from database.db import get_session
+from services.zero_trust_adapter import adapt_finding
+from services.zero_trust_test_details import enrich_test
 
 log = logging.getLogger(__name__)
 
@@ -114,6 +116,50 @@ def _clean_filters(args):
     return filters
 
 
+def attach_zero_trust_details(records, evidence_by_assessment=None):
+    """Attach Cloud Security catalog, evidence tables, and links to Zero Trust rows."""
+    evidence_by_assessment = evidence_by_assessment or {}
+    for rec in records or []:
+        if rec.get("domain") != "zero_trust":
+            continue
+        test = enrich_test(
+            adapt_finding(
+                {
+                    "id": rec.get("control_id") or rec.get("control_name") or rec.get("id"),
+                    "title": rec.get("title") or rec.get("control_name"),
+                    "detail": rec.get("detail") or rec.get("finding"),
+                    "pillar": rec.get("pillar"),
+                    "category": rec.get("category"),
+                    "status": rec.get("status"),
+                    "severity": rec.get("severity"),
+                    "remediation": rec.get("remediation"),
+                },
+                rec.get("completed_at"),
+            ),
+            evidence_by_assessment.get(rec.get("assessment_id")) or {},
+        )
+        rec["ms_details"] = {
+            "id": test.get("id"),
+            "name": test.get("name"),
+            "risk": test.get("risk"),
+            "status": test.get("status"),
+            "userImpact": test.get("userImpact"),
+            "implementationEffort": test.get("implementationEffort"),
+            "license": test.get("license"),
+            "whatWasChecked": test.get("whatWasChecked"),
+            "howToCheck": test.get("howToCheck"),
+            "remediationActions": test.get("remediationActions") or [],
+            "evidenceTables": test.get("evidenceTables") or [],
+            "documentationUrl": test.get("documentationUrl"),
+            "portalUrl": test.get("portalUrl"),
+            "description": test.get("description"),
+            "impact": test.get("impact"),
+            "recommendation": test.get("recommendation"),
+            "error": test.get("error"),
+        }
+    return records
+
+
 def get_findings(args=None, session=None, limit=DEFAULT_LIMIT, offset=0):
     filters = _clean_filters(args or {})
     try:
@@ -124,6 +170,16 @@ def get_findings(args=None, session=None, limit=DEFAULT_LIMIT, offset=0):
 
     repo = _repo(session)
     records = repo.list_findings(filters, limit=limit, offset=offset)
+    try:
+        zt_ids = {
+            rec.get("assessment_id")
+            for rec in records
+            if rec.get("domain") == "zero_trust" and rec.get("assessment_id")
+        }
+        evidence_by_assessment = {aid: repo.evidence_map(aid) for aid in zt_ids}
+        attach_zero_trust_details(records, evidence_by_assessment)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Zero Trust finding details enrichment failed: %s", exc)
     summary = repo.summary(filters)
     facets = repo.facets()
     return {

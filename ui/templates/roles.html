@@ -7,14 +7,19 @@
 {% block hero_eyebrow %}Settings / Roles{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=45">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=46">
 {% endblock %}
 
 {% block content %}
 
 <div class="settings-header">
     <div>
-        <h1>Roles</h1>
+        <div class="page-title-line">
+            <h1>Roles</h1>
+            {% with page_info_label="About roles", page_info_text="Roles assigns Admin, Security Analyst, or Viewer. Users without a role cannot sign in." %}
+            {% include "_page_info.html" %}
+            {% endwith %}
+        </div>
         <p>Assign Admin, Security Analyst, or Viewer. Users without a role cannot sign in.</p>
     </div>
 </div>
@@ -96,5 +101,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=21"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=22"></script>
 {% endblock %}

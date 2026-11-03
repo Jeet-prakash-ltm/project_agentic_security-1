@@ -36,6 +36,12 @@
 
 <div class="zt-app" id="ztApp" data-view="{{ zt_view }}" data-configured="{{ '1' if zt_configured else '0' }}" data-admin="{{ '1' if is_admin else '0' }}" data-user="{{ current_user.name if current_user else '' }}">
     <div class="zt-shell">
+        <div class="page-title-line zt-page-title">
+            <h1>Cloud Security</h1>
+            {% with page_info_label="About cloud security", page_info_text="Cloud Security dashboard shows Zero Trust assessment results across identity, devices, network, data, and infrastructure." %}
+            {% include "_page_info.html" %}
+            {% endwith %}
+        </div>
         <nav class="zt-page-tabs" id="ztPageTabs" role="tablist" aria-label="Cloud Security views">
             {% for key, label in zt_tabs %}
             <a href="{{ url_for('dashboard_cloud_security', view=key) if key != 'overview' else url_for('dashboard_cloud_security') }}"

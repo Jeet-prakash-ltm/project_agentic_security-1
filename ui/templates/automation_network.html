@@ -9,6 +9,12 @@
 {% block content %}
 
 <div class="auto-ns-layout">
+    <div class="page-title-line">
+        <h1>Network Security</h1>
+        {% with page_info_label="About automation hub", page_info_text="Automation Hub Network Security executes approved firewall changes from an Excel workbook against a selected device." %}
+        {% include "_page_info.html" %}
+        {% endwith %}
+    </div>
     <section class="card auto-ns-panel">
         <div class="auto-ns-panel-head">
             <h3>Change Excution</h3>

@@ -7,11 +7,19 @@
     margin-bottom: 24px;
 }
 
+.insights-header .page-title-line {
+    margin-bottom: 0;
+}
+
 .insights-header h1 {
     font-size: 28px;
     font-weight: 700;
     letter-spacing: -0.02em;
     margin-bottom: 5px;
+}
+
+.insights-header .page-title-line h1 {
+    margin-bottom: 0;
 }
 
 .insights-header p {

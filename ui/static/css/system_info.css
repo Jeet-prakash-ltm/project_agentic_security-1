@@ -16,6 +16,22 @@
     box-shadow: var(--shadow-soft);
 }
 
+.sys-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.sys-page-header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
 .sys-count-chip {
     display: inline-flex;
     align-items: center;
@@ -35,6 +51,11 @@
     grid-template-columns: repeat(auto-fill, minmax(200px, 232px));
     gap: 16px;
     justify-content: start;
+}
+
+.sys-agent-grid .agent-card.is-master {
+    grid-column: 1 / -1;
+    max-width: 232px;
 }
 
 .sys-agent-note {

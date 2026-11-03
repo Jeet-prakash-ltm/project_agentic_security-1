@@ -4,6 +4,13 @@
     gap: 18px;
 }
 
+.auto-ns-layout > .page-title-line h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
 .auto-ns-terminal-card,
 .auto-ns-panel {
     padding: 20px 22px 22px;

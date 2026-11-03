@@ -10,7 +10,12 @@
 
 <div class="insights-header">
     <div>
-        <h1>Agent Insights</h1>
+        <div class="page-title-line">
+            <h1>Agent Insights</h1>
+            {% with page_info_label="About agent insights", page_info_text="Agent Insights tracks cost, live connectivity, and token or latency history for each registered agent." %}
+            {% include "_page_info.html" %}
+            {% endwith %}
+        </div>
         <p>Cost observability plus live agent connectivity and token/latency history tracked per agent.</p>
     </div>
     <div class="insights-header-actions">

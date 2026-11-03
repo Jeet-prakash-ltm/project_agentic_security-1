@@ -10,7 +10,12 @@
 
 <div class="telemetry-header">
     <div>
-        <h1>Telemetry Map</h1>
+        <div class="page-title-line">
+            <h1>Telemetry Map</h1>
+            {% with page_info_label="About telemetry map", page_info_text="Telemetry Map replays the infrastructure graph behind the selected agent, including entities, dependencies, and live telemetry." %}
+            {% include "_page_info.html" %}
+            {% endwith %}
+        </div>
         <p>Replay the infrastructure graph behind the selected agent — entities, dependencies, and live telemetry.</p>
     </div>
     <label class="map-agent-select">

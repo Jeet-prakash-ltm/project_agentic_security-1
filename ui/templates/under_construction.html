@@ -8,6 +8,13 @@
 
 {% block content %}
 
+<div class="page-title-line">
+    <h1>{{ page_heading }}</h1>
+    {% with page_info_label="About this page", page_info_text=hero_text %}
+    {% include "_page_info.html" %}
+    {% endwith %}
+</div>
+
 <section class="card page-placeholder">
     <div class="placeholder-inner">
         <span class="placeholder-mark" aria-hidden="true">

@@ -10,7 +10,12 @@
 
 <div class="settings-header">
     <div>
-        <h1>Settings</h1>
+        <div class="page-title-line">
+            <h1>Settings</h1>
+            {% with page_info_label="About settings", page_info_text="Settings is the control plane for users, roles, inventory, baselines, and registered AI agents." %}
+            {% include "_page_info.html" %}
+            {% endwith %}
+        </div>
         <p>Choose a section from the Settings menu: User Management, Roles, Inventory{% if is_admin %}, or Agents{% endif %}.</p>
     </div>
 </div>

@@ -25,6 +25,8 @@
 }
 
 .workspace-page .main {
+    display: flex;
+    flex-direction: column;
     flex: 1;
     min-height: 0;
     max-width: none;
@@ -33,12 +35,26 @@
     overflow: hidden;
 }
 
+.ws-page-heading {
+    flex: 0 0 auto;
+    padding: 14px 20px 8px 0;
+}
+
+.ws-page-heading h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
 .ws-shell {
     position: relative;
-    height: 100%;
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
     display: flex;
     align-items: stretch;
-    padding: 12px 20px 20px 0;
+    padding: 4px 20px 20px 0;
     box-sizing: border-box;
 }
 

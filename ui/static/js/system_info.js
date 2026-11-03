@@ -12,17 +12,31 @@
     var countChip = document.getElementById("agentCountChip");
 
     /* Core capabilities, keyed by the agent registry id. */
+    var MASTER_ID = "master-orchestrator-agent";
+
     var CAPABILITIES = {
+        "master-orchestrator-agent":
+            "Coordinates network, cloud, and firewall specialist agents so operators can assess, investigate, and change security posture from one conversation.",
         "firewall-audit-agent":
             "Performs compliance assessments, generates executive summaries and reports, and delivers prioritised security findings with clear remediation recommendations.",
         "netsec-execution-agent":
             "Automates rule and policy lifecycle management, object management and network management across Palo Alto firewalls.",
         "incident-response-agent-cloud-security":
-            "Delivers cloud security posture management (CSPM), integrates Microsoft Defender for Cloud and Microsoft Sentinel, analyses incidents, and performs cloud containment actions and security responses."
+            "Delivers cloud security posture management (CSPM), integrates Microsoft Defender for Cloud and Microsoft Sentinel, analyses incidents, and performs cloud containment actions and security responses.",
+        "zero-trust-assessment-agent":
+            "Runs Zero Trust assessments across identity, devices, network, data, and infrastructure, then returns scored findings and remediation guidance."
     };
 
     /* Fallback matching for agents that are not in the registry map. */
     var CAPABILITY_RULES = [
+        {
+            keys: ["maestro", "orchestrator", "master"],
+            text: CAPABILITIES["master-orchestrator-agent"]
+        },
+        {
+            keys: ["zero trust", "zero-trust"],
+            text: CAPABILITIES["zero-trust-assessment-agent"]
+        },
         {
             keys: ["audit", "firewall audit"],
             text: CAPABILITIES["firewall-audit-agent"]
@@ -93,7 +107,7 @@
             ? '<span class="agent-card-type">' + escapeHtml(agent.type) + "</span>"
             : "";
         return (
-            '<article class="agent-card" tabindex="0" aria-label="' + escapeHtml(name) + '">' +
+            '<article class="agent-card' + (String(agent.id || "") === MASTER_ID ? " is-master" : "") + '" tabindex="0" aria-label="' + escapeHtml(name) + '">' +
             '<div class="agent-card-body">' +
             '<span class="agent-avatar" aria-hidden="true">' + escapeHtml(initials(name)) + "</span>" +
             '<strong class="agent-card-name">' + escapeHtml(name) + "</strong>" +
@@ -122,7 +136,15 @@
         if (countChip) {
             countChip.textContent = "Total " + agents.length;
         }
-        grid.innerHTML = agents.map(cardHtml).join("");
+        var ordered = agents.slice().sort(function (a, b) {
+            var aMaster = String(a.id || "") === MASTER_ID ? 0 : 1;
+            var bMaster = String(b.id || "") === MASTER_ID ? 0 : 1;
+            if (aMaster !== bMaster) {
+                return aMaster - bMaster;
+            }
+            return String(a.name || "").localeCompare(String(b.name || ""));
+        });
+        grid.innerHTML = ordered.map(cardHtml).join("");
     }
 
     function load() {

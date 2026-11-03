@@ -7,14 +7,19 @@
 {% block hero_eyebrow %}Settings / Agents{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=44">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=46">
 {% endblock %}
 
 {% block content %}
 
 <div class="settings-header">
     <div>
-        <h1>Agents</h1>
+        <div class="page-title-line">
+            <h1>Agents</h1>
+            {% with page_info_label="About agents", page_info_text="Register and manage AI agents. Types are limited to Network Security Agent or Cloud Security Agent." %}
+            {% include "_page_info.html" %}
+            {% endwith %}
+        </div>
     </div>
     {% if is_admin %}
     <div class="settings-header-actions">
@@ -77,10 +82,8 @@
                 <input type="text" id="agentName" placeholder="Agent name" autocomplete="off">
                 <select id="agentType">
                     <option value="" disabled selected>Type of agent</option>
-                    <option value="Network security Query agent">Network security Query agent</option>
-                    <option value="Network security Action agent">Network security Action agent</option>
-                    <option value="Cloud security Query agent">Cloud security Query agent</option>
-                    <option value="Cloud security Action agent">Cloud security Action agent</option>
+                    <option value="Network Security Agent">Network Security Agent</option>
+                    <option value="Cloud Security Agent">Cloud Security Agent</option>
                 </select>
                 <input type="url" id="agentEndpoint" placeholder="API Endpoint" autocomplete="off">
                 <input type="password" id="agentKey" placeholder="API KEY" autocomplete="new-password">
@@ -94,5 +97,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=20"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=22"></script>
 {% endblock %}

@@ -1390,13 +1390,21 @@ def api_agents_add():
             {"error": "Name, type, endpoint, and API key are required."}
         ), 400
 
-    agent = agents_service.add_agent(
-        name=name,
-        type_name=type_name,
-        endpoint=endpoint,
-        api_key=api_key,
-        model=(payload.get("model") or "gpt-5.1").strip(),
-    )
+    if type_name not in agents_service.DISPLAY_AGENT_TYPES:
+        return jsonify(
+            {"error": "Type must be Network Security Agent or Cloud Security Agent."}
+        ), 400
+
+    try:
+        agent = agents_service.add_agent(
+            name=name,
+            type_name=type_name,
+            endpoint=endpoint,
+            api_key=api_key,
+            model=(payload.get("model") or "gpt-5.1").strip(),
+        )
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     return jsonify({"status": "connected", "agent": agent}), 201
 

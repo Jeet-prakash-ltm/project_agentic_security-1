@@ -10,6 +10,15 @@
 
 {% block content %}
 
+<div class="ws-page-heading">
+    <div class="page-title-line">
+        <h1>Chat</h1>
+        {% with page_info_label="About AI workspace chat", page_info_text="AI Workspace Chat is the copilot session where Maestro AI coordinates specialist agents for assessments, investigations, and approved changes." %}
+        {% include "_page_info.html" %}
+        {% endwith %}
+    </div>
+</div>
+
 <div class="ws-shell" id="wsShell">
 
     <!-- ============================================================

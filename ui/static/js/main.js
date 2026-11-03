@@ -433,6 +433,29 @@
         reset();
     })();
 
+    document.addEventListener("click", function (event) {
+        var button = event.target.closest(".reports-info-btn");
+        var openButtons = document.querySelectorAll(".reports-info-btn.is-open");
+        var i;
+        if (button) {
+            event.preventDefault();
+            var willOpen = !button.classList.contains("is-open");
+            for (i = 0; i < openButtons.length; i += 1) {
+                openButtons[i].classList.remove("is-open");
+                openButtons[i].setAttribute("aria-expanded", "false");
+            }
+            if (willOpen) {
+                button.classList.add("is-open");
+                button.setAttribute("aria-expanded", "true");
+            }
+            return;
+        }
+        for (i = 0; i < openButtons.length; i += 1) {
+            openButtons[i].classList.remove("is-open");
+            openButtons[i].setAttribute("aria-expanded", "false");
+        }
+    });
+
     // Redirect to sign-in when an API call reports an expired session.
     (function handleExpiredSession() {
         var logoutUrl = document.body.getAttribute("data-logout-url");

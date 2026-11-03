@@ -31,7 +31,18 @@
 
 <div class="findings-header">
     <div>
-        <h1>{{ findings_page_label }}</h1>
+        <div class="page-title-line">
+            <h1>{{ findings_page_label }}</h1>
+            {% if findings_view == 'zero_trust' %}
+            {% with page_info_label="About Zero Trust Assessment", page_info_text="Zero Trust Assessment shows Cloud Security findings across identity, devices, network, data, and infrastructure." %}
+            {% include "_page_info.html" %}
+            {% endwith %}
+            {% else %}
+            {% with page_info_label="About Firewall Audit Assessment", page_info_text="Firewall Audit Assessment lists Network Security findings, evidence, and recommended remediations from the Firewall Audit Agent." %}
+            {% include "_page_info.html" %}
+            {% endwith %}
+            {% endif %}
+        </div>
     </div>
     <div class="findings-header-actions">
         {% if findings_view == 'firewall_audit' %}

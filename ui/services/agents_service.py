@@ -56,12 +56,29 @@ def mask_key(key):
     return "••••••••" + key[-4:]
 
 
+ALLOWED_AGENT_TYPES = (
+    "Network Security Agent",
+    "Cloud Security Agent",
+    "Master Orchestrator",
+)
+
+DISPLAY_AGENT_TYPES = (
+    "Network Security Agent",
+    "Cloud Security Agent",
+)
+
+
 def slugify(name):
     slug = re.sub(r"[^a-z0-9]+", "-", name.strip().lower())
     return slug.strip("-") or "agent"
 
 
 def add_agent(name, type_name, endpoint, api_key, model="gpt-5.1", connected=True):
+    type_name = (type_name or "").strip()
+    if type_name not in ALLOWED_AGENT_TYPES:
+        raise ValueError(
+            "Type must be Network Security Agent or Cloud Security Agent."
+        )
     repo = _repo()
     agent_id = slugify(name)
     existing = repo.get(agent_id)

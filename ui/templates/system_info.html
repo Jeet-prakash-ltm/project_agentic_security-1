@@ -9,10 +9,12 @@
 {% block content %}
 
 <section class="card sys-agents-panel">
-    <div class="section-head">
-        <div>
-            <h3>Agents</h3>
-            <span class="section-sub">Registered AI agents and their live reachability</span>
+    <div class="sys-page-header">
+        <div class="page-title-line">
+            <h1>Agents</h1>
+            {% with page_info_label="About workspace agents", page_info_text="AI Workspace Agents shows registered copilots and live reachability. Master Orchestrator sits on the top row; remaining agents are Network Security or Cloud Security." %}
+            {% include "_page_info.html" %}
+            {% endwith %}
         </div>
         <span class="sys-count-chip" id="agentCountChip">Total —</span>
     </div>
@@ -24,5 +26,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/system_info.js') }}?v=3"></script>
+<script src="{{ url_for('static', filename='js/system_info.js') }}?v=4"></script>
 {% endblock %}

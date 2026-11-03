@@ -12,6 +12,9 @@
     <div class="reports-title-wrap">
         <div class="reports-title-line">
             <h1>Execution Job History</h1>
+            {% with page_info_label="About jobs", page_info_text="Jobs lists Automation Hub execution history, including status, target firewall, and change results." %}
+            {% include "_page_info.html" %}
+            {% endwith %}
             <span class="reports-count" id="autoJobsCount">—</span>
         </div>
     </div>

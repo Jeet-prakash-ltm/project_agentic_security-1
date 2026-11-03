@@ -1014,7 +1014,13 @@
     }
 
     function renderAgents(agents) {
-        var rows = agents.map(function (agent) {
+        var ordered = (agents || []).slice().sort(function (a, b) {
+            var aMaster = String(a.id || "") === "master-orchestrator-agent" ? 0 : 1;
+            var bMaster = String(b.id || "") === "master-orchestrator-agent" ? 0 : 1;
+            if (aMaster !== bMaster) return aMaster - bMaster;
+            return String(a.name || "").localeCompare(String(b.name || ""));
+        });
+        var rows = ordered.map(function (agent) {
             var actions = isAgentsAdmin
                 ? '<td class="users-actions">' +
                   '<button class="btn btn-sm btn-danger" data-action="remove" data-id="' + escapeHtml(agent.id || "") + '">Remove</button>' +

@@ -61,6 +61,18 @@
     --zt-shadow: var(--shadow-glass, 0 10px 40px rgba(0, 0, 0, 0.5));
 }
 
+.zt-page-title {
+    margin: 0 0 16px;
+}
+
+.zt-page-title h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0;
+    color: var(--zt-text, #ffffff);
+}
+
 .zt-page-tabs {
     display: flex;
     align-items: center;

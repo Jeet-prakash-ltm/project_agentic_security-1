@@ -7,14 +7,19 @@
 {% block hero_eyebrow %}Settings / User Management{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=44">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=46">
 {% endblock %}
 
 {% block content %}
 
 <div class="settings-header">
     <div>
-        <h1>User Management</h1>
+        <div class="page-title-line">
+            <h1>User Management</h1>
+            {% with page_info_label="About user management", page_info_text="User Management is where administrators invite, approve, and maintain platform accounts." %}
+            {% include "_page_info.html" %}
+            {% endwith %}
+        </div>
     </div>
     {% if is_admin %}
     <div class="settings-header-actions">
@@ -90,5 +95,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/settings.js') }}?v=20"></script>
+<script src="{{ url_for('static', filename='js/settings.js') }}?v=22"></script>
 {% endblock %}

@@ -17,6 +17,12 @@
 {% block content %}
 
 <div class="dash-header">
+    <div class="page-title-line dash-page-title">
+        <h1>Network Security</h1>
+        {% with page_info_label="About network security", page_info_text="Network Security dashboard summarises firewall posture, assessments, and estate-wide findings for selected devices." %}
+        {% include "_page_info.html" %}
+        {% endwith %}
+    </div>
     <div class="dash-meta">
         <div class="dash-fw-search">
             <span class="dash-fw-label">Firewall</span>

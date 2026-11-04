@@ -669,6 +669,9 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         self.assertEqual(test["evidenceTables"][0]["rows"][0]["endDateTime"], "2021-11-02")
         self.assertTrue(test["passRequirement"])
         self.assertNotIn("Query application registrations", test["passRequirement"])
+        self.assertEqual(test["controlSummary"], "Maintain and rotate application secrets and certificates before expiry.")
+        self.assertIn("0 expired credentials", test["baseline"])
+        self.assertTrue(test["resultSummary"])
 
     def test_privileged_control_evidence_and_pass_requirement(self):
         adapted = adapt_assessment({
@@ -717,7 +720,9 @@ class ZeroTrustAdapterTests(unittest.TestCase):
             },
         })
         test = adapted["identity"]["tests"][0]
-        self.assertIn("should stay small", test["passRequirement"])
+        self.assertIn("0 unjustified standing privileged assignments", test["passRequirement"])
+        self.assertEqual(test["baseline"], test["passRequirement"])
+        self.assertIn("standing administrative privileges", test["whyItMatters"])
         self.assertFalse(test["passRequirement"].lower().startswith("count "))
         titles = [table["title"] for table in test["evidenceTables"]]
         self.assertIn("Privileged directory role members", titles)

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from .zero_trust_control_copy import CONTROL_COPY
+
 EVIDENCE_LIMIT = 100
 
 
@@ -390,7 +392,22 @@ def catalog_for(check_id, area=None, category=None, risk=None):
     entry.setdefault("license", _license_for(check_id, area, category))
     entry.setdefault("whatWasChecked", "")
     entry.setdefault("howToCheck", "")
-    entry.setdefault("passRequirement", _pass_requirement(entry.get("howToCheck"), entry.get("whatWasChecked")))
+    copy = CONTROL_COPY.get(check_id) or {}
+    if not copy and check_id:
+        for key, value in CONTROL_COPY.items():
+            if key in check_id or check_id in key:
+                copy = value
+                break
+    if copy:
+        entry.update(copy)
+    entry.setdefault("controlSummary", entry.get("whatWasChecked") or "")
+    entry.setdefault("whyItMatters", entry.get("whatWasChecked") or "")
+    entry.setdefault("baseline", "")
+    entry.setdefault("resultSummary", "")
+    entry.setdefault(
+        "passRequirement",
+        entry.get("baseline") or _pass_requirement(entry.get("howToCheck"), entry.get("whatWasChecked")),
+    )
     entry.setdefault("remediationActions", [])
     return entry
 
@@ -929,7 +946,14 @@ def enrich_test(test, evidence):
     test["license"] = meta.get("license")
     test["whatWasChecked"] = meta.get("whatWasChecked") or test.get("description")
     test["howToCheck"] = meta.get("howToCheck")
-    test["passRequirement"] = meta.get("passRequirement")
+    test["controlSummary"] = meta.get("controlSummary") or test.get("description")
+    test["whyItMatters"] = meta.get("whyItMatters") or meta.get("whatWasChecked") or test.get("description")
+    test["baseline"] = meta.get("baseline") or meta.get("passRequirement")
+    test["resultSummary"] = meta.get("resultSummary") or ""
+    test["passRequirement"] = meta.get("passRequirement") or meta.get("baseline")
+    if meta.get("displayName"):
+        test["displayName"] = meta.get("displayName")
+        test["name"] = meta.get("displayName")
     test["remediationActions"] = actions
     test["evidenceTables"] = evidence_tables_for(test.get("id"), evidence)
     return test

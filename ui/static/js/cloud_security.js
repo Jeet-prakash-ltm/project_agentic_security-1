@@ -1701,12 +1701,17 @@
     }
 
     function controlSummary(test) {
-        var why = test.whatWasChecked || test.description || "";
-        if (why) return why;
-        return "This control checks whether the tenant meets the Zero Trust requirement described by this assessment.";
+        return test.controlSummary || test.whatWasChecked || test.description ||
+            "This control checks whether the tenant meets the Zero Trust requirement described by this assessment.";
+    }
+
+    function whyItMatters(test) {
+        return test.whyItMatters || test.whatWasChecked || test.description ||
+            "This control reduces exposure in the assessed tenant.";
     }
 
     function passRequirement(test) {
+        if (test.baseline) return test.baseline;
         if (test.passRequirement) return test.passRequirement;
         var parts = sentences(test.howToCheck).filter(function (part) {
             var lower = part.toLowerCase();
@@ -1888,18 +1893,15 @@
     }
 
     function overviewTabHtml(test) {
-        var why = sentences(test.whatWasChecked || test.description).slice(0, 3);
-        if (!why.length) why = ["This control reduces exposure in the assessed tenant."];
         var evaluate = [
             "The assessment scores this control from collected tenant configuration.",
-            "A pass requires the tenant to meet the control conditions, not merely that evidence was collected.",
+            "A pass requires the tenant to meet the control baseline, not merely that evidence was collected.",
             passRequirement(test)
         ];
         return '<section class="zt-dd-card"><h4>Control summary</h4><p>' + esc(controlSummary(test)) + "</p></section>" +
-            '<section class="zt-dd-card"><h4>Why this control matters</h4><div class="zt-dd-minis">' +
-            why.map(function (item) {
-                return '<article class="zt-dd-mini"><p>' + esc(item.replace(/\.$/, "") + ".") + "</p></article>";
-            }).join("") + "</div></section>" +
+            '<section class="zt-dd-card"><h4>Why it matters</h4><p>' + esc(whyItMatters(test)) + "</p></section>" +
+            '<section class="zt-dd-card"><h4>Baseline</h4><p>' + esc(passRequirement(test)) + '</p>' +
+            '<p class="zt-dd-muted">Values such as 80% MFA registration are assessment-engine thresholds, not universal Microsoft Zero Trust thresholds. Baselines will be configurable later.</p></section>' +
             '<section class="zt-dd-card"><h4>How this control is evaluated</h4><div class="zt-dd-minis">' +
             evaluate.map(function (item, i) {
                 return '<article class="zt-dd-mini"><em>0' + (i + 1) + "</em><p>" + esc(item) + "</p></article>";
@@ -1926,12 +1928,14 @@
 
     function assessmentTabHtml(test, assessment) {
         var kpis = controlKpis(test, assessment);
+        var resultSummary = test.resultSummary || "Shows collected measurements for this control and identifies gaps against the baseline.";
         return '<section class="zt-dd-hero is-' + esc(test.status || "Skipped") + '">' +
             '<div class="zt-dd-hero-top"><span>Result</span>' + statusBadge(test.status) + "</div>" +
             "<p>" + esc(resultWhy(test)) + "</p></section>" +
             (kpis.length ? '<section class="zt-dd-card"><h4>Key measurements</h4><div class="zt-dd-kpis">' + kpis.join("") + "</div></section>" : "") +
+            '<section class="zt-dd-card"><h4>Result summary</h4><p>' + esc(resultSummary) + "</p></section>" +
             '<section class="zt-dd-card"><h4>Observed concerns</h4><p>' + esc(observedSummary(test)) + "</p></section>" +
-            '<section class="zt-dd-card"><h4>Requirement to pass</h4><p>' + esc(passRequirement(test)) + "</p></section>";
+            '<section class="zt-dd-card"><h4>Baseline / requirement to pass</h4><p>' + esc(passRequirement(test)) + "</p></section>";
     }
 
     function evidenceTabHtml(test) {

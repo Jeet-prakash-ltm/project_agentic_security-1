@@ -207,17 +207,25 @@
 
 <div class="fw-drawer-backdrop" id="ztDrawerBackdrop" hidden></div>
 <aside class="fw-drawer zt-drawer" id="ztDrawer" hidden aria-label="Assessment result details">
-    <div class="fw-drawer-head">
-        <h3 id="ztDrawerTitle">Control details</h3>
+    <div class="fw-drawer-head zt-dd-head">
+        <div class="zt-dd-head-text">
+            <h3 id="ztDrawerTitle">Control details</h3>
+            <div class="zt-dd-head-badges" id="ztDrawerBadges"></div>
+        </div>
         <button type="button" class="fw-drawer-close" id="ztDrawerClose" aria-label="Close details">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
     </div>
+    <nav class="zt-dd-tabs" id="ztDrawerTabs" role="tablist" aria-label="Assessment test details">
+        <button type="button" role="tab" id="ztDrawerTabOverview" data-drawer-tab="overview" class="is-active" aria-selected="true">Overview</button>
+        <button type="button" role="tab" id="ztDrawerTabOutput" data-drawer-tab="output" aria-selected="false">Test output</button>
+        <button type="button" role="tab" id="ztDrawerTabRemediation" data-drawer-tab="remediation" aria-selected="false">Remediation action</button>
+    </nav>
     <div class="fw-drawer-body" id="ztDrawerBody"></div>
 </aside>
 
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=41"></script>
+<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=43"></script>
 {% endblock %}

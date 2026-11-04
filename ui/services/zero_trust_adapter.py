@@ -931,6 +931,10 @@ def _tenant_from_evidence(payload, evidence):
             120,
         ),
         "tenantId": payload.get("tenant_id") or profile.get("tenant_id") or evidence.get("tenant_id"),
+        "subscriptionId": payload.get("subscription_id")
+        or payload.get("subscriptionId")
+        or evidence.get("subscription_id"),
+        "cloudProvider": sanitize_text(payload.get("cloud_provider") or payload.get("cloudProvider"), 40) or "Azure",
         "primaryDomain": sanitize_text(
             payload.get("primary_domain")
             or payload.get("primaryDomain")

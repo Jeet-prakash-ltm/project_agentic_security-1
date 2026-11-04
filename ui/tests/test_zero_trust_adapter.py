@@ -169,6 +169,7 @@ class ZeroTrustAdapterTests(unittest.TestCase):
             "assessment_id": "tenant-1",
             "status": "completed",
             "score": 70,
+            "subscription_id": "sub-1",
             "findings": [
                 {
                     "id": "ZT-ID-CA-ENABLED",
@@ -211,6 +212,8 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         })
         self.assertEqual(adapted["tenant"]["tenantName"], "LTIM SecCOE")
         self.assertEqual(adapted["tenant"]["primaryDomain"], "ltimsec.com")
+        self.assertEqual(adapted["tenant"]["cloudProvider"], "Azure")
+        self.assertEqual(adapted["tenant"]["subscriptionId"], "sub-1")
         self.assertEqual(adapted["tenant"]["users"], 42)
         self.assertEqual(adapted["tenant"]["guests"], 3)
         self.assertEqual(adapted["tenant"]["servicePrincipals"], 12)

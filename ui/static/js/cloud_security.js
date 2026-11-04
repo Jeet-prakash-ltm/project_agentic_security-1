@@ -37,7 +37,10 @@
         },
         page: 1,
         selectedId: null,
-        pillarTab: "overview"
+        pillarTab: "overview",
+        drawerTab: "overview",
+        drawerPages: {},
+        drawerOpen: {}
     };
 
     var draft = {
@@ -62,6 +65,9 @@
     var drawerBackdrop = document.getElementById("ztDrawerBackdrop");
     var drawerBody = document.getElementById("ztDrawerBody");
     var drawerTitle = document.getElementById("ztDrawerTitle");
+    var drawerBadges = document.getElementById("ztDrawerBadges");
+    var drawerTabs = document.getElementById("ztDrawerTabs");
+    var EVIDENCE_PAGE_SIZE = 5;
     var exportMenu = document.getElementById("ztExportMenu");
     var exportBtn = document.getElementById("ztExportBtn");
     var filterBtn = document.getElementById("ztFilterBtn");
@@ -1673,56 +1679,169 @@
         return null;
     }
 
-    function metaRow(label, value) {
-        return '<div class="zt-ms-row"><span>' + esc(label) + "</span><strong>" + esc(value || "Unavailable") + "</strong></div>";
+    function drawerFact(label, value) {
+        return '<article class="zt-dd-fact"><span>' + esc(label) + "</span><strong>" + esc(value || "Unavailable") + "</strong></article>";
     }
 
-    function evidenceTableHtml(table) {
+    function resultWhy(test) {
+        if (test.error) return test.error.message || String(test.error);
+        if (test.impact) return test.impact;
+        if (test.status === "Passed") return test.description || "The collected configuration met this control.";
+        if (test.status === "Failed") return test.description || "The collected configuration did not meet this control.";
+        if (test.status === "Investigate") return test.description || "The collected configuration needs review before a pass or fail can be assigned.";
+        if (test.status === "Planned") return test.description || "This control is planned and was not scored as a live failure.";
+        if (test.status === "Skipped") return test.description || "This control was skipped because required data was not returned.";
+        return test.description || "No result explanation returned.";
+    }
+
+    function evidencePager(tableIndex, total, page) {
+        var pages = Math.ceil(total / EVIDENCE_PAGE_SIZE);
+        if (pages <= 1) return "";
+        var buttons = "";
+        for (var i = 1; i <= pages; i++) {
+            buttons += '<button type="button" class="zt-dd-page' + (i === page ? " is-active" : "") + '" data-evidence-page="' + tableIndex + '" data-page="' + i + '">' + i + "</button>";
+        }
+        return '<div class="zt-dd-pager" role="navigation" aria-label="Evidence pages">' + buttons + "</div>";
+    }
+
+    function evidenceTableHtml(table, tableIndex) {
         if (!table || !table.columns || !table.rows || !table.rows.length) return "";
+        var total = table.rows.length;
+        var collapsible = total > 3;
+        var open = state.drawerOpen[tableIndex];
+        if (open == null) open = tableIndex === 0;
+        var page = state.drawerPages[tableIndex] || 1;
+        var pages = Math.ceil(total / EVIDENCE_PAGE_SIZE);
+        if (page > pages) page = pages;
+        var start = (page - 1) * EVIDENCE_PAGE_SIZE;
+        var slice = total > EVIDENCE_PAGE_SIZE ? table.rows.slice(start, start + EVIDENCE_PAGE_SIZE) : table.rows;
         var head = table.columns.map(function (col) {
             return "<th>" + esc(col.label || col.key) + "</th>";
         }).join("");
-        var body = table.rows.map(function (row) {
+        var body = slice.map(function (row) {
             return "<tr>" + table.columns.map(function (col) {
                 return "<td>" + esc(row[col.key] == null ? "" : row[col.key]) + "</td>";
             }).join("") + "</tr>";
         }).join("");
-        var more = table.truncated ? '<p class="zt-ms-more">Showing ' + table.rows.length + " of " + table.total + "</p>" : "";
-        return '<section class="zt-ms-table-wrap"><h4>' + esc(table.title) + '</h4><div class="zt-ms-table-scroll"><table class="zt-ms-table"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>' + more + '</section>';
+        var more = table.truncated ? '<p class="zt-dd-muted">Showing ' + table.rows.length + " of " + table.total + "</p>" : "";
+        var tableHtml = '<div class="zt-dd-table-scroll"><table class="zt-dd-table"><thead><tr>' + head + '</tr></thead><tbody>' + body + "</tbody></table></div>" +
+            evidencePager(tableIndex, total, page) + more;
+        if (!collapsible) {
+            return '<section class="zt-dd-evidence"><h5>' + esc(table.title) + ' <em>' + total + "</em></h5>" + tableHtml + "</section>";
+        }
+        return '<details class="zt-dd-evidence"' + (open ? " open" : "") + ' data-evidence="' + tableIndex + '">' +
+            "<summary><span>" + esc(table.title) + "</span><em>" + total + " records</em></summary>" +
+            tableHtml + "</details>";
+    }
+
+    function syncDrawerTabs() {
+        if (!drawerTabs) return;
+        drawerTabs.querySelectorAll("[data-drawer-tab]").forEach(function (btn) {
+            var on = btn.getAttribute("data-drawer-tab") === state.drawerTab;
+            btn.classList.toggle("is-active", on);
+            btn.setAttribute("aria-selected", on ? "true" : "false");
+        });
+    }
+
+    function bindDrawerBody() {
+        if (!drawerBody) return;
+        drawerBody.querySelectorAll("[data-evidence-page]").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                var idx = parseInt(btn.getAttribute("data-evidence-page"), 10);
+                var page = parseInt(btn.getAttribute("data-page"), 10) || 1;
+                state.drawerPages[idx] = page;
+                renderDrawerBody();
+            });
+        });
+        drawerBody.querySelectorAll("details[data-evidence]").forEach(function (el) {
+            el.addEventListener("toggle", function () {
+                var idx = parseInt(el.getAttribute("data-evidence"), 10);
+                state.drawerOpen[idx] = el.open;
+            });
+        });
+    }
+
+    function renderDrawerBody() {
+        var test = findTest(state.selectedId);
+        if (!test || !drawerBody) return;
+        var a = state.assessment || {};
+        var tenant = a.tenant || {};
+        var tenantId = state.isAdmin ? (tenant.tenantId || "Unavailable") : maskTenant(tenant.tenantId);
+        var cloud = tenant.cloudProvider || "Azure";
+        var subscription = tenant.subscriptionId || tenant.primaryDomain || tenant.tenantName || "Unavailable";
+        var cloudLabel = cloud + (subscription && subscription !== "Unavailable" ? " · " + subscription : "");
+        var purpose = test.whatWasChecked || test.description || "No purpose summary returned.";
+        var why = resultWhy(test);
+        var tables = (test.evidenceTables || []).filter(function (table) {
+            return table && table.columns && table.rows && table.rows.length;
+        });
+        var actions = test.remediationActions && test.remediationActions.length
+            ? test.remediationActions
+            : (test.recommendation ? [test.recommendation] : []);
+        var html = "";
+        if (state.drawerTab === "output") {
+            html =
+                '<section class="zt-dd-hero is-' + esc(test.status || "Skipped") + '">' +
+                '<div class="zt-dd-hero-top"><span>Result</span>' + statusBadge(test.status) + "</div>" +
+                "<p>" + esc(why) + "</p></section>" +
+                '<section class="zt-dd-card"><h4>Data to collect</h4><p>' + esc(test.howToCheck || "No collection guidance returned.") + "</p></section>" +
+                '<section class="zt-dd-card"><h4>Data collected</h4>' +
+                (tables.length ? tables.map(evidenceTableHtml).join("") : '<p class="zt-dd-muted">No collected records were returned for this test.</p>') +
+                "</section>";
+        } else if (state.drawerTab === "remediation") {
+            html =
+                '<section class="zt-dd-card"><h4>Required actions</h4>' +
+                (actions.length
+                    ? '<ol class="zt-dd-steps">' + actions.map(function (item, i) {
+                        return "<li><em>0" + (i + 1) + "</em><span>" + esc(item) + "</span></li>";
+                    }).join("") + "</ol>"
+                    : "<p>No remediation summary returned.</p>") +
+                "</section>" +
+                '<section class="zt-dd-card"><h4>Where to change this</h4>' +
+                '<div class="zt-dd-actions">' +
+                (test.portalUrl ? '<a class="btn btn-primary" href="' + esc(test.portalUrl) + '" target="_blank" rel="noopener noreferrer">Open portal</a>' : "") +
+                (test.documentationUrl ? '<a class="btn btn-ghost" href="' + esc(test.documentationUrl) + '" target="_blank" rel="noopener noreferrer">Learn more</a>' : "") +
+                '<a class="btn btn-ghost" href="' + esc(investigationUrl(test.area || state.view, test.risk)) + '">Investigate</a>' +
+                "</div>" +
+                (!test.portalUrl && !test.documentationUrl ? '<p class="zt-dd-muted">No portal link was returned for this control.</p>' : "") +
+                "</section>";
+        } else {
+            html =
+                '<section class="zt-dd-card"><h4>Test profile</h4><div class="zt-dd-facts">' +
+                drawerFact("Test ID", test.id) +
+                drawerFact("Tenant ID", tenantId) +
+                drawerFact("Cloud provider", cloudLabel) +
+                drawerFact("Category", test.category) +
+                drawerFact("Pillar", test.area) +
+                drawerFact("Risk", test.risk) +
+                drawerFact("User Impact", test.userImpact) +
+                drawerFact("Implementation Effort", test.implementationEffort) +
+                drawerFact("License", test.license) +
+                drawerFact("Date", formatTime(test.lastEvaluatedAt || a.completedAt || a.startedAt)) +
+                "</div></section>" +
+                '<section class="zt-dd-card"><h4>Why this assessment is needed</h4><p>' + esc(purpose) + "</p></section>";
+        }
+        drawerBody.innerHTML = '<div class="zt-dd">' + html + "</div>";
+        bindDrawerBody();
+    }
+
+    function setDrawerTab(tab) {
+        state.drawerTab = tab === "output" || tab === "remediation" ? tab : "overview";
+        syncDrawerTabs();
+        renderDrawerBody();
     }
 
     function openDrawer(id) {
         var test = findTest(id);
         if (!test || !drawer) return;
         state.selectedId = id;
-        drawerTitle.textContent = test.name;
-        var finding = test.impact || test.description || "No finding summary returned.";
-        var actions = test.remediationActions && test.remediationActions.length
-            ? test.remediationActions
-            : (test.recommendation ? [test.recommendation] : []);
-        var tables = (test.evidenceTables || []).map(evidenceTableHtml).join("");
-        var docs = [];
-        if (test.documentationUrl) docs.push('<a href="' + esc(test.documentationUrl) + '" target="_blank" rel="noopener noreferrer">Learn more</a>');
-        if (test.portalUrl) docs.push('<a href="' + esc(test.portalUrl) + '" target="_blank" rel="noopener noreferrer">Open portal</a>');
-        drawerBody.innerHTML =
-            '<div class="zt-ms">' +
-            metaRow("Risk", test.risk) +
-            metaRow("User Impact", test.userImpact) +
-            metaRow("Implementation Effort", test.implementationEffort) +
-            metaRow("Test ID", test.id) +
-            metaRow("License", test.license) +
-            '<div class="zt-ms-result"><span>Test result</span>' + statusBadge(test.status) + "</div>" +
-            '<p class="zt-ms-finding">' + esc(finding) + "</p>" +
-            tables +
-            (test.error ? '<section class="zt-assess-block is-error"><h4>Error</h4><p>' + esc(test.error.message) + "</p></section>" : "") +
-            '<section class="zt-ms-block"><h4>What was checked</h4><p>' + esc(test.whatWasChecked || test.description || "No check summary returned.") + "</p>" +
-            (test.howToCheck ? "<p>" + esc(test.howToCheck) + "</p>" : "") +
-            "</section>" +
-            '<section class="zt-ms-block"><h4>Remediation action</h4>' +
-            (actions.length ? "<ul>" + actions.map(function (item) { return "<li>" + esc(item) + "</li>"; }).join("") + "</ul>" : "<p>No remediation summary returned.</p>") +
-            (docs.length ? '<p class="zt-ms-links">' + docs.join(" · ") + "</p>" : "") +
-            "</section>" +
-            "</div>";
+        state.drawerTab = "overview";
+        state.drawerPages = {};
+        state.drawerOpen = {};
+        if (drawerTitle) drawerTitle.textContent = test.name;
+        if (drawerBadges) drawerBadges.innerHTML = riskBadge(test.risk) + statusBadge(test.status);
+        syncDrawerTabs();
+        renderDrawerBody();
         drawer.hidden = false;
         if (drawerBackdrop) drawerBackdrop.hidden = false;
         requestAnimationFrame(function () {
@@ -2038,6 +2157,13 @@
     });
     document.getElementById("ztDrawerClose").addEventListener("click", closeDrawer);
     if (drawerBackdrop) drawerBackdrop.addEventListener("click", closeDrawer);
+    if (drawerTabs) {
+        drawerTabs.addEventListener("click", function (event) {
+            var btn = event.target.closest("[data-drawer-tab]");
+            if (!btn) return;
+            setDrawerTab(btn.getAttribute("data-drawer-tab"));
+        });
+    }
     if (exportBtn) exportBtn.addEventListener("click", function () {
         var open = exportMenu.hidden;
         exportMenu.hidden = !open;

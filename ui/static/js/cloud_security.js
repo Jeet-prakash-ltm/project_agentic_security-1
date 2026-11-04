@@ -1679,19 +1679,72 @@
         return null;
     }
 
-    function drawerFact(label, value) {
-        return '<article class="zt-dd-fact"><span>' + esc(label) + "</span><strong>" + esc(value || "Unavailable") + "</strong></article>";
+    function drawerFact(label, value, extraClass) {
+        return '<article class="zt-dd-fact' + (extraClass ? " " + extraClass : "") + '"><span>' + esc(label) + "</span><strong>" + esc(value || "Unavailable") + "</strong></article>";
     }
 
-    function resultWhy(test) {
+    function azureLogo() {
+        return '<svg class="zt-dd-azure" viewBox="0 0 18 18" aria-hidden="true"><path fill="#0078D4" d="M7.6 1.4L.8 16.6h4.8L16.9 1.4H7.6z"/><path fill="#50E6FF" d="M9.2 6.8L6.1 16.6h11.1L9.2 6.8z"/></svg>';
+    }
+
+    function subscriptionFact(tenant) {
+        var name = tenant.subscriptionId || tenant.tenantName || tenant.primaryDomain || "Unavailable";
+        return '<article class="zt-dd-fact zt-dd-fact-sub"><span>Subscription</span><strong>' + azureLogo() + "<span>" + esc(name) + "</span></strong></article>";
+    }
+
+    function testDescription(test) {
+        var checked = test.howToCheck || "";
+        var purpose = test.whatWasChecked || test.description || "";
+        if (checked && purpose) {
+            return purpose + " To evaluate this control, the assessment needed to check " + checked.replace(/^[A-Z]/, function (ch) { return ch.toLowerCase(); });
+        }
+        if (checked) return "This assessment needed to check " + checked.replace(/^[A-Z]/, function (ch) { return ch.toLowerCase(); });
+        return purpose || "No test description returned.";
+    }
+
+    function observedSummary(test) {
         if (test.error) return test.error.message || String(test.error);
         if (test.impact) return test.impact;
-        if (test.status === "Passed") return test.description || "The collected configuration met this control.";
-        if (test.status === "Failed") return test.description || "The collected configuration did not meet this control.";
-        if (test.status === "Investigate") return test.description || "The collected configuration needs review before a pass or fail can be assigned.";
-        if (test.status === "Planned") return test.description || "This control is planned and was not scored as a live failure.";
-        if (test.status === "Skipped") return test.description || "This control was skipped because required data was not returned.";
-        return test.description || "No result explanation returned.";
+        if (test.description) return test.description;
+        var tables = (test.evidenceTables || []).filter(function (table) {
+            return table && table.rows && table.rows.length;
+        });
+        if (tables.length) {
+            return tables.map(function (table) {
+                var count = table.total || table.rows.length;
+                return table.title + " (" + count + (table.truncated ? "+" : "") + " records)";
+            }).join("; ") + ".";
+        }
+        return "No observed configuration was returned for this test.";
+    }
+
+    function passRequirement(test) {
+        if (test.howToCheck) return test.howToCheck;
+        if (test.whatWasChecked) return "The collected configuration must satisfy this control: " + test.whatWasChecked;
+        return "The collected tenant configuration must meet the control described by this test.";
+    }
+
+    function resultNarrative(test) {
+        var status = test.status || "Skipped";
+        var observed = observedSummary(test);
+        var requirement = passRequirement(test);
+        var why;
+        if (status === "Passed") {
+            why = "This test passed because the collected configuration met the control. " + observed;
+        } else if (status === "Failed") {
+            why = "This test failed because the collected configuration did not meet the control. " + observed;
+        } else if (status === "Investigate") {
+            why = "This test needs investigation because a pass or fail could not be assigned from the collected configuration. " + observed;
+        } else if (status === "Planned") {
+            why = "This test is planned and was not scored as a live pass or fail. " + observed;
+        } else if (status === "Skipped") {
+            why = "This test was skipped because the data required to score it was not returned. " + observed;
+        } else {
+            why = "This test returned a " + status + " result. " + observed;
+        }
+        return "<p>" + esc(why) + "</p>" +
+            "<p><strong>Minimum requirement to pass.</strong> " + esc(requirement) + "</p>" +
+            "<p><strong>Current observation.</strong> " + esc(observed) + "</p>";
     }
 
     function evidencePager(tableIndex, total, page) {
@@ -1767,11 +1820,6 @@
         var a = state.assessment || {};
         var tenant = a.tenant || {};
         var tenantId = state.isAdmin ? (tenant.tenantId || "Unavailable") : maskTenant(tenant.tenantId);
-        var cloud = tenant.cloudProvider || "Azure";
-        var subscription = tenant.subscriptionId || tenant.primaryDomain || tenant.tenantName || "Unavailable";
-        var cloudLabel = cloud + (subscription && subscription !== "Unavailable" ? " · " + subscription : "");
-        var purpose = test.whatWasChecked || test.description || "No purpose summary returned.";
-        var why = resultWhy(test);
         var tables = (test.evidenceTables || []).filter(function (table) {
             return table && table.columns && table.rows && table.rows.length;
         });
@@ -1779,12 +1827,12 @@
             ? test.remediationActions
             : (test.recommendation ? [test.recommendation] : []);
         var html = "";
-        if (state.drawerTab === "output") {
+        if (state.drawerTab === "result") {
             html =
                 '<section class="zt-dd-hero is-' + esc(test.status || "Skipped") + '">' +
                 '<div class="zt-dd-hero-top"><span>Result</span>' + statusBadge(test.status) + "</div>" +
-                "<p>" + esc(why) + "</p></section>" +
-                '<section class="zt-dd-card"><h4>Data to collect</h4><p>' + esc(test.howToCheck || "No collection guidance returned.") + "</p></section>" +
+                resultNarrative(test) +
+                "</section>" +
                 '<section class="zt-dd-card"><h4>Data collected</h4>' +
                 (tables.length ? tables.map(evidenceTableHtml).join("") : '<p class="zt-dd-muted">No collected records were returned for this test.</p>') +
                 "</section>";
@@ -1807,10 +1855,10 @@
                 "</section>";
         } else {
             html =
-                '<section class="zt-dd-card"><h4>Test profile</h4><div class="zt-dd-facts">' +
+                '<section class="zt-dd-card zt-dd-profile"><h4>Test profile</h4><div class="zt-dd-facts">' +
                 drawerFact("Test ID", test.id) +
                 drawerFact("Tenant ID", tenantId) +
-                drawerFact("Cloud provider", cloudLabel) +
+                subscriptionFact(tenant) +
                 drawerFact("Category", test.category) +
                 drawerFact("Pillar", test.area) +
                 drawerFact("Risk", test.risk) +
@@ -1819,14 +1867,14 @@
                 drawerFact("License", test.license) +
                 drawerFact("Date", formatTime(test.lastEvaluatedAt || a.completedAt || a.startedAt)) +
                 "</div></section>" +
-                '<section class="zt-dd-card"><h4>Why this assessment is needed</h4><p>' + esc(purpose) + "</p></section>";
+                '<section class="zt-dd-card"><h4>Test Description</h4><p>' + esc(testDescription(test)) + "</p></section>";
         }
         drawerBody.innerHTML = '<div class="zt-dd">' + html + "</div>";
         bindDrawerBody();
     }
 
     function setDrawerTab(tab) {
-        state.drawerTab = tab === "output" || tab === "remediation" ? tab : "overview";
+        state.drawerTab = tab === "result" || tab === "output" || tab === "remediation" ? (tab === "output" ? "result" : tab) : "overview";
         syncDrawerTabs();
         renderDrawerBody();
     }

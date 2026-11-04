@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-EVIDENCE_LIMIT = 25
+EVIDENCE_LIMIT = 100
 
 
 def _d(impact, effort, license_name, checked, how, actions):
@@ -390,8 +390,23 @@ def catalog_for(check_id, area=None, category=None, risk=None):
     entry.setdefault("license", _license_for(check_id, area, category))
     entry.setdefault("whatWasChecked", "")
     entry.setdefault("howToCheck", "")
+    entry.setdefault("passRequirement", _pass_requirement(entry.get("howToCheck"), entry.get("whatWasChecked")))
     entry.setdefault("remediationActions", [])
     return entry
+
+
+def _pass_requirement(how, checked):
+    sentences = [part.strip() for part in str(how or "").replace("\n", " ").split(".") if part.strip()]
+    keep = []
+    for sentence in sentences:
+        lower = sentence.lower()
+        if any(token in lower for token in ("should", "must", "at least", "required")):
+            keep.append(sentence)
+    if keep:
+        return ". ".join(keep) + "."
+    if checked:
+        return "This control passes when the tenant does not exhibit the exposure described for this check."
+    return "The tenant configuration must meet this control."
 
 
 def _fmt_cell(value):
@@ -475,6 +490,7 @@ def _privileged_members(evidence):
                 "role": role.get("displayName"),
                 "member": "",
                 "upn": "",
+                "assignment": "Active",
                 "count": role.get("member_count"),
             })
             continue
@@ -483,6 +499,7 @@ def _privileged_members(evidence):
                 "role": role.get("displayName"),
                 "member": member.get("displayName"),
                 "upn": member.get("userPrincipalName"),
+                "assignment": member.get("assignmentType") or member.get("assignment") or "Active",
                 "count": role.get("member_count"),
             })
     return _list_table(
@@ -491,7 +508,54 @@ def _privileged_members(evidence):
             {"key": "role", "label": "Role"},
             {"key": "member", "label": "Member"},
             {"key": "upn", "label": "User principal"},
-            {"key": "count", "label": "Role members"},
+            {"key": "assignment", "label": "Assignment"},
+        ],
+        rows,
+    )
+
+
+def _pim_row(item):
+    if not isinstance(item, dict):
+        return None
+    role = item.get("role") or item.get("roleName") or item.get("roleDefinitionDisplayName") or item.get("roleDefinition")
+    if isinstance(role, dict):
+        role = role.get("displayName") or role.get("id")
+    member = item.get("member") or item.get("principal") or item.get("user") or item.get("displayName")
+    upn = item.get("upn") or item.get("userPrincipalName") or item.get("principalName") or item.get("principalId")
+    if isinstance(member, dict):
+        upn = upn or member.get("userPrincipalName") or member.get("id")
+        member = member.get("displayName") or member.get("userPrincipalName")
+    assignment = item.get("assignmentType") or item.get("type") or item.get("memberType") or item.get("assignmentState")
+    if not assignment:
+        assignment = "Eligible" if item.get("eligible") else "Active"
+    return {
+        "role": role,
+        "member": member,
+        "upn": upn,
+        "assignmentType": assignment,
+    }
+
+
+def _pim_assignments(evidence):
+    pim = evidence.get("privileged_eligibility") or {}
+    raw = (
+        pim.get("assignments")
+        or pim.get("eligible")
+        or pim.get("active")
+        or pim.get("eligibleAssignments")
+        or pim.get("activeAssignments")
+        or []
+    )
+    if isinstance(raw, dict):
+        raw = raw.get("value") or raw.get("items") or []
+    rows = [row for row in (_pim_row(item) for item in raw) if row]
+    return _list_table(
+        "PIM assignments",
+        [
+            {"key": "role", "label": "Role"},
+            {"key": "member", "label": "Member"},
+            {"key": "upn", "label": "User principal"},
+            {"key": "assignmentType", "label": "Assignment"},
         ],
         rows,
     )
@@ -580,8 +644,14 @@ def evidence_tables_for(check_id, evidence):
             ),
             lambda: _table_from_names("Authentication strength policies", ca.get("auth_strength_policies"), "Policy"),
         ],
-        "ZT-ID-ID06-PRIVILEGED": [lambda: _privileged_members(evidence)],
-        "ZT-ID-ID07-LEAST-PRIVILEGE": [lambda: _privileged_members(evidence)],
+        "ZT-ID-ID06-PRIVILEGED": [
+            lambda: _privileged_members(evidence),
+            lambda: _pim_assignments(evidence),
+        ],
+        "ZT-ID-ID07-LEAST-PRIVILEGE": [
+            lambda: _privileged_members(evidence),
+            lambda: _pim_assignments(evidence),
+        ],
         "ZT-ID-ID08-PROTECTION": [
             lambda: _list_table(
                 "Risky users",
@@ -859,6 +929,7 @@ def enrich_test(test, evidence):
     test["license"] = meta.get("license")
     test["whatWasChecked"] = meta.get("whatWasChecked") or test.get("description")
     test["howToCheck"] = meta.get("howToCheck")
+    test["passRequirement"] = meta.get("passRequirement")
     test["remediationActions"] = actions
     test["evidenceTables"] = evidence_tables_for(test.get("id"), evidence)
     return test

@@ -667,6 +667,66 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         self.assertEqual(test["evidenceTables"][0]["title"], "Applications with expired or expiring credentials")
         self.assertEqual(test["evidenceTables"][0]["rows"][0]["displayName"], "App A")
         self.assertEqual(test["evidenceTables"][0]["rows"][0]["endDateTime"], "2021-11-02")
+        self.assertTrue(test["passRequirement"])
+        self.assertNotIn("Query application registrations", test["passRequirement"])
+
+    def test_privileged_control_evidence_and_pass_requirement(self):
+        adapted = adapt_assessment({
+            "assessment_id": "priv-1",
+            "status": "completed",
+            "findings": [
+                {
+                    "id": "ZT-ID-ID06-PRIVILEGED",
+                    "pillar": "Identity",
+                    "title": "ID-06 Privileged access is eligible and time-bound",
+                    "status": "Fail",
+                    "severity": "High",
+                    "detail": "Standing privileged membership remains high.",
+                }
+            ],
+            "evidence": {
+                "privileged_roles": {
+                    "available": True,
+                    "privileged_member_count": 27,
+                    "privileged_role_count": 8,
+                    "roles": [
+                        {
+                            "displayName": "Global Administrator",
+                            "privileged": True,
+                            "member_count": 2,
+                            "members": [
+                                {"displayName": "Alex Chen", "userPrincipalName": "alex@ltimsec.com"},
+                                {"displayName": "Priya Shah", "userPrincipalName": "priya@ltimsec.com", "assignmentType": "Active"},
+                            ],
+                        }
+                    ],
+                },
+                "privileged_eligibility": {
+                    "available": True,
+                    "eligible_count": 88,
+                    "active_assignment_count": 87,
+                    "assignments": [
+                        {
+                            "role": "Privileged Role Administrator",
+                            "displayName": "Jordan Lee",
+                            "userPrincipalName": "jordan@ltimsec.com",
+                            "assignmentType": "Eligible",
+                        }
+                    ],
+                },
+            },
+        })
+        test = adapted["identity"]["tests"][0]
+        self.assertIn("should stay small", test["passRequirement"])
+        self.assertFalse(test["passRequirement"].lower().startswith("count "))
+        titles = [table["title"] for table in test["evidenceTables"]]
+        self.assertIn("Privileged directory role members", titles)
+        self.assertIn("PIM assignments", titles)
+        members = next(table for table in test["evidenceTables"] if table["title"] == "Privileged directory role members")
+        self.assertEqual(members["rows"][0]["member"], "Alex Chen")
+        self.assertEqual(members["rows"][0]["assignment"], "Active")
+        pim = next(table for table in test["evidenceTables"] if table["title"] == "PIM assignments")
+        self.assertEqual(pim["rows"][0]["assignmentType"], "Eligible")
 
     def test_csv_export_fields(self):
         adapted = adapt_assessment({

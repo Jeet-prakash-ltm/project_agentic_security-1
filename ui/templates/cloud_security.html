@@ -216,10 +216,12 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
     </div>
-    <nav class="zt-dd-tabs" id="ztDrawerTabs" role="tablist" aria-label="Assessment test details">
+    <nav class="zt-dd-tabs" id="ztDrawerTabs" role="tablist" aria-label="Control details">
         <button type="button" role="tab" id="ztDrawerTabOverview" data-drawer-tab="overview" class="is-active" aria-selected="true">Overview</button>
-        <button type="button" role="tab" id="ztDrawerTabResult" data-drawer-tab="result" aria-selected="false">Test result</button>
-        <button type="button" role="tab" id="ztDrawerTabRemediation" data-drawer-tab="remediation" aria-selected="false">Remediation action</button>
+        <button type="button" role="tab" id="ztDrawerTabProfile" data-drawer-tab="profile" aria-selected="false">Control profile</button>
+        <button type="button" role="tab" id="ztDrawerTabAssessment" data-drawer-tab="assessment" aria-selected="false">Assessment</button>
+        <button type="button" role="tab" id="ztDrawerTabEvidence" data-drawer-tab="evidence" aria-selected="false">Evidence</button>
+        <button type="button" role="tab" id="ztDrawerTabRemediation" data-drawer-tab="remediation" aria-selected="false">Remediation</button>
     </nav>
     <div class="fw-drawer-body" id="ztDrawerBody"></div>
 </aside>
@@ -227,5 +229,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=44"></script>
+<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=45"></script>
 {% endblock %}

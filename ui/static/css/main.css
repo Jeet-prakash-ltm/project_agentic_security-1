@@ -726,6 +726,47 @@ input, select, textarea {
     opacity: 1;
 }
 
+.nav-nested-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.nav-nested-btn {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+}
+
+.nav-nested-btn .nav-chevron {
+    opacity: 1;
+    width: 13px;
+    height: 13px;
+}
+
+.nav-nested-group.is-open > .nav-nested-btn .nav-chevron {
+    transform: rotate(180deg);
+}
+
+.nav-nested-submenu {
+    display: none;
+    flex-direction: column;
+    gap: 2px;
+    margin: 2px 0 2px 14px;
+    padding-left: 8px;
+    border-left: 1px solid var(--glass-line);
+}
+
+.nav-nested-group.is-open > .nav-nested-submenu {
+    display: flex;
+}
+
+.sidebar:not(.expanded):not(.open) .nav-nested-btn .nav-chevron {
+    display: none;
+}
+
 .sidebar-backdrop {
     position: fixed;
     inset: 0;

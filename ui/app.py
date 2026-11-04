@@ -938,14 +938,26 @@ def settings_agents():
 @app.route("/settings/baseline")
 @login_required
 def settings_baseline():
+    return redirect(url_for("settings_assessment"))
+
+
+@app.route("/settings/configurations")
+@login_required
+def settings_configurations():
+    return redirect(url_for("settings_assessment"))
+
+
+@app.route("/settings/configurations/assessment")
+@login_required
+def settings_assessment():
 
     return render_with_css(
         "under_construction.html",
 
         is_admin=_is_admin(current_user()),
-        browser_title="Baseline",
-        page_heading="Baseline",
-        hero_text="Define and govern security baselines for your estate.",
+        browser_title="Assessment",
+        page_heading="Assessment",
+        hero_text="Settings / Configurations / Assessment",
     )
 
 # --------------------------------------------------

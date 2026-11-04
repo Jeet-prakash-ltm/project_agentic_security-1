@@ -178,6 +178,29 @@
         })(entry.group, entry.toggle);
     });
 
+    (function nestedConfigGroup() {
+        var group = document.getElementById("navConfigGroup");
+        var toggle = document.getElementById("navConfigToggle");
+        if (!group || !toggle) return;
+
+        function openNested() {
+            group.classList.add("is-open");
+            toggle.setAttribute("aria-expanded", "true");
+        }
+
+        function closeNested() {
+            group.classList.remove("is-open");
+            toggle.setAttribute("aria-expanded", "false");
+        }
+
+        toggle.addEventListener("click", function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (group.classList.contains("is-open")) closeNested();
+            else openNested();
+        });
+    })();
+
     // ------------------------------------------------------------
     // SIDEBAR ICON TOOLTIPS — show the page name on hover in the
     // collapsed rail. Rendered as a fixed element because the nav

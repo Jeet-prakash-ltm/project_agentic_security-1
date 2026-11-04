@@ -2034,6 +2034,7 @@
         else if (state.drawerTab === "remediation") html = remediationTabHtml(test);
         else html = overviewTabHtml(test);
         drawerBody.innerHTML = '<div class="zt-dd">' + html + "</div>";
+        drawerBody.scrollTop = 0;
         bindDrawerBody();
     }
 

@@ -1569,6 +1569,7 @@
     width: min(760px, 100vw);
     display: flex;
     flex-direction: column;
+    overflow: hidden;
     background: #121218;
     color: var(--zt-text);
     border-left: 1px solid rgba(255, 255, 255, 0.1);
@@ -1589,6 +1590,7 @@
     gap: 12px;
     padding: 18px 20px;
     border-bottom: 1px solid var(--zt-border);
+    flex: 0 0 auto;
 }
 
 .zt-dd-head-text {
@@ -1613,11 +1615,17 @@
 
 .zt-dd-tabs {
     display: flex;
-    gap: 4px;
-    padding: 0 16px;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0;
+    padding: 0 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     background: #16161c;
     overflow-x: auto;
+    overflow-y: hidden;
+    z-index: 2;
+    scrollbar-width: thin;
 }
 
 .zt-dd-tabs button {
@@ -1628,15 +1636,20 @@
     font: inherit;
     font-size: 13px;
     font-weight: 700;
-    padding: 12px 14px 11px;
+    padding: 12px 12px 10px;
     cursor: pointer;
     border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
+    white-space: nowrap;
+    flex: 0 0 auto;
 }
 
 .zt-dd-tabs button.is-active {
     color: #fff;
     border-bottom-color: var(--crimson, #ff5e4f);
+}
+
+.zt-dd-tabs button:hover {
+    color: #fff;
 }
 
 .zt-drawer .fw-drawer-close,
@@ -1660,8 +1673,11 @@
 }
 
 .zt-drawer .fw-drawer-body {
+    flex: 1 1 auto;
+    min-height: 0;
     padding: 18px 20px 28px;
     overflow: auto;
+    overscroll-behavior: contain;
 }
 
 .zt-dd {

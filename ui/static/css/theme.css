@@ -534,3 +534,38 @@ body {
     font-size: 14px;
     color: var(--muted);
 }
+
+/* --------------------------------------------------
+   ASSESSMENT BASELINE
+-------------------------------------------------- */
+
+.bl-field select,
+.bl-field input,
+.bl-table select {
+    background: #242424;
+    color: #ffffff;
+    border-color: #3a3a3a;
+    color-scheme: dark;
+}
+
+.bl-field input::placeholder {
+    color: #8f8f8f;
+}
+
+.bl-field select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23b8b8b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+
+.bl-field select option,
+.bl-table select option {
+    background: #202020;
+    color: #ffffff;
+}
+
+.bl-option {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.users-table td {
+    color: #ffffff;
+}

@@ -1900,8 +1900,7 @@
         ];
         return '<section class="zt-dd-card"><h4>Control summary</h4><p>' + esc(controlSummary(test)) + "</p></section>" +
             '<section class="zt-dd-card"><h4>Why it matters</h4><p>' + esc(whyItMatters(test)) + "</p></section>" +
-            '<section class="zt-dd-card"><h4>Baseline</h4><p>' + esc(passRequirement(test)) + '</p>' +
-            '<p class="zt-dd-muted">Values such as 80% MFA registration are assessment-engine thresholds, not universal Microsoft Zero Trust thresholds. Baselines will be configurable later.</p></section>' +
+            '<section class="zt-dd-card"><h4>Baseline</h4><p>' + esc(passRequirement(test)) + "</p></section>" +
             '<section class="zt-dd-card"><h4>How this control is evaluated</h4><div class="zt-dd-minis">' +
             evaluate.map(function (item, i) {
                 return '<article class="zt-dd-mini"><em>0' + (i + 1) + "</em><p>" + esc(item) + "</p></article>";

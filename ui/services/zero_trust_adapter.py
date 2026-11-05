@@ -819,12 +819,152 @@ def _network_overview_from_evidence(evidence):
         "firewalls": _count_metric(network, "firewall_count"),
         "wafPolicies": _count_metric(network, "waf_policy_count"),
     })
-    if not inventory and not perimeter and not exposure:
+    topology = _compact_metrics({
+        "vnets": _count_metric(network, "vnet_count"),
+        "subnets": _count_metric(network, "subnet_count"),
+        "nics": _count_metric(network, "nic_count"),
+        "peerings": _count_metric(network, "peering_count"),
+        "routeTables": _count_metric(network, "route_table_count"),
+        "associatedRouteTables": _count_metric(network, "associated_route_table_count"),
+        "loadBalancers": _count_metric(network, "load_balancer_count"),
+        "networkWatchers": _count_metric(network, "network_watcher_count"),
+    })
+    addressing = _compact_metrics({
+        "publicIps": _count_metric(network, "public_ip_count"),
+        "publicIpsAttached": _ratio_metric(network, "public_ip_attached_count", "public_ip_count"),
+    })
+    perimeterDetail = _compact_metrics({
+        "firewallPolicies": _count_metric(network, "firewall_policy_count"),
+        "firewallsWithPolicy": _count_metric(network, "firewall_with_policy_count"),
+        "premiumFirewalls": _count_metric(network, "premium_firewall_count"),
+        "threatIntel": _count_metric(network, "threat_intel_count"),
+        "applicationGateways": _count_metric(network, "application_gateway_count"),
+        "applicationGatewayWaf": _count_metric(network, "application_gateway_waf_count"),
+        "wafPrevention": _count_metric(network, "waf_prevention_count"),
+        "wafAssociated": _count_metric(network, "waf_associated_count"),
+        "frontDoorProfiles": _count_metric(network, "front_door_profile_count"),
+        "ddosPlans": _count_metric(network, "ddos_plan_count"),
+        "ddosProtectedVnets": _count_metric(network, "ddos_protected_vnet_count"),
+    })
+    remoteAccess = _compact_metrics({
+        "vpnGateways": _count_metric(network, "vpn_gateway_count"),
+        "bastions": _count_metric(network, "bastion_count"),
+        "expressRoute": _count_metric(network, "express_route_count"),
+    })
+    paasExposure = _compact_metrics({
+        "privateEndpoints": _count_metric(network, "private_endpoint_count"),
+        "paasPublic": _count_metric(network, "paas_public_count"),
+        "paasRestricted": _count_metric(network, "paas_restricted_count"),
+        "storageAccounts": _count_metric(network, "storage_account_count"),
+        "keyVaults": _count_metric(network, "key_vault_count"),
+        "sqlServers": _count_metric(network, "sql_server_count"),
+    })
+    if not any([inventory, perimeter, exposure, topology, addressing, perimeterDetail, remoteAccess, paasExposure]):
         return None
     return {
         "inventory": inventory,
         "perimeter": perimeter,
         "exposure": exposure,
+        "topology": topology,
+        "addressing": addressing,
+        "perimeterDetail": perimeterDetail,
+        "remoteAccess": remoteAccess,
+        "paasExposure": paasExposure,
+    }
+
+
+def _devices_overview_from_evidence(evidence):
+    evidence = evidence or {}
+    managed = evidence.get("managed_devices") or {}
+    compliance = evidence.get("device_compliance") or {}
+    entra = evidence.get("entra_devices") or {}
+    enrollment = evidence.get("device_enrollment") or {}
+    inventory = _compact_metrics({
+        "managedDevices": _count_metric(managed, "count"),
+        "entraDevices": _count_metric(entra, "count"),
+    })
+    compliance_metrics = _compact_metrics({
+        "compliant": _ratio_metric(managed, "compliant_count", "count"),
+        "unknownCompliance": _count_metric(managed, "unknown_compliance_count"),
+    })
+    encryption = _compact_metrics({
+        "encrypted": _ratio_metric(managed, "encrypted_count", "count"),
+    })
+    ownership = _compact_metrics({
+        "companyOwned": _count_metric(managed, "company_owned_count"),
+        "personalOwned": _count_metric(managed, "personal_owned_count"),
+        "unknownOwner": _count_metric(managed, "unknown_owner_count"),
+    })
+    policies = _compact_metrics({
+        "policies": _count_metric(compliance, "count"),
+        "assigned": _ratio_metric(compliance, "assigned_count", "count"),
+        "unassigned": _count_metric(compliance, "unassigned_count"),
+        "minOs": _count_metric(compliance, "min_os_policy_count"),
+        "encryption": _count_metric(compliance, "encryption_policy_count"),
+        "firewall": _count_metric(compliance, "firewall_policy_count"),
+        "secureBoot": _count_metric(compliance, "secure_boot_policy_count"),
+        "tpm": _count_metric(compliance, "tpm_policy_count"),
+    })
+    enrollment_metrics = _compact_metrics({
+        "configurations": _count_metric(enrollment, "count"),
+        "restrictions": _count_metric(enrollment, "restriction_count"),
+        "platformRestrictions": _count_metric(enrollment, "platform_restriction_count"),
+    })
+    entra_state = _compact_metrics({
+        "managed": _count_metric(entra, "managed_count"),
+        "compliant": _count_metric(entra, "compliant_count"),
+    })
+    if not any([inventory, compliance_metrics, encryption, ownership, policies, enrollment_metrics, entra_state]):
+        return None
+    return {
+        "inventory": inventory,
+        "compliance": compliance_metrics,
+        "encryption": encryption,
+        "ownership": ownership,
+        "policies": policies,
+        "enrollment": enrollment_metrics,
+        "entra": entra_state,
+    }
+
+
+def _data_overview_from_evidence(evidence):
+    evidence = evidence or {}
+    labels = evidence.get("sensitivity_labels") or {}
+    dlp = evidence.get("dlp_policies") or {}
+    retention = evidence.get("retention_labels") or {}
+    sharepoint = evidence.get("sharepoint_settings") or {}
+    audits = evidence.get("directory_audits") or {}
+    informationProtection = _compact_metrics({
+        "labels": _ratio_metric(labels, "active_count", "count"),
+        "encrypted": _count_metric(labels, "encrypted_count"),
+        "contentMarking": _count_metric(labels, "content_marking_count"),
+        "autoLabel": _count_metric(labels, "auto_label_count"),
+    })
+    dlp_metrics = _compact_metrics({
+        "scopes": _ratio_metric(dlp, "enabled_count", "count"),
+        "locations": _count_metric(dlp, "location_count"),
+    })
+    sharing = _compact_metrics({
+        "anonymousSharing": _bool_metric(sharepoint, "anonymous_sharing"),
+        "resharing": _bool_metric(sharepoint, "isResharingByExternalUsersEnabled"),
+        "legacyAuthBlocked": _bool_metric(sharepoint, "legacy_auth_blocked"),
+    })
+    retention_metrics = _compact_metrics({
+        "labels": _count_metric(retention, "count"),
+        "published": _count_metric(retention, "published_count"),
+    })
+    audit = _compact_metrics({
+        "directoryAudits": _count_metric(audits, "count"),
+        "success": _count_metric(audits, "success_count"),
+    })
+    if not any([informationProtection, dlp_metrics, sharing, retention_metrics, audit]):
+        return None
+    return {
+        "informationProtection": informationProtection,
+        "dlp": dlp_metrics,
+        "sharing": sharing,
+        "retention": retention_metrics,
+        "audit": audit,
     }
 
 
@@ -972,6 +1112,8 @@ def _visualizations_from_evidence(evidence, inventory):
         "pillarMetrics": _pillar_metrics_from_evidence(evidence),
         "identityOverview": _identity_overview_from_evidence(evidence),
         "networkOverview": _network_overview_from_evidence(evidence),
+        "devicesOverview": _devices_overview_from_evidence(evidence),
+        "dataOverview": _data_overview_from_evidence(evidence),
         "infrastructureOverview": _infrastructure_overview_from_evidence(evidence),
     }
 

@@ -502,6 +502,8 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         self.assertIsNone(adapted["visualizations"]["privilegedAuth"])
         self.assertIsNone(adapted["visualizations"]["identityOverview"])
         self.assertIsNone(adapted["visualizations"]["networkOverview"])
+        self.assertIsNone(adapted["visualizations"]["devicesOverview"])
+        self.assertIsNone(adapted["visualizations"]["dataOverview"])
         self.assertIsNone(adapted["visualizations"]["infrastructureOverview"])
         self.assertIsNone(adapted["visualizations"]["pillarMetrics"]["identity"])
         self.assertIsNone(adapted["visualizations"]["pillarMetrics"]["devices"])
@@ -550,7 +552,34 @@ class ZeroTrustAdapterTests(unittest.TestCase):
                     "count": 12,
                     "compliant_count": 9,
                     "encrypted_count": 8,
+                    "unknown_compliance_count": 1,
+                    "company_owned_count": 8,
+                    "personal_owned_count": 3,
+                    "unknown_owner_count": 1,
                     "devices": [],
+                },
+                "device_compliance": {
+                    "available": True,
+                    "count": 4,
+                    "assigned_count": 3,
+                    "unassigned_count": 1,
+                    "min_os_policy_count": 2,
+                    "encryption_policy_count": 3,
+                    "firewall_policy_count": 1,
+                    "secure_boot_policy_count": 1,
+                    "tpm_policy_count": 1,
+                },
+                "device_enrollment": {
+                    "available": True,
+                    "count": 5,
+                    "restriction_count": 2,
+                    "platform_restriction_count": 2,
+                },
+                "entra_devices": {
+                    "available": True,
+                    "count": 25,
+                    "managed_count": 2,
+                    "compliant_count": 1,
                 },
                 "network_security": {
                     "available": True,
@@ -564,12 +593,52 @@ class ZeroTrustAdapterTests(unittest.TestCase):
                     "internet_allow_rule_count": 168,
                     "waf_policy_count": 0,
                     "private_endpoint_count": 12,
+                    "vnet_count": 9,
+                    "subnet_count": 40,
+                    "nic_count": 18,
+                    "peering_count": 2,
+                    "route_table_count": 5,
+                    "associated_route_table_count": 3,
+                    "load_balancer_count": 2,
+                    "network_watcher_count": 1,
+                    "firewall_policy_count": 1,
+                    "firewall_with_policy_count": 0,
+                    "premium_firewall_count": 0,
+                    "threat_intel_count": 0,
+                    "application_gateway_count": 1,
+                    "application_gateway_waf_count": 0,
+                    "waf_prevention_count": 0,
+                    "waf_associated_count": 0,
+                    "front_door_profile_count": 0,
+                    "ddos_plan_count": 0,
+                    "ddos_protected_vnet_count": 0,
+                    "vpn_gateway_count": 1,
+                    "bastion_count": 0,
+                    "express_route_count": 0,
+                    "paas_public_count": 7,
+                    "paas_restricted_count": 4,
+                    "storage_account_count": 7,
+                    "key_vault_count": 10,
+                    "sql_server_count": 2,
                 },
                 "dlp_policies": {
                     "available": True,
                     "count": 2,
                     "enabled_count": 1,
+                    "location_count": 3,
                 },
+                "sharepoint_settings": {
+                    "available": True,
+                    "anonymous_sharing": False,
+                    "isResharingByExternalUsersEnabled": True,
+                    "legacy_auth_blocked": True,
+                },
+                "directory_audits": {
+                    "available": True,
+                    "count": 50,
+                    "success_count": 40,
+                },
+                "retention_labels": {"available": False, "error": "Graph 400"},
                 "sensitivity_labels": {"available": False, "error": "Graph 403"},
                 "infrastructure_security": {
                     "available": True,
@@ -651,6 +720,31 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         self.assertEqual(network["perimeter"]["firewalls"], {"value": 0})
         self.assertEqual(network["perimeter"]["wafPolicies"], {"value": 0})
         self.assertEqual(network["exposure"]["internetAllowRules"], {"value": 168})
+        self.assertEqual(network["topology"]["vnets"], {"value": 9})
+        self.assertEqual(network["topology"]["subnets"], {"value": 40})
+        self.assertEqual(network["addressing"]["publicIpsAttached"], {"value": 2, "total": 3})
+        self.assertEqual(network["perimeterDetail"]["applicationGateways"], {"value": 1})
+        self.assertEqual(network["perimeterDetail"]["ddosPlans"], {"value": 0})
+        self.assertEqual(network["remoteAccess"]["vpnGateways"], {"value": 1})
+        self.assertEqual(network["paasExposure"]["paasPublic"], {"value": 7})
+        self.assertEqual(network["paasExposure"]["sqlServers"], {"value": 2})
+        devices = adapted["visualizations"]["devicesOverview"]
+        self.assertEqual(devices["inventory"]["managedDevices"], {"value": 12})
+        self.assertEqual(devices["inventory"]["entraDevices"], {"value": 25})
+        self.assertEqual(devices["compliance"]["compliant"], {"value": 9, "total": 12})
+        self.assertEqual(devices["encryption"]["encrypted"], {"value": 8, "total": 12})
+        self.assertEqual(devices["ownership"]["companyOwned"], {"value": 8})
+        self.assertEqual(devices["policies"]["assigned"], {"value": 3, "total": 4})
+        self.assertEqual(devices["enrollment"]["restrictions"], {"value": 2})
+        self.assertEqual(devices["entra"]["managed"], {"value": 2})
+        data = adapted["visualizations"]["dataOverview"]
+        self.assertEqual(data["dlp"]["scopes"], {"value": 1, "total": 2})
+        self.assertEqual(data["dlp"]["locations"], {"value": 3})
+        self.assertEqual(data["sharing"]["anonymousSharing"], {"value": False})
+        self.assertEqual(data["sharing"]["resharing"], {"value": True})
+        self.assertEqual(data["audit"]["directoryAudits"], {"value": 50})
+        self.assertIsNone(data.get("informationProtection"))
+        self.assertIsNone(data.get("retention"))
         infra = adapted["visualizations"]["infrastructureOverview"]
         self.assertEqual(infra["inventory"]["resourceGroups"], {"value": 65})
         self.assertEqual(infra["inventory"]["vms"], {"value": 1, "total": 4})

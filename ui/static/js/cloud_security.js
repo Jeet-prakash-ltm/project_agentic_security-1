@@ -1345,6 +1345,7 @@
 
     function formatOverviewValue(item) {
         if (!item || item.value == null) return null;
+        if (typeof item.value === "boolean") return item.value ? "Yes" : "No";
         if (item.total != null) {
             var p = pct(item.value, item.total);
             return compactNumber(item.value) + " / " + compactNumber(item.total) + (p == null ? "" : " · " + p + "%");
@@ -1421,6 +1422,61 @@
             '<div class="zt-inv-metrics">' + tiles + "</div></section>";
     }
 
+    function networkTopologyCard(overview) {
+        var top = (overview && overview.topology) || {};
+        var tiles = overviewStat("blue", "building", "Virtual networks", top.vnets) +
+            overviewStat("sky", "shield", "Subnets", top.subnets) +
+            overviewStat("teal", "laptop", "Network interfaces", top.nics) +
+            overviewStat("violet", "lock", "Peerings", top.peerings) +
+            overviewStat("mint", "pass", "Route tables", top.routeTables) +
+            overviewStat("purple", "search", "Associated route tables", top.associatedRouteTables) +
+            overviewStat("sky", "apps", "Load balancers", top.loadBalancers) +
+            overviewStat("teal", "clock", "Network Watchers", top.networkWatchers);
+        return extraOverviewCard("Segmentation and topology", tiles);
+    }
+
+    function networkAddressingCard(overview) {
+        var addr = (overview && overview.addressing) || {};
+        var tiles = overviewStat("blue", "laptop", "Public IPs", addr.publicIps) +
+            overviewStat("teal", "lock", "Public IPs attached", addr.publicIpsAttached);
+        return extraOverviewCard("Addressing", tiles);
+    }
+
+    function networkPerimeterDetailCard(overview) {
+        var per = (overview && overview.perimeterDetail) || {};
+        var tiles = overviewStat("purple", "shield", "Firewall policies", per.firewallPolicies) +
+            overviewStat("mint", "pass", "Firewalls with policy", per.firewallsWithPolicy) +
+            overviewStat("violet", "lock", "Premium firewalls", per.premiumFirewalls) +
+            overviewStat("sky", "warn", "Threat intelligence", per.threatIntel) +
+            overviewStat("blue", "apps", "Application Gateways", per.applicationGateways) +
+            overviewStat("teal", "shield", "Gateway WAF enabled", per.applicationGatewayWaf) +
+            overviewStat("mint", "pass", "WAF prevention", per.wafPrevention) +
+            overviewStat("purple", "lock", "WAF associated", per.wafAssociated) +
+            overviewStat("sky", "building", "Front Door profiles", per.frontDoorProfiles) +
+            overviewStat("violet", "fail", "DDoS plans", per.ddosPlans) +
+            overviewStat("teal", "shield", "DDoS-protected VNets", per.ddosProtectedVnets);
+        return extraOverviewCard("Perimeter detail", tiles);
+    }
+
+    function networkRemoteAccessCard(overview) {
+        var remote = (overview && overview.remoteAccess) || {};
+        var tiles = overviewStat("blue", "lock", "VPN gateways", remote.vpnGateways) +
+            overviewStat("mint", "shield", "Bastion hosts", remote.bastions) +
+            overviewStat("violet", "building", "ExpressRoute circuits", remote.expressRoute);
+        return extraOverviewCard("Remote access", tiles);
+    }
+
+    function networkPaasCard(overview) {
+        var paas = (overview && overview.paasExposure) || {};
+        var tiles = overviewStat("violet", "lock", "Private endpoints", paas.privateEndpoints) +
+            overviewStat("purple", "warn", "Publicly accessible PaaS", paas.paasPublic) +
+            overviewStat("mint", "pass", "Restricted PaaS", paas.paasRestricted) +
+            overviewStat("teal", "apps", "Storage accounts", paas.storageAccounts) +
+            overviewStat("sky", "key", "Key Vaults", paas.keyVaults) +
+            overviewStat("blue", "building", "SQL servers", paas.sqlServers);
+        return extraOverviewCard("Private access and PaaS exposure", tiles);
+    }
+
     function networkOverviewSections(a) {
         var viz = (a && a.visualizations) || {};
         var overview = viz.networkOverview || {};
@@ -1430,7 +1486,129 @@
             networkPerimeterCard(overview) +
             "</div>" +
             networkExposureCard(overview) +
+            overviewPair(networkTopologyCard(overview), networkAddressingCard(overview)) +
+            overviewPair(networkPerimeterDetailCard(overview), networkRemoteAccessCard(overview)) +
+            networkPaasCard(overview) +
             "</div>";
+    }
+
+    function devicesInventoryCard(overview) {
+        var inv = (overview && overview.inventory) || {};
+        var tiles = overviewStat("blue", "devices", "Intune managed devices", inv.managedDevices) +
+            overviewStat("sky", "laptop", "Entra devices", inv.entraDevices);
+        return extraOverviewCard("Device inventory", tiles);
+    }
+
+    function devicesComplianceCard(overview) {
+        var comp = (overview && overview.compliance) || {};
+        var tiles = overviewStat("mint", "pass", "Compliant devices", comp.compliant) +
+            overviewStat("violet", "warn", "Unknown compliance", comp.unknownCompliance);
+        return extraOverviewCard("Device compliance", tiles);
+    }
+
+    function devicesEncryptionCard(overview) {
+        var enc = (overview && overview.encryption) || {};
+        var tiles = overviewStat("teal", "lock", "Encrypted devices", enc.encrypted);
+        return extraOverviewCard("Encryption", tiles);
+    }
+
+    function devicesOwnershipCard(overview) {
+        var own = (overview && overview.ownership) || {};
+        var tiles = overviewStat("blue", "building", "Company owned", own.companyOwned) +
+            overviewStat("sky", "users", "Personal owned", own.personalOwned) +
+            overviewStat("violet", "search", "Unknown owner", own.unknownOwner);
+        return extraOverviewCard("Ownership", tiles);
+    }
+
+    function devicesPoliciesCard(overview) {
+        var pol = (overview && overview.policies) || {};
+        var tiles = overviewStat("mint", "shield", "Compliance policies", pol.policies) +
+            overviewStat("teal", "pass", "Assigned policies", pol.assigned) +
+            overviewStat("violet", "warn", "Unassigned policies", pol.unassigned) +
+            overviewStat("blue", "clock", "Minimum OS", pol.minOs) +
+            overviewStat("sky", "lock", "Encryption required", pol.encryption) +
+            overviewStat("purple", "shield", "Firewall required", pol.firewall) +
+            overviewStat("mint", "pass", "Secure Boot required", pol.secureBoot) +
+            overviewStat("teal", "key", "TPM required", pol.tpm);
+        return extraOverviewCard("Compliance policies", tiles);
+    }
+
+    function devicesEnrollmentCard(overview) {
+        var enr = (overview && overview.enrollment) || {};
+        var tiles = overviewStat("blue", "apps", "Enrollment configurations", enr.configurations) +
+            overviewStat("violet", "lock", "Restriction configs", enr.restrictions) +
+            overviewStat("sky", "shield", "Platform restrictions", enr.platformRestrictions);
+        return extraOverviewCard("Enrollment", tiles);
+    }
+
+    function devicesEntraCard(overview) {
+        var entra = (overview && overview.entra) || {};
+        var tiles = overviewStat("mint", "devices", "Entra managed", entra.managed) +
+            overviewStat("teal", "pass", "Entra compliant", entra.compliant);
+        return extraOverviewCard("Entra device state", tiles);
+    }
+
+    function devicesOverviewSections(a) {
+        var viz = (a && a.visualizations) || {};
+        var overview = viz.devicesOverview || {};
+        var html = overviewPair(devicesInventoryCard(overview), devicesComplianceCard(overview)) +
+            overviewPair(devicesEncryptionCard(overview), devicesOwnershipCard(overview)) +
+            overviewPair(devicesPoliciesCard(overview), devicesEnrollmentCard(overview)) +
+            devicesEntraCard(overview);
+        if (!html) {
+            return '<section class="zt-card"><h2>Overview metrics</h2><p class="zt-muted">No telemetry was returned for this pillar.</p></section>';
+        }
+        return '<div class="zt-id-overview">' + html + "</div>";
+    }
+
+    function dataProtectionCard(overview) {
+        var ip = (overview && overview.informationProtection) || {};
+        var tiles = overviewStat("violet", "lock", "Sensitivity labels", ip.labels) +
+            overviewStat("mint", "shield", "Encrypted labels", ip.encrypted) +
+            overviewStat("teal", "pass", "Content marking", ip.contentMarking) +
+            overviewStat("sky", "search", "Auto-labeling", ip.autoLabel);
+        return extraOverviewCard("Information protection", tiles);
+    }
+
+    function dataDlpCard(overview) {
+        var dlp = (overview && overview.dlp) || {};
+        var tiles = overviewStat("mint", "shield", "DLP scopes", dlp.scopes) +
+            overviewStat("blue", "building", "Protected locations", dlp.locations);
+        return extraOverviewCard("Data loss prevention", tiles);
+    }
+
+    function dataSharingCard(overview) {
+        var sharing = (overview && overview.sharing) || {};
+        var tiles = overviewStat("purple", "warn", "Anonymous sharing", sharing.anonymousSharing) +
+            overviewStat("sky", "users", "External resharing", sharing.resharing) +
+            overviewStat("teal", "lock", "Legacy auth blocked", sharing.legacyAuthBlocked);
+        return extraOverviewCard("Sharing and collaboration", tiles);
+    }
+
+    function dataRetentionCard(overview) {
+        var ret = (overview && overview.retention) || {};
+        var tiles = overviewStat("blue", "clock", "Retention labels", ret.labels) +
+            overviewStat("mint", "pass", "Published labels", ret.published);
+        return extraOverviewCard("Retention and records", tiles);
+    }
+
+    function dataAuditCard(overview) {
+        var audit = (overview && overview.audit) || {};
+        var tiles = overviewStat("teal", "search", "Directory audit records", audit.directoryAudits) +
+            overviewStat("mint", "pass", "Successful audit events", audit.success);
+        return extraOverviewCard("Audit and visibility", tiles);
+    }
+
+    function dataOverviewSections(a) {
+        var viz = (a && a.visualizations) || {};
+        var overview = viz.dataOverview || {};
+        var html = overviewPair(dataProtectionCard(overview), dataDlpCard(overview)) +
+            overviewPair(dataSharingCard(overview), dataRetentionCard(overview)) +
+            dataAuditCard(overview);
+        if (!html) {
+            return '<section class="zt-card"><h2>Overview metrics</h2><p class="zt-muted">No telemetry was returned for this pillar.</p></section>';
+        }
+        return '<div class="zt-id-overview">' + html + "</div>";
     }
 
     function infrastructureInventoryCard(overview) {
@@ -1478,19 +1656,19 @@
         return overviewCard(title, tiles, "");
     }
 
+    function overviewPair(left, right) {
+        if (!left && !right) return "";
+        if (!right) return left;
+        if (!left) return right;
+        return '<div class="zt-id-overview-row">' + left + right + "</div>";
+    }
+
     function infrastructureDefenderCoverageCard(overview) {
         var defn = (overview && overview.defender) || {};
         var tiles = overviewStat("mint", "pass", "Healthy assessments", defn.healthyAssessments) +
             overviewStat("blue", "search", "Assessments", defn.assessmentCount) +
             overviewStat("purple", "shield", "Standard plans", defn.defenderPlans);
         return extraOverviewCard("Defender coverage", tiles);
-    }
-
-    function overviewPair(left, right) {
-        if (!left && !right) return "";
-        if (!right) return left;
-        if (!left) return right;
-        return '<div class="zt-id-overview-row">' + left + right + "</div>";
     }
 
     function infrastructureComputeCard(overview) {
@@ -1588,26 +1766,6 @@
         return extraOverviewCard("Backup", tiles);
     }
 
-    function infrastructureControlStatusCard(a) {
-        var summary = ((a && a.infrastructure) || {}).summary || {};
-        if (!summary.total) return "";
-        var tiles = overviewStat("mint", "pass", "Passed", { value: summary.passed || 0 }) +
-            overviewStat("purple", "fail", "Failed", { value: summary.failed || 0 }) +
-            overviewStat("sky", "warn", "Investigate", { value: summary.investigate || 0 }) +
-            overviewStat("violet", "clock", "Planned", { value: summary.planned || 0 }) +
-            overviewStat("teal", "search", "Skipped", { value: summary.skipped || 0 });
-        var failed = summary.failed || 0;
-        var tone = failed > 0 ? "expired" : "healthy";
-        var label = failed > 0 ? "Failed controls" : "Controls passing";
-        return '<section class="zt-inventory-card zt-cred-card">' +
-            "<h2>Zero Trust control status</h2>" +
-            overviewHealth(tone, label, [
-                "<span>Controls: " + esc(compactNumber(summary.total)) + "</span>",
-                "<span>High-risk failed: " + esc(compactNumber(summary.highRiskFailed || 0)) + "</span>"
-            ]) +
-            '<div class="zt-inv-metrics">' + tiles + "</div></section>";
-    }
-
     function infrastructureOverviewSections(a) {
         var viz = (a && a.visualizations) || {};
         var overview = viz.infrastructureOverview || {};
@@ -1622,13 +1780,14 @@
             overviewPair(infrastructureExposureCard(overview), infrastructureKeyVaultCard(overview)) +
             overviewPair(infrastructureRbacCard(overview), infrastructureGovernanceCard(overview)) +
             overviewPair(infrastructureMonitoringCard(overview), infrastructureBackupCard(overview)) +
-            infrastructureControlStatusCard(a) +
             "</div>";
     }
 
     function pillarOverviewMetrics(view) {
         if (view === "identity") return identityOverviewSections(state.assessment);
         if (view === "network") return networkOverviewSections(state.assessment);
+        if (view === "devices") return devicesOverviewSections(state.assessment);
+        if (view === "data") return dataOverviewSections(state.assessment);
         if (view === "infrastructure") return infrastructureOverviewSections(state.assessment);
         var a = state.assessment;
         var viz = (a && a.visualizations) || {};

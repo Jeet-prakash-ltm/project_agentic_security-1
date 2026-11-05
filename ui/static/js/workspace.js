@@ -2074,8 +2074,27 @@
         }
     }
 
+    var WORKSPACE_CHAT_AGENTS = [
+        { id: "zero-trust-with-endpoint-agent", name: "Zero Trust with Endpoint", type: "Cloud Security Agent", model: "gpt-5.1", agent_id: "Zero-Trust-with-Endpoint" },
+        { id: "cloud-security-agent", name: "Cloud Security", type: "Cloud Security Agent", model: "gpt-5.1", agent_id: "Cloud-Security" }
+    ];
+
+    function ensureWorkspaceChatAgents() {
+        var byId = {};
+        state.agents.forEach(function (a) {
+            if (a && a.id) byId[a.id] = a;
+        });
+        WORKSPACE_CHAT_AGENTS.forEach(function (extra) {
+            if (!byId[extra.id]) {
+                state.agents.push(extra);
+                byId[extra.id] = extra;
+            }
+        });
+    }
+
     function populateAgentSelect() {
         if (!wsAgentSelect) return;
+        ensureWorkspaceChatAgents();
         wsAgentSelect.innerHTML = "";
         state.agents.forEach(function (a) {
             if (isCloudSecurityOpsAgent(a)) return;
@@ -2084,7 +2103,7 @@
             opt.textContent = a.name;
             wsAgentSelect.appendChild(opt);
         });
-        if (!state.agents.length) {
+        if (!wsAgentSelect.options.length) {
             var empty = document.createElement("option");
             empty.value = "";
             empty.textContent = "No agents configured";

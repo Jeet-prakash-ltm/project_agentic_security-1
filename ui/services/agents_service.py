@@ -4,10 +4,14 @@ Only the repository layer touches PostgreSQL; this service provides the same
 API the routes/UI expect (list/add/update/remove agents, connected agent).
 """
 
+import json
+import os
 import re
 
 from database.db import get_session
 from database.repositories import AgentsRepository
+
+_CATALOG_CACHE = None
 
 
 def _as_dict(agent):
@@ -30,18 +34,69 @@ def _repo():
     return AgentsRepository(get_session())
 
 
+def _catalog_agents():
+    global _CATALOG_CACHE
+    if _CATALOG_CACHE is not None:
+        return _CATALOG_CACHE
+    path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "config",
+        "agents.json",
+    )
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except Exception:
+        _CATALOG_CACHE = []
+        return _CATALOG_CACHE
+    _CATALOG_CACHE = list(payload.get("agents") or [])
+    return _CATALOG_CACHE
+
+
+def _catalog_public(entry, include_key=False):
+    item = {
+        "id": entry.get("id") or "",
+        "name": entry.get("name") or "",
+        "type": entry.get("type") or "",
+        "model": entry.get("model") or "gpt-5.1",
+        "agent_endpoint": entry.get("agent_endpoint") or "",
+        "api_key": entry.get("api_key") or "",
+        "connected": bool(entry.get("connected", False)),
+        "created_at": entry.get("created_at") or "",
+        "agent_id": entry.get("agent_id") or entry.get("name") or "",
+    }
+    if not include_key:
+        item["api_key"] = mask_key(item["api_key"])
+    return item
+
+
 def list_agents(include_key=False):
     result = []
+    seen = set()
     for agent in _repo().list_agents():
         item = _as_dict(agent)
         if not include_key:
             item["api_key"] = mask_key(agent.api_key or "")
         result.append(item)
+        if item.get("id"):
+            seen.add(item["id"])
+    for entry in _catalog_agents():
+        agent_id = (entry.get("id") or "").strip()
+        if not agent_id or agent_id in seen:
+            continue
+        result.append(_catalog_public(entry, include_key=include_key))
+        seen.add(agent_id)
     return result
 
 
 def get_agent(agent_id):
-    return _as_dict(_repo().get(agent_id))
+    found = _as_dict(_repo().get(agent_id))
+    if found:
+        return found
+    for entry in _catalog_agents():
+        if (entry.get("id") or "").strip() == agent_id:
+            return _catalog_public(entry, include_key=True)
+    return None
 
 
 def get_connected_agent():

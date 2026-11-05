@@ -833,6 +833,7 @@ def _infrastructure_overview_from_evidence(evidence):
     infra = evidence.get("infrastructure_security") or {}
     score = evidence.get("defender_secure_score") or {}
     assessments = evidence.get("defender_assessments") or {}
+    network = evidence.get("network_security") or {}
     inventory = _compact_metrics({
         "resourceGroups": _count_metric(infra, "resource_group_count"),
         "vms": _ratio_metric(infra, "trusted_launch_count", "vm_count"),
@@ -848,13 +849,77 @@ def _infrastructure_overview_from_evidence(evidence):
         "unhealthyAssessments": _count_metric(assessments, "unhealthy_count"),
         "keyVaultPurge": _ratio_metric(infra, "key_vault_purge_protection_count", "key_vault_count"),
         "privilegedAssignments": _count_metric(infra, "privileged_assignment_count"),
+        "healthyAssessments": _count_metric(assessments, "healthy_count"),
+        "assessmentCount": _count_metric(assessments, "assessment_count"),
+        "defenderPlans": _count_metric(assessments, "defender_plan_count"),
     })
-    if not inventory and not privileged and not defender:
+    compute = _compact_metrics({
+        "vms": _count_metric(infra, "vm_count"),
+        "vmss": _count_metric(infra, "vmss_count"),
+        "trustedLaunch": _ratio_metric(infra, "trusted_launch_count", "vm_count"),
+        "encryptedOs": _ratio_metric(infra, "encrypted_os_disk_count", "vm_count"),
+        "computeIdentity": _ratio_metric(infra, "compute_identity_count", "compute_count"),
+        "appServices": _count_metric(infra, "app_service_count"),
+        "functionApps": _count_metric(infra, "function_app_count"),
+    })
+    storage = _compact_metrics({
+        "https": _ratio_metric(infra, "storage_https_count", "storage_account_count"),
+        "public": _count_metric(infra, "storage_public_count"),
+        "noPublicBlob": _ratio_metric(infra, "storage_no_public_blob_count", "storage_account_count"),
+        "identity": _count_metric(infra, "storage_identity_count"),
+    })
+    exposure = _compact_metrics({
+        "openManagementRules": _count_metric(network, "open_management_rule_count"),
+        "internetAllowRules": _count_metric(network, "internet_allow_rule_count"),
+        "publicIps": _ratio_metric(network, "public_ip_attached_count", "public_ip_count"),
+        "privateEndpoints": _count_metric(network, "private_endpoint_count"),
+        "keyVaultPublic": _count_metric(infra, "key_vault_public_count"),
+        "aksPrivate": _ratio_metric(infra, "aks_private_count", "aks_count"),
+        "acrPrivate": _ratio_metric(infra, "acr_private_count", "acr_count"),
+    })
+    rbac = _compact_metrics({
+        "roleAssignments": _count_metric(infra, "role_assignment_count"),
+        "privilegedAssignments": _count_metric(infra, "privileged_assignment_count"),
+        "subscriptionAdmins": _count_metric(infra, "subscription_admin_count"),
+        "userAssignedIdentities": _count_metric(infra, "user_assigned_identity_count"),
+    })
+    key_vault = _compact_metrics({
+        "vaults": _count_metric(infra, "key_vault_count"),
+        "rbac": _ratio_metric(infra, "key_vault_rbac_count", "key_vault_count"),
+        "purge": _ratio_metric(infra, "key_vault_purge_protection_count", "key_vault_count"),
+        "softDelete": _ratio_metric(infra, "key_vault_soft_delete_count", "key_vault_count"),
+        "public": _count_metric(infra, "key_vault_public_count"),
+    })
+    governance = _compact_metrics({
+        "policyAssignments": _count_metric(infra, "policy_assignment_count"),
+        "policyExemptions": _count_metric(infra, "policy_exemption_count"),
+        "taggedGroups": _ratio_metric(infra, "tagged_resource_group_count", "resource_group_count"),
+    })
+    monitoring = _compact_metrics({
+        "logAnalytics": _count_metric(infra, "log_analytics_count"),
+        "diagnostics": _count_metric(infra, "subscription_diagnostic_count"),
+    })
+    backup = _compact_metrics({
+        "recoveryVaults": _count_metric(infra, "recovery_vault_count"),
+        "backupVaults": _count_metric(infra, "backup_vault_count"),
+    })
+    if not any([
+        inventory, privileged, defender, compute, storage, exposure,
+        rbac, key_vault, governance, monitoring, backup,
+    ]):
         return None
     return {
         "inventory": inventory,
         "privileged": privileged,
         "defender": defender,
+        "compute": compute,
+        "storage": storage,
+        "exposure": exposure,
+        "rbac": rbac,
+        "keyVault": key_vault,
+        "governance": governance,
+        "monitoring": monitoring,
+        "backup": backup,
     }
 
 

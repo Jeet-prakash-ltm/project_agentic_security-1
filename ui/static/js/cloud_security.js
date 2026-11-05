@@ -1473,6 +1473,141 @@
             '<div class="zt-inv-metrics">' + tiles + "</div></section>";
     }
 
+    function extraOverviewCard(title, tiles) {
+        if (!tiles) return "";
+        return overviewCard(title, tiles, "");
+    }
+
+    function infrastructureDefenderCoverageCard(overview) {
+        var defn = (overview && overview.defender) || {};
+        var tiles = overviewStat("mint", "pass", "Healthy assessments", defn.healthyAssessments) +
+            overviewStat("blue", "search", "Assessments", defn.assessmentCount) +
+            overviewStat("purple", "shield", "Standard plans", defn.defenderPlans);
+        return extraOverviewCard("Defender coverage", tiles);
+    }
+
+    function overviewPair(left, right) {
+        if (!left && !right) return "";
+        if (!right) return left;
+        if (!left) return right;
+        return '<div class="zt-id-overview-row">' + left + right + "</div>";
+    }
+
+    function infrastructureComputeCard(overview) {
+        var compute = (overview && overview.compute) || {};
+        var tiles = overviewStat("blue", "devices", "Virtual machines", compute.vms) +
+            overviewStat("sky", "laptop", "VM scale sets", compute.vmss) +
+            overviewStat("teal", "shield", "Trusted Launch", compute.trustedLaunch) +
+            overviewStat("mint", "lock", "Encrypted OS disks", compute.encryptedOs) +
+            overviewStat("violet", "key", "Compute managed identity", compute.computeIdentity) +
+            overviewStat("purple", "apps", "App Services", compute.appServices) +
+            overviewStat("sky", "apps", "Function Apps", compute.functionApps);
+        return extraOverviewCard("Compute", tiles);
+    }
+
+    function infrastructureStorageCard(overview) {
+        var storage = (overview && overview.storage) || {};
+        var tiles = overviewStat("teal", "lock", "HTTPS required", storage.https) +
+            overviewStat("violet", "warn", "Public network access", storage.public) +
+            overviewStat("mint", "shield", "Blob public access disabled", storage.noPublicBlob) +
+            overviewStat("blue", "key", "Storage managed identity", storage.identity);
+        return extraOverviewCard("Storage", tiles);
+    }
+
+    function infrastructureExposureCard(overview) {
+        var exp = (overview && overview.exposure) || {};
+        var open = metricValue(exp.openManagementRules);
+        var internet = metricValue(exp.internetAllowRules);
+        var tiles = overviewStat("purple", "fail", "Open management rules", exp.openManagementRules) +
+            overviewStat("sky", "warn", "Internet allow rules", exp.internetAllowRules) +
+            overviewStat("teal", "laptop", "Public IPs attached", exp.publicIps) +
+            overviewStat("violet", "lock", "Private endpoints", exp.privateEndpoints) +
+            overviewStat("blue", "key", "Public Key Vaults", exp.keyVaultPublic) +
+            overviewStat("mint", "shield", "Private AKS", exp.aksPrivate) +
+            overviewStat("purple", "apps", "Private ACR", exp.acrPrivate);
+        if (!tiles) return "";
+        if (open == null && internet == null) {
+            return extraOverviewCard("Network exposure", tiles);
+        }
+        var tone = "healthy";
+        var label = "No open internet management";
+        if ((open || 0) > 0) {
+            tone = "expired";
+            label = "Open management paths";
+        } else if ((internet || 0) > 0) {
+            tone = "expiring";
+            label = "Internet allow rules";
+        }
+        return '<section class="zt-inventory-card zt-cred-card">' +
+            "<h2>Network exposure</h2>" +
+            overviewHealth(tone, label, [
+                "<span>Open management rules: " + esc(compactNumber(open)) + "</span>",
+                "<span>Internet allow rules: " + esc(compactNumber(internet)) + "</span>"
+            ]) +
+            '<div class="zt-inv-metrics">' + tiles + "</div></section>";
+    }
+
+    function infrastructureKeyVaultCard(overview) {
+        var kv = (overview && overview.keyVault) || {};
+        var tiles = overviewStat("violet", "key", "Key Vaults", kv.vaults) +
+            overviewStat("mint", "lock", "RBAC authorization", kv.rbac) +
+            overviewStat("purple", "shield", "Purge protection", kv.purge) +
+            overviewStat("teal", "pass", "Soft-delete", kv.softDelete) +
+            overviewStat("sky", "warn", "Public network enabled", kv.public);
+        return extraOverviewCard("Key Vault", tiles);
+    }
+
+    function infrastructureRbacCard(overview) {
+        var rbac = (overview && overview.rbac) || {};
+        var tiles = overviewStat("purple", "users", "Role assignments", rbac.roleAssignments) +
+            overviewStat("mint", "shield", "Privileged ARM assignments", rbac.privilegedAssignments) +
+            overviewStat("sky", "warn", "Subscription admins", rbac.subscriptionAdmins) +
+            overviewStat("teal", "key", "User-assigned identities", rbac.userAssignedIdentities);
+        return extraOverviewCard("Privileged access detail", tiles);
+    }
+
+    function infrastructureGovernanceCard(overview) {
+        var gov = (overview && overview.governance) || {};
+        var tiles = overviewStat("blue", "building", "Policy assignments", gov.policyAssignments) +
+            overviewStat("violet", "warn", "Policy exemptions", gov.policyExemptions) +
+            overviewStat("teal", "pass", "Tagged resource groups", gov.taggedGroups);
+        return extraOverviewCard("Governance", tiles);
+    }
+
+    function infrastructureMonitoringCard(overview) {
+        var mon = (overview && overview.monitoring) || {};
+        var tiles = overviewStat("mint", "search", "Log Analytics workspaces", mon.logAnalytics) +
+            overviewStat("sky", "clock", "Subscription diagnostics", mon.diagnostics);
+        return extraOverviewCard("Monitoring", tiles);
+    }
+
+    function infrastructureBackupCard(overview) {
+        var backup = (overview && overview.backup) || {};
+        var tiles = overviewStat("blue", "shield", "Recovery Services vaults", backup.recoveryVaults) +
+            overviewStat("teal", "lock", "Backup vaults", backup.backupVaults);
+        return extraOverviewCard("Backup", tiles);
+    }
+
+    function infrastructureControlStatusCard(a) {
+        var summary = ((a && a.infrastructure) || {}).summary || {};
+        if (!summary.total) return "";
+        var tiles = overviewStat("mint", "pass", "Passed", { value: summary.passed || 0 }) +
+            overviewStat("purple", "fail", "Failed", { value: summary.failed || 0 }) +
+            overviewStat("sky", "warn", "Investigate", { value: summary.investigate || 0 }) +
+            overviewStat("violet", "clock", "Planned", { value: summary.planned || 0 }) +
+            overviewStat("teal", "search", "Skipped", { value: summary.skipped || 0 });
+        var failed = summary.failed || 0;
+        var tone = failed > 0 ? "expired" : "healthy";
+        var label = failed > 0 ? "Failed controls" : "Controls passing";
+        return '<section class="zt-inventory-card zt-cred-card">' +
+            "<h2>Zero Trust control status</h2>" +
+            overviewHealth(tone, label, [
+                "<span>Controls: " + esc(compactNumber(summary.total)) + "</span>",
+                "<span>High-risk failed: " + esc(compactNumber(summary.highRiskFailed || 0)) + "</span>"
+            ]) +
+            '<div class="zt-inv-metrics">' + tiles + "</div></section>";
+    }
+
     function infrastructureOverviewSections(a) {
         var viz = (a && a.visualizations) || {};
         var overview = viz.infrastructureOverview || {};
@@ -1482,6 +1617,12 @@
             infrastructurePrivilegedCard(overview) +
             "</div>" +
             infrastructureDefenderCard(overview) +
+            infrastructureDefenderCoverageCard(overview) +
+            overviewPair(infrastructureComputeCard(overview), infrastructureStorageCard(overview)) +
+            overviewPair(infrastructureExposureCard(overview), infrastructureKeyVaultCard(overview)) +
+            overviewPair(infrastructureRbacCard(overview), infrastructureGovernanceCard(overview)) +
+            overviewPair(infrastructureMonitoringCard(overview), infrastructureBackupCard(overview)) +
+            infrastructureControlStatusCard(a) +
             "</div>";
     }
 

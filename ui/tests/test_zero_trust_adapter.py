@@ -574,14 +574,39 @@ class ZeroTrustAdapterTests(unittest.TestCase):
                 "infrastructure_security": {
                     "available": True,
                     "resource_group_count": 65,
+                    "tagged_resource_group_count": 40,
                     "vm_count": 4,
+                    "vmss_count": 1,
                     "trusted_launch_count": 1,
+                    "encrypted_os_disk_count": 2,
                     "storage_account_count": 7,
                     "storage_https_count": 7,
                     "storage_public_count": 2,
+                    "storage_no_public_blob_count": 5,
+                    "storage_identity_count": 3,
                     "privileged_assignment_count": 9,
+                    "role_assignment_count": 42,
+                    "subscription_admin_count": 4,
+                    "user_assigned_identity_count": 6,
+                    "compute_identity_count": 8,
+                    "compute_count": 12,
+                    "app_service_count": 5,
+                    "function_app_count": 2,
                     "key_vault_count": 10,
+                    "key_vault_rbac_count": 8,
                     "key_vault_purge_protection_count": 0,
+                    "key_vault_soft_delete_count": 10,
+                    "key_vault_public_count": 3,
+                    "aks_count": 2,
+                    "aks_private_count": 1,
+                    "acr_count": 3,
+                    "acr_private_count": 1,
+                    "policy_assignment_count": 18,
+                    "policy_exemption_count": 2,
+                    "log_analytics_count": 4,
+                    "subscription_diagnostic_count": 1,
+                    "recovery_vault_count": 2,
+                    "backup_vault_count": 1,
                 },
                 "defender_secure_score": {
                     "available": True,
@@ -590,6 +615,9 @@ class ZeroTrustAdapterTests(unittest.TestCase):
                 "defender_assessments": {
                     "available": True,
                     "unhealthy_count": 682,
+                    "healthy_count": 120,
+                    "assessment_count": 802,
+                    "defender_plan_count": 3,
                 },
                 "access_reviews": {"available": False, "error": "Graph 400"},
             },
@@ -630,6 +658,21 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         self.assertEqual(infra["privileged"]["privilegedAssignments"], {"value": 9})
         self.assertEqual(infra["defender"]["defenderScore"], {"value": 61.5})
         self.assertEqual(infra["defender"]["unhealthyAssessments"], {"value": 682})
+        self.assertEqual(infra["defender"]["healthyAssessments"], {"value": 120})
+        self.assertEqual(infra["defender"]["defenderPlans"], {"value": 3})
+        self.assertEqual(infra["compute"]["trustedLaunch"], {"value": 1, "total": 4})
+        self.assertEqual(infra["compute"]["encryptedOs"], {"value": 2, "total": 4})
+        self.assertEqual(infra["compute"]["computeIdentity"], {"value": 8, "total": 12})
+        self.assertEqual(infra["storage"]["noPublicBlob"], {"value": 5, "total": 7})
+        self.assertEqual(infra["exposure"]["internetAllowRules"], {"value": 168})
+        self.assertEqual(infra["exposure"]["aksPrivate"], {"value": 1, "total": 2})
+        self.assertEqual(infra["rbac"]["subscriptionAdmins"], {"value": 4})
+        self.assertEqual(infra["keyVault"]["rbac"], {"value": 8, "total": 10})
+        self.assertEqual(infra["keyVault"]["public"], {"value": 3})
+        self.assertEqual(infra["governance"]["policyAssignments"], {"value": 18})
+        self.assertEqual(infra["governance"]["taggedGroups"], {"value": 40, "total": 65})
+        self.assertEqual(infra["monitoring"]["logAnalytics"], {"value": 4})
+        self.assertEqual(infra["backup"]["recoveryVaults"], {"value": 2})
 
     def test_microsoft_style_details_and_evidence_tables(self):
         adapted = adapt_assessment({

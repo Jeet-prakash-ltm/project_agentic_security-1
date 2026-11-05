@@ -219,15 +219,16 @@ img { display: block; }
 }
 
 .ld-hero-copy p {
-    font-size: 17px;
+    font-size: 16px;
     color: var(--slate);
-    max-width: 560px;
+    max-width: 640px;
     margin-bottom: 28px;
+    line-height: 1.55;
 }
 
 .ld-hero-cta { display: flex; gap: 13px; flex-wrap: wrap; margin-bottom: 30px; }
 
-.ld-hero-points { display: grid; gap: 10px; max-width: 560px; margin-bottom: 30px; }
+.ld-hero-points { display: grid; gap: 10px; max-width: 640px; margin-bottom: 30px; }
 
 .ld-hero-points li {
     display: flex;

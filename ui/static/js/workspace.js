@@ -1924,6 +1924,12 @@
         if (isOrchestratorAgent(state.activeAgent)) {
             return "Talk to Maestro AI \u2014 it coordinates network, cloud, and firewall specialist agents.";
         }
+        if (isZeroTrustAgent(state.activeAgent)) {
+            return "Talk to Zero Trust with Endpoint \u2014 assess identity, devices, and endpoint posture.";
+        }
+        if (isNamedCloudSecurityAgent(state.activeAgent)) {
+            return "Talk to Cloud Security \u2014 review Azure posture, exposure, and configuration issues.";
+        }
         return "Talk to your security copilot \u2014 run compliance assessments, review findings, and generate executive reports.";
     }
 
@@ -1946,13 +1952,7 @@
     }
 
     function isCloudAgent(agent) {
-        if (!agent) return false;
-        if (isOrchestratorAgent(agent)) return false;
-        var type = String(agent.type || "").toLowerCase();
-        var name = String(agent.name || "").toLowerCase();
-        var id = String(agent.id || "").toLowerCase();
-        return type.indexOf("cloud") !== -1 || name.indexOf("cloud") !== -1 ||
-            name.indexOf("incident") !== -1 || id.indexOf("cloud") !== -1;
+        return isCloudSecurityOpsAgent(agent);
     }
 
     function isCloudSecurityOpsAgent(agent) {
@@ -1965,6 +1965,22 @@
             id === "incident-response-agent-cloud-security" ||
             type.indexOf("cloud incident") !== -1 ||
             agentId.indexOf("incident-response-agent-cloud-security") !== -1;
+    }
+
+    function isZeroTrustAgent(agent) {
+        if (!agent) return false;
+        var text = String(agent.id || "") + " " + String(agent.name || "") + " " + String(agent.agent_id || "");
+        return /zero.?trust/i.test(text);
+    }
+
+    function isNamedCloudSecurityAgent(agent) {
+        if (!agent || isCloudSecurityOpsAgent(agent) || isZeroTrustAgent(agent)) return false;
+        var id = String(agent.id || "").toLowerCase();
+        var name = String(agent.name || "").toLowerCase();
+        var agentId = String(agent.agent_id || "").toLowerCase();
+        return id === "cloud-security-agent" ||
+            name === "cloud security" ||
+            agentId === "cloud-security";
     }
 
     function normalizeAgentKey(value) {

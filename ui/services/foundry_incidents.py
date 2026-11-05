@@ -34,14 +34,7 @@ _OPERATION = {
 
 
 def _is_cloud_agent(agent):
-    if not agent:
-        return False
-    text = " ".join([
-        str(agent.get("type") or ""),
-        str(agent.get("name") or ""),
-        str(agent.get("id") or ""),
-    ]).lower()
-    return "cloud" in text or "incident" in text
+    return foundry_client.is_cloud_agent(agent)
 
 
 def _get_cloud_agent(agent_id=None):

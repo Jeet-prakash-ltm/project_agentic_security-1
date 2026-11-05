@@ -158,10 +158,27 @@ def _system_prompt(agent):
             "Format responses with clear headings, bullet points, and severity indicators. "
             "Always reference the actual assessment data and offer to run a fresh assessment if needed."
         )
-    elif "cloud" in agent_type or "incident" in agent_type or "cloud" in agent_name.lower():
+    elif "zero trust" in agent_key or "zero-trust" in agent_key:
+        base = (
+            "You are the Zero Trust with Endpoint agent on the LTM Security Platform. "
+            "Help operators assess Zero Trust posture across identity, devices, "
+            "endpoint compliance, network, data, and infrastructure. "
+            "Keep answers concise and evidence-based."
+        )
+    elif (
+        "cloud security ops" in agent_key
+        or "incident-response" in agent_key
+        or "incident" in agent_type
+    ):
         base = (
             "You are the Cloud Incident Response Agent, an AI security agent specialized in Azure cloud security incident response. "
             "Provide structured incident response guidance."
+        )
+    elif "cloud" in agent_type or "cloud" in agent_name.lower():
+        base = (
+            "You are the Cloud Security agent on the LTM Security Platform. "
+            "Help operators review Azure security posture, exposure, and "
+            "configuration issues. Keep answers concise and actionable."
         )
     else:
         base = (
@@ -178,8 +195,13 @@ def is_cloud_agent(agent):
         str(agent.get("type") or ""),
         str(agent.get("name") or ""),
         str(agent.get("id") or ""),
+        str(agent.get("agent_id") or ""),
     ]).lower()
-    return "cloud" in text or "incident" in text
+    return (
+        "incident-response-agent-cloud-security" in text
+        or "cloud security ops" in text
+        or "cloud incident" in text
+    )
 
 
 def _normalize_messages(messages):

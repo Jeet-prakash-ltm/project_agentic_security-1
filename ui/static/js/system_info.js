@@ -24,7 +24,11 @@
         "incident-response-agent-cloud-security":
             "Delivers cloud security posture management (CSPM), integrates Microsoft Defender for Cloud and Microsoft Sentinel, analyses incidents, and performs cloud containment actions and security responses.",
         "zero-trust-assessment-agent":
-            "Runs Zero Trust assessments across identity, devices, network, data, and infrastructure, then returns scored findings and remediation guidance."
+            "Runs Zero Trust assessments across identity, devices, network, data, and infrastructure, then returns scored findings and remediation guidance.",
+        "zero-trust-with-endpoint-agent":
+            "Assesses Zero Trust posture with endpoint evidence across identity, devices, compliance, and infrastructure, then returns findings and remediation guidance.",
+        "cloud-security-agent":
+            "Reviews Azure cloud security posture, exposure, and configuration issues, then returns concise guidance for operators."
     };
 
     /* Fallback matching for agents that are not in the registry map. */

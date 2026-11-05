@@ -54,6 +54,28 @@
       "connected": false,
       "created_at": "2026-11-03T00:00:00Z",
       "agent_id": "Zero-Trust-Assessment-Agent"
+    },
+    {
+      "id": "zero-trust-with-endpoint-agent",
+      "name": "Zero Trust with Endpoint",
+      "type": "Cloud Security Agent",
+      "model": "gpt-5.1",
+      "agent_endpoint": "https://network-security-agents.services.ai.azure.com/api/projects/network-security-agents-project",
+      "api_key": "PLACEHOLDER_REPLACE_WITH_YOUR_API_KEY",
+      "connected": false,
+      "created_at": "2026-11-05T00:00:00Z",
+      "agent_id": "Zero-Trust-with-Endpoint"
+    },
+    {
+      "id": "cloud-security-agent",
+      "name": "Cloud Security",
+      "type": "Cloud Security Agent",
+      "model": "gpt-5.1",
+      "agent_endpoint": "https://network-security-agents.services.ai.azure.com/api/projects/network-security-agents-project",
+      "api_key": "PLACEHOLDER_REPLACE_WITH_YOUR_API_KEY",
+      "connected": false,
+      "created_at": "2026-11-05T00:00:00Z",
+      "agent_id": "Cloud-Security"
     }
   ]
 }

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Assessment baseline — Settings{% endblock %}
+
+{% block page_title %}Assessment baseline{% endblock %}
+
+{% block hero_eyebrow %}Settings / Configurations / Assessment baseline{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=47">
+{% endblock %}
+
+{% block content %}
+
+<div class="settings-header">
+    <div>
+        <div class="page-title-line">
+            <h1>Assessment baseline</h1>
+            {% with page_info_label="About assessment baseline", page_info_text="Assessment baseline lets administrators preview Zero Trust pass thresholds by profile. Percentages and counts use sliders, binary controls use toggles, and multi-condition controls use selectors. Saving a version does not change live Cloud Security scoring." %}
+            {% include "_page_info.html" %}
+            {% endwith %}
+        </div>
+        <p>Configure assessment-engine pass thresholds for Cloud Security. Live scoring is unchanged until a future engine release consumes a saved version.</p>
+    </div>
+    <div class="settings-header-actions">
+        <button class="btn btn-ghost" id="baselineResetBtn" type="button">Reset</button>
+        <button class="btn btn-primary" id="baselineSaveBtn" type="button">Save version</button>
+    </div>
+</div>
+
+<section class="bl-shell" id="baselineApp">
+    <div class="bl-toolbar card">
+        <div class="bl-toolbar-row">
+            <div class="bl-field">
+                <span class="bl-label">Profile</span>
+                <div class="bl-pills" id="baselineProfiles" role="group" aria-label="Baseline profile"></div>
+            </div>
+            <div class="bl-field">
+                <span class="bl-label">Pillar</span>
+                <select id="baselinePillar" aria-label="Filter by pillar"></select>
+            </div>
+            <div class="bl-field bl-field-search">
+                <span class="bl-label">Search</span>
+                <input type="search" id="baselineSearch" placeholder="Control code or name" autocomplete="off" aria-label="Search controls">
+            </div>
+        </div>
+        <div class="bl-meta">
+            <span class="status-chip status-on" id="baselineVersionChip">Version 1</span>
+            <span class="bl-lock" id="baselineLockNote">Named profiles are read-only. Choose Custom to edit.</span>
+            <span class="bl-count" id="baselineCount">0 controls</span>
+        </div>
+        <p class="bl-disclaimer" id="baselineDisclaimer"></p>
+    </div>
+
+    <div class="bl-impact card" id="baselineImpact">
+        <div>
+            <h3>Impact preview</h3>
+            <p id="baselineImpactText">Compared with Balanced.</p>
+        </div>
+        <div class="bl-impact-stats">
+            <div>
+                <strong id="baselineStricter">0</strong>
+                <span>Stricter than Balanced</span>
+            </div>
+            <div>
+                <strong id="baselineLooser">0</strong>
+                <span>More lenient than Balanced</span>
+            </div>
+            <div>
+                <strong id="baselineUnchanged">0</strong>
+                <span>Unchanged</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-card card settings-card-wide">
+        <div class="settings-card-head">
+            <span class="settings-icon settings-icon-gold">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>
+            </span>
+            <div>
+                <h3>Zero Trust controls</h3>
+            </div>
+            <select id="baselineVersionSelect" aria-label="Saved versions" hidden></select>
+        </div>
+        <div class="settings-body">
+            <div class="users-table-wrap bl-table-wrap">
+                <table class="users-table bl-table">
+                    <thead>
+                        <tr>
+                            <th>Control</th>
+                            <th>Pillar</th>
+                            <th>Pass rule</th>
+                            <th>Threshold</th>
+                            <th>Impact</th>
+                        </tr>
+                    </thead>
+                    <tbody id="baselineBody">
+                        <tr><td colspan="5" class="users-empty">Loading baseline…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.BASELINE_CATALOG = {{ baseline_catalog | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/assessment_baseline.js') }}?v=1"></script>
+{% endblock %}

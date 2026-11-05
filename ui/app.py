@@ -35,6 +35,7 @@ from services import timeutil
 from services import users_service
 from services import zero_trust_service
 from services import zero_trust_store
+from services import zero_trust_baseline_catalog
 from gateway.agent_gateway import gateway
 from gateway import session_manager
 
@@ -952,12 +953,10 @@ def settings_configurations():
 def settings_assessment():
 
     return render_with_css(
-        "under_construction.html",
+        "assessment_baseline.html",
 
         is_admin=_is_admin(current_user()),
-        browser_title="Assessment",
-        page_heading="Assessment",
-        hero_text="Settings / Configurations / Assessment",
+        baseline_catalog=zero_trust_baseline_catalog.payload(),
     )
 
 # --------------------------------------------------

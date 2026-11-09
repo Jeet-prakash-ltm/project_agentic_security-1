@@ -1990,7 +1990,8 @@
         var agentId = String(agent.agent_id || "").toLowerCase();
         return id === "cloud-security-agent" ||
             name === "cloud security" ||
-            agentId === "cloud-security";
+            agentId === "cloud-security" ||
+            agentId === "cloud-security-agent";
     }
 
     function normalizeAgentKey(value) {
@@ -2086,7 +2087,7 @@
 
     var WORKSPACE_CHAT_AGENTS = [
         { id: "zero-trust-with-endpoint-agent", name: "Zero Trust with Endpoint", type: "Cloud Security Agent", model: "gpt-5.1", agent_id: "Zero-trust-Agent" },
-        { id: "cloud-security-agent", name: "Cloud Security", type: "Cloud Security Agent", model: "gpt-5.1", agent_id: "Cloud-Security" }
+        { id: "cloud-security-agent", name: "Cloud Security", type: "Cloud Security Agent", model: "gpt-5.1", agent_id: "Cloud-Security-Agent" }
     ];
 
     function ensureWorkspaceChatAgents() {

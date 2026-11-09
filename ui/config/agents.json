@@ -64,7 +64,7 @@
       "api_key": "PLACEHOLDER_REPLACE_WITH_YOUR_API_KEY",
       "connected": false,
       "created_at": "2026-11-05T00:00:00Z",
-      "agent_id": "Cloud-Security"
+      "agent_id": "Cloud-Security-Agent"
     }
   ]
 }

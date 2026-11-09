@@ -23,8 +23,6 @@
             "Automates rule and policy lifecycle management, object management and network management across Palo Alto firewalls.",
         "incident-response-agent-cloud-security":
             "Delivers cloud security posture management (CSPM), integrates Microsoft Defender for Cloud and Microsoft Sentinel, analyses incidents, and performs cloud containment actions and security responses.",
-        "zero-trust-assessment-agent":
-            "Runs Zero Trust assessments across identity, devices, network, data, and infrastructure, then returns scored findings and remediation guidance.",
         "zero-trust-with-endpoint-agent":
             "Assesses Zero Trust posture with endpoint evidence across identity, devices, compliance, and infrastructure, then returns findings and remediation guidance.",
         "cloud-security-agent":
@@ -39,7 +37,7 @@
         },
         {
             keys: ["zero trust", "zero-trust"],
-            text: CAPABILITIES["zero-trust-assessment-agent"]
+            text: CAPABILITIES["zero-trust-with-endpoint-agent"]
         },
         {
             keys: ["audit", "firewall audit"],
@@ -130,7 +128,10 @@
         if (!grid) {
             return;
         }
-        if (!agents.length) {
+        var visible = (agents || []).filter(function (agent) {
+            return String(agent.id || "").toLowerCase() !== "zero-trust-assessment-agent";
+        });
+        if (!visible.length) {
             grid.innerHTML = '<p class="sys-agent-note">No agents configured yet.</p>';
             if (countChip) {
                 countChip.textContent = "Total 0";
@@ -138,9 +139,9 @@
             return;
         }
         if (countChip) {
-            countChip.textContent = "Total " + agents.length;
+            countChip.textContent = "Total " + visible.length;
         }
-        var ordered = agents.slice().sort(function (a, b) {
+        var ordered = visible.slice().sort(function (a, b) {
             var aMaster = String(a.id || "") === MASTER_ID ? 0 : 1;
             var bMaster = String(b.id || "") === MASTER_ID ? 0 : 1;
             if (aMaster !== bMaster) {

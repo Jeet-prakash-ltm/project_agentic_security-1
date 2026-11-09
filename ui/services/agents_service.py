@@ -13,6 +13,10 @@ from database.repositories import AgentsRepository
 
 _CATALOG_CACHE = None
 
+RETIRED_AGENT_IDS = frozenset((
+    "zero-trust-assessment-agent",
+))
+
 
 def _as_dict(agent):
     if agent is None:
@@ -75,14 +79,17 @@ def list_agents(include_key=False):
     seen = set()
     for agent in _repo().list_agents():
         item = _as_dict(agent)
+        agent_id = item.get("id") or ""
+        if agent_id in RETIRED_AGENT_IDS:
+            continue
         if not include_key:
             item["api_key"] = mask_key(agent.api_key or "")
         result.append(item)
-        if item.get("id"):
-            seen.add(item["id"])
+        if agent_id:
+            seen.add(agent_id)
     for entry in _catalog_agents():
         agent_id = (entry.get("id") or "").strip()
-        if not agent_id or agent_id in seen:
+        if not agent_id or agent_id in seen or agent_id in RETIRED_AGENT_IDS:
             continue
         result.append(_catalog_public(entry, include_key=include_key))
         seen.add(agent_id)

@@ -1973,6 +1973,16 @@
         return /zero.?trust/i.test(text);
     }
 
+    function isRetiredZeroTrustAgent(agent) {
+        if (!agent) return false;
+        var id = String(agent.id || "").toLowerCase();
+        var name = String(agent.name || "").toLowerCase();
+        var agentId = String(agent.agent_id || "").toLowerCase();
+        return id === "zero-trust-assessment-agent" ||
+            name === "zero trust assessment agent" ||
+            agentId === "zero-trust-assessment-agent";
+    }
+
     function isNamedCloudSecurityAgent(agent) {
         if (!agent || isCloudSecurityOpsAgent(agent) || isZeroTrustAgent(agent)) return false;
         var id = String(agent.id || "").toLowerCase();
@@ -2098,6 +2108,7 @@
         wsAgentSelect.innerHTML = "";
         state.agents.forEach(function (a) {
             if (isCloudSecurityOpsAgent(a)) return;
+            if (isRetiredZeroTrustAgent(a)) return;
             var opt = document.createElement("option");
             opt.value = a.id;
             opt.textContent = a.name;
@@ -2117,7 +2128,9 @@
         for (var i = 0; i < state.agents.length; i++) {
             if (isOrchestratorAgent(state.agents[i])) return state.agents[i];
         }
-        var visible = state.agents.filter(function (a) { return !isCloudSecurityOpsAgent(a); });
+        var visible = state.agents.filter(function (a) {
+            return !isCloudSecurityOpsAgent(a) && !isRetiredZeroTrustAgent(a);
+        });
         var connected = visible.filter(function (a) { return a.connected; });
         if (connected[0]) return connected[0];
         return visible[0] || null;

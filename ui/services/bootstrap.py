@@ -184,6 +184,15 @@ def seed_agents_from_config():
             repo.update(agent_id, **updates)
             seeded += 1
 
+    from services import agents_service
+
+    for retired_id in agents_service.RETIRED_AGENT_IDS:
+        existing = repo.get(retired_id)
+        if existing is not None:
+            repo.delete(existing)
+            seeded += 1
+            log.info("Removed retired agent %s from registry.", retired_id)
+
     if repo.get(MASTER_ORCHESTRATOR_ID) is not None:
         repo.set_connected(MASTER_ORCHESTRATOR_ID, True)
     return seeded

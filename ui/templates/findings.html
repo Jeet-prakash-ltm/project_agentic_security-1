@@ -60,6 +60,7 @@
             <div class="zt-export-menu" id="ztExportMenu" hidden>
                 <button type="button" data-export="csv">Filtered results CSV</button>
                 <button type="button" data-export="json">Full results JSON</button>
+                <button type="button" data-export="pdf">Control details PDF</button>
                 <button type="button" data-export="print">Printable summary</button>
                 <button type="button" data-export="exec">Executive summary</button>
             </div>
@@ -336,9 +337,14 @@
 <aside class="fw-drawer zt-drawer" id="ztIcDrawer" hidden aria-label="Assessment result details">
     <div class="fw-drawer-head">
         <h3 id="ztIcDrawerTitle">Control details</h3>
-        <button type="button" class="fw-drawer-close" id="ztIcDrawerClose" aria-label="Close details">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
+        <div class="zt-dd-head-actions">
+            <button type="button" class="fw-drawer-close" id="ztIcDrawerDownload" aria-label="Download control details">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+            </button>
+            <button type="button" class="fw-drawer-close" id="ztIcDrawerClose" aria-label="Close details">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
     </div>
     <div class="fw-drawer-body" id="ztIcDrawerBody"></div>
 </aside>
@@ -371,6 +377,6 @@
 {% block scripts %}
 {% if not assessment_blocked %}
 <script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=8"></script>
-<script src="{{ url_for('static', filename='js/findings.js') }}?v=23"></script>
+<script src="{{ url_for('static', filename='js/findings.js') }}?v=24"></script>
 {% endif %}
 {% endblock %}

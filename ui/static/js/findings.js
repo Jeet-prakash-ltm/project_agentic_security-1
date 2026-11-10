@@ -439,8 +439,9 @@
             '<span class="status-badge ' + statusClass + '">' + escapeHtml(statusKey) + '</span>' +
             (PAGE_DOMAIN === "zero_trust"
                 ? '<span class="finding-card-actions">' +
-                    '<button class="action-btn ai" data-act="copilot" type="button">' + ICONS.spark + ' Copilot</button>' +
-                    '<button class="action-btn" data-act="export" type="button">Export</button>' +
+                    '<button class="action-btn ai" data-act="copilot" type="button">' + ICONS.spark + ' Ask Maestro AI</button>' +
+                    '<button class="action-btn" data-act="export" type="button">JSON</button>' +
+                    '<button class="action-btn" data-act="pdf" type="button">PDF</button>' +
                     '</span>'
                 : '') +
             '</div>' +
@@ -1162,6 +1163,10 @@
 
     function openCopilot(rec) {
         copilot.current = rec;
+        var label = PAGE_DOMAIN === "zero_trust" ? "Ask Maestro AI" : "AI Copilot";
+        var title = document.getElementById("copilotTitle");
+        if (title) title.textContent = label;
+        if (copilot.panel) copilot.panel.setAttribute("aria-label", label);
         document.getElementById("copilotFindingRef").textContent = rec.control + " \u00b7 " + rec._domain;
         copilot.body.innerHTML = '<p class="copilot-placeholder">Select an action to get AI assistance for this finding.</p>';
         copilot.panel.classList.add("open");
@@ -1289,6 +1294,8 @@
         } else if (act === "export") {
             downloadJson(rec.control + "_finding.json", buildExportPayload(rec));
             if (window.showToast) window.showToast("Exported " + rec.control + ".", "success");
+        } else if (act === "pdf") {
+            printZtControlPdf(ztControlFromFinding(rec));
         } else if (act === "report") {
             generateReport();
         } else if (act === "share") {
@@ -1715,9 +1722,190 @@
         ztDetails.current = null;
     }
 
+    function ztControlFromFinding(rec) {
+        var ms = (rec && rec._ms) || {};
+        var actions = (ms.remediationActions && ms.remediationActions.length)
+            ? ms.remediationActions
+            : (rec && rec._remediation ? [rec._remediation] : (ms.recommendation ? [ms.recommendation] : []));
+        return {
+            id: ms.id || (rec && rec.control) || "",
+            name: ms.name || (rec && rec._check) || (rec && rec.control) || "Control details",
+            risk: ms.risk || (rec && rec.risk) || "",
+            status: ms.status || ztMsStatus(rec),
+            category: rec && rec._category,
+            area: rec && rec._pillar,
+            userImpact: ms.userImpact,
+            implementationEffort: ms.implementationEffort,
+            license: ms.license,
+            lastEvaluatedAt: rec && rec._collected_at,
+            controlSummary: ms.controlSummary || ms.whatWasChecked || (rec && rec._check) || "",
+            whyItMatters: ms.whyItMatters || ms.impact || (rec && rec._impact) || "",
+            baseline: ms.baseline || ms.howToCheck || "",
+            passRequirement: ms.baseline || ms.howToCheck || "",
+            whatWasChecked: ms.whatWasChecked,
+            howToCheck: ms.howToCheck,
+            description: ms.description || (rec && rec._finding) || "",
+            impact: ms.impact || (rec && rec._gap) || "",
+            resultSummary: ms.resultSummary || ms.description || (rec && rec._finding) || "",
+            recommendation: ms.recommendation || (rec && rec._remediation) || "",
+            remediationActions: actions,
+            evidenceTables: ms.evidenceTables || [],
+            evidence: rec && rec._evidence,
+            documentationUrl: ms.documentationUrl,
+            portalUrl: ms.portalUrl,
+            error: ms.error
+        };
+    }
+
+    function ztPdfEsc(value) {
+        return String(value == null ? "" : value)
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function ztPdfFact(label, value) {
+        return '<article class="zt-dd-fact"><span>' + ztPdfEsc(label) + "</span><strong>" + ztPdfEsc(value || "Unavailable") + "</strong></article>";
+    }
+
+    function ztPdfBadge(kind, label) {
+        return '<span class="zt-badge zt-badge-' + ztPdfEsc(kind) + '">' + ztPdfEsc(label || kind) + "</span>";
+    }
+
+    function ztPdfEvidenceHtml(test) {
+        var tables = (test.evidenceTables || []).filter(function (table) {
+            return table && table.columns && table.rows && table.rows.length;
+        });
+        var raw = (test.evidence || []).filter(Boolean);
+        var sources = tables.map(function (table) { return { label: table.title || "Evidence", table: table }; });
+        if (raw.length) {
+            sources.push({
+                label: "Raw evidence",
+                table: {
+                    columns: [{ key: "detail", label: "Detail" }],
+                    rows: raw.map(function (item) { return { detail: item }; })
+                }
+            });
+        }
+        if (!sources.length) {
+            return '<section class="zt-dd-card"><h4>Collected evidence</h4><p class="zt-dd-muted">No collected records were returned for this view.</p></section>';
+        }
+        return sources.map(function (item) {
+            var head = item.table.columns.map(function (col) {
+                return "<th>" + ztPdfEsc(col.label || col.key) + "</th>";
+            }).join("");
+            var body = item.table.rows.map(function (row) {
+                return "<tr>" + item.table.columns.map(function (col) {
+                    return "<td>" + ztPdfEsc(row[col.key] == null ? "" : row[col.key]) + "</td>";
+                }).join("") + "</tr>";
+            }).join("");
+            return '<section class="zt-dd-card"><h4>' + ztPdfEsc(item.label) + "</h4>" +
+                '<div class="zt-dd-table-scroll"><table class="zt-dd-table"><thead><tr>' + head +
+                '</tr></thead><tbody>' + body + "</tbody></table></div></section>";
+        }).join("");
+    }
+
+    function ztControlPdfHtml(test) {
+        var summary = test.controlSummary || test.whatWasChecked || test.description || "This control checks whether the tenant meets the Zero Trust requirement described by this assessment.";
+        var why = test.whyItMatters || test.whatWasChecked || test.description || "This control reduces exposure in the assessed tenant.";
+        var baseline = test.baseline || test.passRequirement || test.howToCheck || "The tenant configuration must meet this control.";
+        var observed = test.error ? (test.error.message || String(test.error)) : (test.impact || test.description || "No observed configuration was returned for this control.");
+        var actions = test.remediationActions || [];
+        var evaluate = [
+            "The assessment scores this control from collected tenant configuration.",
+            "A pass requires the tenant to meet the control baseline, not merely that evidence was collected.",
+            baseline
+        ];
+        return '<header class="zt-pdf-head"><h1>' + ztPdfEsc(test.name) + "</h1>" +
+            '<div class="zt-dd-head-badges">' + ztPdfBadge(test.risk, test.risk) + ztPdfBadge(test.status, test.status) + "</div></header>" +
+            '<section class="zt-pdf-section"><h2>Overview</h2>' +
+            '<section class="zt-dd-card"><h4>Control summary</h4><p>' + ztPdfEsc(summary) + "</p></section>" +
+            '<section class="zt-dd-card"><h4>Why it matters</h4><p>' + ztPdfEsc(why) + "</p></section>" +
+            '<section class="zt-dd-card"><h4>Baseline</h4><p>' + ztPdfEsc(baseline) + "</p></section>" +
+            '<section class="zt-dd-card"><h4>How this control is evaluated</h4><div class="zt-dd-minis">' +
+            evaluate.map(function (item, i) {
+                return '<article class="zt-dd-mini"><em>0' + (i + 1) + "</em><p>" + ztPdfEsc(item) + "</p></article>";
+            }).join("") + "</div></section></section>" +
+            '<section class="zt-pdf-section"><h2>Control profile</h2>' +
+            '<section class="zt-dd-card zt-dd-profile"><h4>Control information</h4><div class="zt-dd-facts">' +
+            ztPdfFact("Control ID", test.id) +
+            ztPdfFact("Category", test.category) +
+            ztPdfFact("Pillar", test.area) +
+            ztPdfFact("Risk", test.risk) +
+            ztPdfFact("User Impact", test.userImpact) +
+            ztPdfFact("Implementation Effort", test.implementationEffort) +
+            ztPdfFact("License", test.license) +
+            ztPdfFact("Date", test.lastEvaluatedAt) +
+            "</div></section></section>" +
+            '<section class="zt-pdf-section"><h2>Assessment</h2>' +
+            '<section class="zt-dd-hero is-' + ztPdfEsc(test.status || "Skipped") + '"><div class="zt-dd-hero-top"><span>Result</span>' +
+            ztPdfBadge(test.status, test.status) + "</div><p>" + ztPdfEsc(observed) + "</p></section>" +
+            '<section class="zt-dd-card"><h4>Result summary</h4><p>' + ztPdfEsc(test.resultSummary || observed) + "</p></section>" +
+            '<section class="zt-dd-card"><h4>Observed concerns</h4><p>' + ztPdfEsc(observed) + "</p></section>" +
+            '<section class="zt-dd-card"><h4>Baseline / requirement to pass</h4><p>' + ztPdfEsc(baseline) + "</p></section></section>" +
+            '<section class="zt-pdf-section"><h2>Evidence</h2>' + ztPdfEvidenceHtml(test) + "</section>" +
+            '<section class="zt-pdf-section"><h2>Remediation</h2>' +
+            '<section class="zt-dd-card"><h4>Required actions</h4>' +
+            (actions.length
+                ? '<ol class="zt-dd-steps">' + actions.map(function (item, i) {
+                    return "<li><em>0" + (i + 1) + "</em><span>" + ztPdfEsc(item) + "</span></li>";
+                }).join("") + "</ol>"
+                : "<p>No remediation summary returned.</p>") +
+            "</section></section>";
+    }
+
+    function printZtControlPdf(test) {
+        if (!test) {
+            if (window.showToast) window.showToast("No control details to download.", "error");
+            return;
+        }
+        var w = window.open("", "_blank");
+        if (!w) {
+            if (window.showToast) window.showToast("Allow pop-ups to download the control PDF.", "error");
+            return;
+        }
+        var cssLinks = Array.prototype.map.call(document.querySelectorAll('link[rel="stylesheet"]'), function (link) {
+            return '<link rel="stylesheet" href="' + ztPdfEsc(link.href) + '">';
+        }).join("");
+        w.document.write("<!DOCTYPE html><html><head><title>" + ztPdfEsc(test.name || "Control details") + "</title>" + cssLinks +
+            "<style>html,body{background:#121218;color:#e8e8ee;margin:0;padding:0;}" +
+            "body{padding:24px 28px 40px;font-family:Inter,system-ui,sans-serif;}" +
+            ".zt-pdf-head{margin:0 0 18px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.1);}" +
+            ".zt-pdf-head h1{margin:0 0 10px;font-size:22px;font-weight:800;}" +
+            ".zt-pdf-section{margin:22px 0 0;}" +
+            ".zt-pdf-section > h2{margin:0 0 12px;font-size:13px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:#8A94A3;}" +
+            ".zt-dd{display:flex;flex-direction:column;gap:14px;}" +
+            ".zt-dd-card,.zt-dd-hero{border:1px solid rgba(255,255,255,0.1);border-radius:16px;background:rgba(255,255,255,0.035);padding:16px;margin:0 0 14px;}" +
+            ".zt-dd-card h4{margin:0 0 12px;font-size:11px;font-weight:800;letter-spacing:0.07em;text-transform:uppercase;color:#8A94A3;}" +
+            ".zt-dd-card p,.zt-dd-hero p{margin:0;line-height:1.6;}" +
+            ".zt-dd-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}" +
+            ".zt-dd-fact{padding:7px 9px;border-radius:8px;background:rgba(0,0,0,0.22);border:1px solid rgba(255,255,255,0.06);}" +
+            ".zt-dd-fact span{display:block;color:#8A94A3;font-size:10px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:2px;}" +
+            ".zt-dd-fact strong{display:block;font-size:12px;font-weight:700;word-break:break-word;}" +
+            ".zt-dd-minis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}" +
+            ".zt-dd-mini{padding:12px;border-radius:12px;background:rgba(0,0,0,0.22);border:1px solid rgba(255,255,255,0.06);}" +
+            ".zt-dd-mini em{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;margin-bottom:8px;border-radius:8px;background:rgba(255,94,79,0.16);color:#ffd0cb;font-style:normal;font-size:11px;font-weight:800;}" +
+            ".zt-dd-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;}" +
+            ".zt-dd-steps li{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:12px;background:rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.06);}" +
+            ".zt-dd-steps em{flex:0 0 32px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;background:rgba(255,94,79,0.16);color:#ffd0cb;font-style:normal;font-size:11px;font-weight:800;}" +
+            ".zt-dd-table{width:100%;border-collapse:collapse;font-size:12px;}" +
+            ".zt-dd-table th,.zt-dd-table td{padding:8px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.08);}" +
+            ".zt-dd-head-badges{display:flex;flex-wrap:wrap;gap:8px;}" +
+            ".zt-dd-hero-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;}" +
+            "@media print{html,body{background:#fff;color:#111;} .zt-dd-card,.zt-dd-hero,.zt-dd-fact,.zt-dd-mini,.zt-dd-steps li{background:#f6f7f9;border-color:#d8dbe2;color:#111;} .zt-pdf-section > h2,.zt-dd-card h4,.zt-dd-fact span{color:#5b6472;}}</style></head><body>" +
+            '<div class="zt-dd zt-pdf">' + ztControlPdfHtml(test) + "</div></body></html>");
+        w.document.close();
+        w.focus();
+        setTimeout(function () { w.print(); }, 250);
+    }
+
     function bindZtDetailsEvents() {
         var closeBtn = document.getElementById("ztIcDrawerClose");
+        var downloadBtn = document.getElementById("ztIcDrawerDownload");
         if (closeBtn) closeBtn.addEventListener("click", closeZtDetails);
+        if (downloadBtn) {
+            downloadBtn.addEventListener("click", function () {
+                printZtControlPdf(ztControlFromFinding(ztDetails.current));
+            });
+        }
         if (ztDetails.backdrop) ztDetails.backdrop.addEventListener("click", closeZtDetails);
         if (ztDetails.body) {
             ztDetails.body.addEventListener("click", function (e) {
@@ -1762,6 +1950,8 @@
                     openCopilot(rec);
                 } else if (act === "evidence") {
                     openEvidence(rec);
+                } else if (act === "pdf") {
+                    printZtControlPdf(ztControlFromFinding(rec));
                 } else {
                     handleOperationalAction(act, rec);
                 }
@@ -2304,6 +2494,40 @@
         ztDownload("zero-trust-assessment.json", JSON.stringify(assessment || {}, null, 2), "application/json");
     }
 
+    function ztExportControlPdfs(assessment) {
+        var tests = ztTestsFromAssessment(assessment);
+        if (!tests.length) {
+            if (window.showToast) window.showToast("No control details to download.", "error");
+            return;
+        }
+        printZtControlPdf({
+            id: assessment.assessmentId,
+            name: "Zero Trust control details",
+            risk: "Assessment",
+            status: "Complete",
+            lastEvaluatedAt: assessment.completedAt || assessment.startedAt,
+            controlSummary: "Full control-detail export for assessment " + (assessment.assessmentId || "") + ".",
+            whyItMatters: "Use this PDF to review every assessed control in the same layout as Cloud Security Details.",
+            baseline: "Each control is scored against the tenant baseline collected in this assessment.",
+            resultSummary: tests.length + " controls included.",
+            impact: tests.map(function (t) { return (t.name || t.id) + " — " + (t.status || "") + " / " + (t.risk || ""); }).join("; "),
+            remediationActions: (assessment.priority || []).map(function (t) { return t.name + " (" + t.risk + " / " + t.status + ")"; }),
+            evidenceTables: [{
+                title: "Controls",
+                columns: [
+                    { key: "id", label: "Control ID" },
+                    { key: "name", label: "Name" },
+                    { key: "area", label: "Pillar" },
+                    { key: "status", label: "Status" },
+                    { key: "risk", label: "Risk" }
+                ],
+                rows: tests.map(function (t) {
+                    return { id: t.id, name: t.name, area: t.area, status: t.status, risk: t.risk };
+                })
+            }]
+        });
+    }
+
     function ztPrintSummary(assessment, exec) {
         if (!assessment) {
             if (window.showToast) window.showToast("No assessment to export.", "error");
@@ -2352,6 +2576,7 @@
             ztRun.assessment = assessment;
             if (kind === "csv") ztExportCsv(assessment);
             else if (kind === "json") ztExportJson(assessment);
+            else if (kind === "pdf") ztExportControlPdfs(assessment);
             else if (kind === "print") ztPrintSummary(assessment, false);
             else ztPrintSummary(assessment, true);
         };

@@ -1630,6 +1630,18 @@
     scrollbar-width: thin;
 }
 
+.zt-dd-tabs[hidden],
+.zt-drawer.is-metrics .zt-dd-tabs {
+    display: none !important;
+}
+
+.zt-dd-head-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
 .zt-dd-tabs button {
     appearance: none;
     border: 0;

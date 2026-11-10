@@ -70,6 +70,7 @@
     var drawerTitle = document.getElementById("ztDrawerTitle");
     var drawerBadges = document.getElementById("ztDrawerBadges");
     var drawerTabs = document.getElementById("ztDrawerTabs");
+    var drawerDownload = document.getElementById("ztDrawerDownload");
     var EVIDENCE_PAGE_SIZE = 25;
     var exportMenu = document.getElementById("ztExportMenu");
     var exportBtn = document.getElementById("ztExportBtn");
@@ -2308,6 +2309,78 @@
         });
     }
 
+    function setDrawerChrome(isMetrics) {
+        if (drawer) drawer.classList.toggle("is-metrics", !!isMetrics);
+        if (drawerTabs) drawerTabs.hidden = !!isMetrics;
+        if (drawerDownload) drawerDownload.hidden = !!isMetrics;
+    }
+
+    function evidenceDumpHtml(test) {
+        var sources = evidenceSources(test);
+        return sources.map(function (item) {
+            var table = item.table;
+            if (!table || !table.columns) {
+                return '<section class="zt-dd-card"><h4>' + esc(item.label) + "</h4><p class=\"zt-dd-muted\">No collected records were returned for this view.</p></section>";
+            }
+            var rows = table.rows || [];
+            var head = table.columns.map(function (col) {
+                return "<th>" + esc(col.label || col.key) + "</th>";
+            }).join("");
+            var body = rows.length ? rows.map(function (row) {
+                return "<tr>" + table.columns.map(function (col) {
+                    return "<td>" + esc(row[col.key] == null ? "" : row[col.key]) + "</td>";
+                }).join("") + "</tr>";
+            }).join("") : '<tr><td colspan="' + table.columns.length + '">No matching records.</td></tr>';
+            return '<section class="zt-dd-card"><h4>' + esc(item.label) + "</h4>" +
+                '<div class="zt-dd-table-scroll"><table class="zt-dd-table"><thead><tr>' + head +
+                '</tr></thead><tbody>' + body + "</tbody></table></div></section>";
+        }).join("");
+    }
+
+    function controlPdfHtml(test) {
+        var a = state.assessment || {};
+        var tenant = a.tenant || {};
+        var tenantId = state.isAdmin ? (tenant.tenantId || "Unavailable") : maskTenant(tenant.tenantId);
+        var assessedAt = formatTime(test.lastEvaluatedAt || a.completedAt || a.startedAt);
+        return '<header class="zt-pdf-head"><h1>' + esc(test.name || "Control details") + "</h1>" +
+            '<div class="zt-dd-head-badges">' + riskBadge(test.risk) + statusBadge(test.status) + "</div></header>" +
+            '<section class="zt-pdf-section"><h2>Overview</h2>' + overviewTabHtml(test) + "</section>" +
+            '<section class="zt-pdf-section"><h2>Control profile</h2>' + profileTabHtml(test, tenant, tenantId, assessedAt) + "</section>" +
+            '<section class="zt-pdf-section"><h2>Assessment</h2>' + assessmentTabHtml(test, a) + "</section>" +
+            '<section class="zt-pdf-section"><h2>Evidence</h2>' + evidenceDumpHtml(test) + "</section>" +
+            '<section class="zt-pdf-section"><h2>Remediation</h2>' + remediationTabHtml(test) + "</section>";
+    }
+
+    function printControlPdf(test) {
+        if (!test) {
+            toast("No control details to download.", "error");
+            return;
+        }
+        var w = window.open("", "_blank");
+        if (!w) {
+            toast("Allow pop-ups to download the control PDF.", "error");
+            return;
+        }
+        var cssLinks = Array.prototype.map.call(document.querySelectorAll('link[rel="stylesheet"]'), function (link) {
+            return '<link rel="stylesheet" href="' + esc(link.href) + '">';
+        }).join("");
+        w.document.write("<!DOCTYPE html><html><head><title>" + esc(test.name || "Control details") + "</title>" + cssLinks +
+            "<style>html,body{background:#121218;color:#e8e8ee;margin:0;padding:0;}" +
+            "body{padding:24px 28px 40px;}" +
+            ".zt-pdf-head{margin:0 0 18px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.1);}" +
+            ".zt-pdf-head h1{margin:0 0 10px;font-size:22px;font-weight:800;}" +
+            ".zt-pdf-section{margin:22px 0 0;}" +
+            ".zt-pdf-section > h2{margin:0 0 12px;font-size:13px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:#8A94A3;}" +
+            ".zt-dd{display:flex;flex-direction:column;gap:14px;}" +
+            ".zt-dd-table-scroll{max-height:none;overflow:visible;}" +
+            ".zt-dd-actions,.zt-dd-search,.zt-dd-pager,.zt-dd-subtabs{display:none !important;}" +
+            "@media print{html,body{background:#fff;color:#111;} .zt-dd-card,.zt-dd-hero,.zt-dd-fact,.zt-dd-mini,.zt-dd-kpi,.zt-dd-steps li{background:#f6f7f9;border-color:#d8dbe2;color:#111;} .zt-pdf-section > h2,.zt-dd-card h4,.zt-dd-fact span,.zt-dd-muted{color:#5b6472;} a{color:#111;}}</style></head><body>" +
+            '<div class="zt-dd zt-pdf">' + controlPdfHtml(test) + "</div></body></html>");
+        w.document.close();
+        w.focus();
+        setTimeout(function () { w.print(); }, 250);
+    }
+
     function bindDrawerBody() {
         if (!drawerBody) return;
         drawerBody.querySelectorAll("[data-evidence-tab]").forEach(function (btn) {
@@ -2764,7 +2837,7 @@
         state.drawerEvidenceQuery = "";
         if (drawerTitle) drawerTitle.textContent = OVERVIEW_SECTIONS[id].title;
         if (drawerBadges) drawerBadges.innerHTML = "";
-        if (drawerTabs) drawerTabs.hidden = true;
+        setDrawerChrome(true);
         renderDrawerBody();
         drawer.hidden = false;
         if (drawerBackdrop) drawerBackdrop.hidden = false;
@@ -2817,7 +2890,7 @@
         state.drawerOpen = {};
         state.drawerEvidenceKey = "";
         state.drawerEvidenceQuery = "";
-        if (drawerTabs) drawerTabs.hidden = false;
+        setDrawerChrome(false);
         if (drawerTitle) drawerTitle.textContent = test.name;
         if (drawerBadges) drawerBadges.innerHTML = riskBadge(test.risk) + statusBadge(test.status);
         syncDrawerTabs();
@@ -2838,7 +2911,8 @@
         setTimeout(function () {
             drawer.hidden = true;
             if (drawerBackdrop) drawerBackdrop.hidden = true;
-            if (drawerTabs) drawerTabs.hidden = false;
+            setDrawerChrome(false);
+            if (drawerDownload) drawerDownload.hidden = true;
         }, 180);
     }
 
@@ -3138,6 +3212,11 @@
         closeAssessPop();
     });
     document.getElementById("ztDrawerClose").addEventListener("click", closeDrawer);
+    if (drawerDownload) {
+        drawerDownload.addEventListener("click", function () {
+            printControlPdf(findTest(state.selectedId));
+        });
+    }
     if (drawerBackdrop) drawerBackdrop.addEventListener("click", closeDrawer);
     if (drawerTabs) {
         drawerTabs.addEventListener("click", function (event) {

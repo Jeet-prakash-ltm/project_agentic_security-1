@@ -212,9 +212,14 @@
             <h3 id="ztDrawerTitle">Control details</h3>
             <div class="zt-dd-head-badges" id="ztDrawerBadges"></div>
         </div>
-        <button type="button" class="fw-drawer-close" id="ztDrawerClose" aria-label="Close details">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
+        <div class="zt-dd-head-actions">
+            <button type="button" class="fw-drawer-close" id="ztDrawerDownload" hidden aria-label="Download control details">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+            </button>
+            <button type="button" class="fw-drawer-close" id="ztDrawerClose" aria-label="Close details">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
     </div>
     <nav class="zt-dd-tabs" id="ztDrawerTabs" role="tablist" aria-label="Control details">
         <button type="button" role="tab" id="ztDrawerTabOverview" data-drawer-tab="overview" class="is-active" aria-selected="true">Overview</button>
@@ -229,5 +234,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=51"></script>
+<script src="{{ url_for('static', filename='js/cloud_security.js') }}?v=52"></script>
 {% endblock %}

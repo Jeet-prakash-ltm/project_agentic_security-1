@@ -9,7 +9,7 @@
       "api_key": "PLACEHOLDER_REPLACE_WITH_YOUR_API_KEY",
       "connected": true,
       "created_at": "2026-09-29T00:00:00Z",
-      "agent_id": "Master-Orchrestrator-Agent"
+      "agent_id": "Maestro-AI"
     },
     {
       "id": "firewall-audit-agent",

@@ -57,6 +57,30 @@ def _catalog_agents():
     return _CATALOG_CACHE
 
 
+def _catalog_by_id():
+    by_id = {}
+    for entry in _catalog_agents():
+        agent_id = (entry.get("id") or "").strip()
+        if agent_id:
+            by_id[agent_id] = entry
+    return by_id
+
+
+def _apply_catalog_route(item, catalog):
+    if not item:
+        return item
+    entry = catalog.get(item.get("id") or "")
+    if not entry:
+        return item
+    wanted_agent_id = (entry.get("agent_id") or "").strip()
+    if wanted_agent_id:
+        item["agent_id"] = wanted_agent_id
+    wanted_endpoint = (entry.get("agent_endpoint") or "").strip()
+    if wanted_endpoint:
+        item["agent_endpoint"] = wanted_endpoint
+    return item
+
+
 def _catalog_public(entry, include_key=False):
     item = {
         "id": entry.get("id") or "",
@@ -77,6 +101,7 @@ def _catalog_public(entry, include_key=False):
 def list_agents(include_key=False):
     result = []
     seen = set()
+    catalog = _catalog_by_id()
     for agent in _repo().list_agents():
         item = _as_dict(agent)
         agent_id = item.get("id") or ""
@@ -84,7 +109,7 @@ def list_agents(include_key=False):
             continue
         if not include_key:
             item["api_key"] = mask_key(agent.api_key or "")
-        result.append(item)
+        result.append(_apply_catalog_route(item, catalog))
         if agent_id:
             seen.add(agent_id)
     for entry in _catalog_agents():
@@ -97,9 +122,10 @@ def list_agents(include_key=False):
 
 
 def get_agent(agent_id):
+    catalog = _catalog_by_id()
     found = _as_dict(_repo().get(agent_id))
     if found:
-        return found
+        return _apply_catalog_route(found, catalog)
     for entry in _catalog_agents():
         if (entry.get("id") or "").strip() == agent_id:
             return _catalog_public(entry, include_key=True)

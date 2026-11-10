@@ -42,7 +42,8 @@
         drawerPages: {},
         drawerOpen: {},
         drawerEvidenceKey: "",
-        drawerEvidenceQuery: ""
+        drawerEvidenceQuery: "",
+        overviewSection: null
     };
 
     var draft = {
@@ -1336,10 +1337,10 @@
         var overview = viz.identityOverview || {};
         return '<div class="zt-id-overview">' +
             '<div class="zt-id-overview-row">' +
-            identityInventoryCard(overview, a.tenant || {}) +
-            privilegedAccessCard(overview) +
+            withOverviewSection("identity-inventory", identityInventoryCard(overview, a.tenant || {})) +
+            withOverviewSection("identity-privileged", privilegedAccessCard(overview)) +
             "</div>" +
-            credentialHealthCard(overview) +
+            withOverviewSection("identity-credentials", credentialHealthCard(overview)) +
             "</div>";
     }
 
@@ -1482,13 +1483,13 @@
         var overview = viz.networkOverview || {};
         return '<div class="zt-id-overview">' +
             '<div class="zt-id-overview-row">' +
-            networkInventoryCard(overview) +
-            networkPerimeterCard(overview) +
+            withOverviewSection("network-inventory", networkInventoryCard(overview)) +
+            withOverviewSection("network-perimeter", networkPerimeterCard(overview)) +
             "</div>" +
-            networkExposureCard(overview) +
-            overviewPair(networkTopologyCard(overview), networkAddressingCard(overview)) +
-            overviewPair(networkPerimeterDetailCard(overview), networkRemoteAccessCard(overview)) +
-            networkPaasCard(overview) +
+            withOverviewSection("network-exposure", networkExposureCard(overview)) +
+            overviewPair(withOverviewSection("network-topology", networkTopologyCard(overview)), withOverviewSection("network-addressing", networkAddressingCard(overview))) +
+            overviewPair(withOverviewSection("network-perimeter-detail", networkPerimeterDetailCard(overview)), withOverviewSection("network-remote", networkRemoteAccessCard(overview))) +
+            withOverviewSection("network-paas", networkPaasCard(overview)) +
             "</div>";
     }
 
@@ -1551,10 +1552,10 @@
     function devicesOverviewSections(a) {
         var viz = (a && a.visualizations) || {};
         var overview = viz.devicesOverview || {};
-        var html = overviewPair(devicesInventoryCard(overview), devicesComplianceCard(overview)) +
-            overviewPair(devicesEncryptionCard(overview), devicesOwnershipCard(overview)) +
-            overviewPair(devicesPoliciesCard(overview), devicesEnrollmentCard(overview)) +
-            devicesEntraCard(overview);
+        var html = overviewPair(withOverviewSection("devices-inventory", devicesInventoryCard(overview)), withOverviewSection("devices-compliance", devicesComplianceCard(overview))) +
+            overviewPair(withOverviewSection("devices-encryption", devicesEncryptionCard(overview)), withOverviewSection("devices-ownership", devicesOwnershipCard(overview))) +
+            overviewPair(withOverviewSection("devices-policies", devicesPoliciesCard(overview)), withOverviewSection("devices-enrollment", devicesEnrollmentCard(overview))) +
+            withOverviewSection("devices-entra", devicesEntraCard(overview));
         if (!html) {
             return '<section class="zt-card"><h2>Overview metrics</h2><p class="zt-muted">No telemetry was returned for this pillar.</p></section>';
         }
@@ -1602,9 +1603,9 @@
     function dataOverviewSections(a) {
         var viz = (a && a.visualizations) || {};
         var overview = viz.dataOverview || {};
-        var html = overviewPair(dataProtectionCard(overview), dataDlpCard(overview)) +
-            overviewPair(dataSharingCard(overview), dataRetentionCard(overview)) +
-            dataAuditCard(overview);
+        var html = overviewPair(withOverviewSection("data-protection", dataProtectionCard(overview)), withOverviewSection("data-dlp", dataDlpCard(overview))) +
+            overviewPair(withOverviewSection("data-sharing", dataSharingCard(overview)), withOverviewSection("data-retention", dataRetentionCard(overview))) +
+            withOverviewSection("data-audit", dataAuditCard(overview));
         if (!html) {
             return '<section class="zt-card"><h2>Overview metrics</h2><p class="zt-muted">No telemetry was returned for this pillar.</p></section>';
         }
@@ -1654,6 +1655,14 @@
     function extraOverviewCard(title, tiles) {
         if (!tiles) return "";
         return overviewCard(title, tiles, "");
+    }
+
+    function withOverviewSection(id, html) {
+        if (!html) return "";
+        return html.replace(
+            /^(<section class="zt-inventory-card[^"]*")/,
+            '$1 data-overview-section="' + esc(id) + '" role="button" tabindex="0"'
+        );
     }
 
     function overviewPair(left, right) {
@@ -1771,15 +1780,15 @@
         var overview = viz.infrastructureOverview || {};
         return '<div class="zt-id-overview">' +
             '<div class="zt-id-overview-row">' +
-            infrastructureInventoryCard(overview) +
-            infrastructurePrivilegedCard(overview) +
+            withOverviewSection("infra-inventory", infrastructureInventoryCard(overview)) +
+            withOverviewSection("infra-privileged", infrastructurePrivilegedCard(overview)) +
             "</div>" +
-            infrastructureDefenderCard(overview) +
-            infrastructureDefenderCoverageCard(overview) +
-            overviewPair(infrastructureComputeCard(overview), infrastructureStorageCard(overview)) +
-            overviewPair(infrastructureExposureCard(overview), infrastructureKeyVaultCard(overview)) +
-            overviewPair(infrastructureRbacCard(overview), infrastructureGovernanceCard(overview)) +
-            overviewPair(infrastructureMonitoringCard(overview), infrastructureBackupCard(overview)) +
+            withOverviewSection("infra-defender", infrastructureDefenderCard(overview)) +
+            withOverviewSection("infra-defender-coverage", infrastructureDefenderCoverageCard(overview)) +
+            overviewPair(withOverviewSection("infra-compute", infrastructureComputeCard(overview)), withOverviewSection("infra-storage", infrastructureStorageCard(overview))) +
+            overviewPair(withOverviewSection("infra-exposure", infrastructureExposureCard(overview)), withOverviewSection("infra-keyvault", infrastructureKeyVaultCard(overview))) +
+            overviewPair(withOverviewSection("infra-rbac", infrastructureRbacCard(overview)), withOverviewSection("infra-governance", infrastructureGovernanceCard(overview))) +
+            overviewPair(withOverviewSection("infra-monitoring", infrastructureMonitoringCard(overview)), withOverviewSection("infra-backup", infrastructureBackupCard(overview))) +
             "</div>";
     }
 
@@ -1910,6 +1919,17 @@
     function bindViewEvents() {
         viewEl.querySelectorAll("[data-open]").forEach(function (btn) {
             btn.addEventListener("click", function () { openDrawer(btn.getAttribute("data-open")); });
+        });
+        viewEl.querySelectorAll("[data-overview-section]").forEach(function (card) {
+            card.addEventListener("click", function () {
+                openOverviewSection(card.getAttribute("data-overview-section"));
+            });
+            card.addEventListener("keydown", function (ev) {
+                if (ev.key === "Enter" || ev.key === " ") {
+                    ev.preventDefault();
+                    openOverviewSection(card.getAttribute("data-overview-section"));
+                }
+            });
         });
         viewEl.querySelectorAll(".zt-health-info").forEach(function (btn) {
             btn.addEventListener("click", function (ev) {
@@ -2319,7 +2339,449 @@
         }
     }
 
+    function ovGroup(key, label, source, ic, tone) {
+        return { key: key, label: label, source: source, ic: ic || "search", tone: tone || "teal" };
+    }
+
+    var OVERVIEW_SECTIONS = {
+        "identity-inventory": {
+            title: "Identity inventory",
+            summary: "Directory inventory for users, guests, groups, applications, and service principals in the assessed tenant.",
+            groups: [
+                ovGroup("users", "Users", ["identityOverview", "inventory", "users"], "user", "blue"),
+                ovGroup("guests", "Guest users", ["identityOverview", "inventory", "guests"], "guests", "sky"),
+                ovGroup("groups", "Groups", ["identityOverview", "inventory", "groups"], "groups", "teal"),
+                ovGroup("applications", "Applications", ["identityOverview", "inventory", "applications"], "apps", "mint"),
+                ovGroup("servicePrincipals", "Service principals", ["identityOverview", "inventory", "servicePrincipals"], "key", "violet")
+            ]
+        },
+        "identity-privileged": {
+            title: "Privileged access / PIM",
+            summary: "Privileged directory roles and PIM eligibility for standing and eligible admin access.",
+            groups: [
+                ovGroup("members", "Privileged members", ["identityOverview", "privileged", "members"], "shield", "purple"),
+                ovGroup("roles", "Privileged roles", ["identityOverview", "privileged", "roles"], "lock", "violet"),
+                ovGroup("pimEligible", "PIM eligible assignments", ["identityOverview", "privileged", "pimEligible"], "users", "teal"),
+                ovGroup("pimActive", "PIM active assignments", ["identityOverview", "privileged", "pimActive"], "pass", "mint")
+            ]
+        },
+        "identity-credentials": {
+            title: "Application identity and credential hygiene",
+            summary: "Application registrations and credential lifetime for secrets and certificates.",
+            groups: [
+                ovGroup("applicationsAssessed", "Applications assessed", ["identityOverview", "credentials", "applicationsAssessed"], "apps", "mint"),
+                ovGroup("expiring30d", "Expiring within 30 days", ["identityOverview", "credentials", "expiring30d"], "clock", "sky"),
+                ovGroup("expiredCredentials", "Expired credentials", ["identityOverview", "credentials", "expiredCredentials"], "fail", "purple"),
+                ovGroup("secrets", "Secrets", ["identityOverview", "credentials", "secrets"], "key", "teal"),
+                ovGroup("certificates", "Certificates", ["identityOverview", "credentials", "certificates"], "cert", "violet")
+            ]
+        },
+        "network-inventory": {
+            title: "Network inventory",
+            summary: "Network security groups, public IPs, and private endpoints collected for this tenant.",
+            groups: [
+                ovGroup("nsgsAssociated", "NSGs associated", ["networkOverview", "inventory", "nsgsAssociated"], "shield", "blue"),
+                ovGroup("subnetsWithoutNsg", "Subnets without NSG", ["networkOverview", "inventory", "subnetsWithoutNsg"], "building", "sky"),
+                ovGroup("publicIps", "Public IPs attached", ["networkOverview", "inventory", "publicIps"], "laptop", "teal"),
+                ovGroup("privateEndpoints", "Private endpoints", ["networkOverview", "inventory", "privateEndpoints"], "lock", "violet")
+            ]
+        },
+        "network-perimeter": {
+            title: "Perimeter controls",
+            summary: "Azure Firewall and WAF coverage at the network perimeter.",
+            groups: [
+                ovGroup("firewalls", "Azure Firewalls", ["networkOverview", "perimeter", "firewalls"], "shield", "purple"),
+                ovGroup("wafPolicies", "WAF policies", ["networkOverview", "perimeter", "wafPolicies"], "pass", "mint")
+            ]
+        },
+        "network-exposure": {
+            title: "Internet exposure",
+            summary: "Inbound management and internet-allow rules that expand the network attack surface.",
+            groups: [
+                ovGroup("openManagementRules", "Open management rules", ["networkOverview", "exposure", "openManagementRules"], "fail", "purple"),
+                ovGroup("internetAllowRules", "Internet allow rules", ["networkOverview", "exposure", "internetAllowRules"], "warn", "sky")
+            ]
+        },
+        "network-topology": {
+            title: "Segmentation and topology",
+            summary: "Virtual networks, subnets, routing, and load-balancing topology.",
+            groups: [
+                ovGroup("vnets", "Virtual networks", ["networkOverview", "topology", "vnets"], "building", "blue"),
+                ovGroup("subnets", "Subnets", ["networkOverview", "topology", "subnets"], "shield", "sky"),
+                ovGroup("nics", "Network interfaces", ["networkOverview", "topology", "nics"], "laptop", "teal"),
+                ovGroup("peerings", "Peerings", ["networkOverview", "topology", "peerings"], "lock", "violet"),
+                ovGroup("routeTables", "Route tables", ["networkOverview", "topology", "routeTables"], "pass", "mint"),
+                ovGroup("associatedRouteTables", "Associated route tables", ["networkOverview", "topology", "associatedRouteTables"], "search", "purple"),
+                ovGroup("loadBalancers", "Load balancers", ["networkOverview", "topology", "loadBalancers"], "apps", "sky"),
+                ovGroup("networkWatchers", "Network Watchers", ["networkOverview", "topology", "networkWatchers"], "clock", "teal")
+            ]
+        },
+        "network-addressing": {
+            title: "Addressing",
+            summary: "Public IP inventory and attachment state.",
+            groups: [
+                ovGroup("publicIps", "Public IPs", ["networkOverview", "addressing", "publicIps"], "laptop", "blue"),
+                ovGroup("publicIpsAttached", "Public IPs attached", ["networkOverview", "addressing", "publicIpsAttached"], "lock", "teal")
+            ]
+        },
+        "network-perimeter-detail": {
+            title: "Perimeter detail",
+            summary: "Firewall policy, WAF, Front Door, and DDoS posture behind the perimeter controls.",
+            groups: [
+                ovGroup("firewallPolicies", "Firewall policies", ["networkOverview", "perimeterDetail", "firewallPolicies"], "shield", "purple"),
+                ovGroup("firewallsWithPolicy", "Firewalls with policy", ["networkOverview", "perimeterDetail", "firewallsWithPolicy"], "pass", "mint"),
+                ovGroup("premiumFirewalls", "Premium firewalls", ["networkOverview", "perimeterDetail", "premiumFirewalls"], "lock", "violet"),
+                ovGroup("threatIntel", "Threat intelligence", ["networkOverview", "perimeterDetail", "threatIntel"], "warn", "sky"),
+                ovGroup("applicationGateways", "Application Gateways", ["networkOverview", "perimeterDetail", "applicationGateways"], "apps", "blue"),
+                ovGroup("applicationGatewayWaf", "Gateway WAF enabled", ["networkOverview", "perimeterDetail", "applicationGatewayWaf"], "shield", "teal"),
+                ovGroup("wafPrevention", "WAF prevention", ["networkOverview", "perimeterDetail", "wafPrevention"], "pass", "mint"),
+                ovGroup("wafAssociated", "WAF associated", ["networkOverview", "perimeterDetail", "wafAssociated"], "lock", "purple"),
+                ovGroup("frontDoorProfiles", "Front Door profiles", ["networkOverview", "perimeterDetail", "frontDoorProfiles"], "building", "sky"),
+                ovGroup("ddosPlans", "DDoS plans", ["networkOverview", "perimeterDetail", "ddosPlans"], "fail", "violet"),
+                ovGroup("ddosProtectedVnets", "DDoS-protected VNets", ["networkOverview", "perimeterDetail", "ddosProtectedVnets"], "shield", "teal")
+            ]
+        },
+        "network-remote": {
+            title: "Remote access",
+            summary: "VPN, Bastion, and ExpressRoute paths into the tenant network.",
+            groups: [
+                ovGroup("vpnGateways", "VPN gateways", ["networkOverview", "remoteAccess", "vpnGateways"], "lock", "blue"),
+                ovGroup("bastions", "Bastion hosts", ["networkOverview", "remoteAccess", "bastions"], "shield", "mint"),
+                ovGroup("expressRoute", "ExpressRoute circuits", ["networkOverview", "remoteAccess", "expressRoute"], "building", "violet")
+            ]
+        },
+        "network-paas": {
+            title: "Private access and PaaS exposure",
+            summary: "Private endpoints and public PaaS services that can bypass network segmentation.",
+            groups: [
+                ovGroup("privateEndpoints", "Private endpoints", ["networkOverview", "paasExposure", "privateEndpoints"], "lock", "violet"),
+                ovGroup("paasPublic", "Publicly accessible PaaS", ["networkOverview", "paasExposure", "paasPublic"], "warn", "purple"),
+                ovGroup("paasRestricted", "Restricted PaaS", ["networkOverview", "paasExposure", "paasRestricted"], "pass", "mint"),
+                ovGroup("storageAccounts", "Storage accounts", ["networkOverview", "paasExposure", "storageAccounts"], "apps", "teal"),
+                ovGroup("keyVaults", "Key Vaults", ["networkOverview", "paasExposure", "keyVaults"], "key", "sky"),
+                ovGroup("sqlServers", "SQL servers", ["networkOverview", "paasExposure", "sqlServers"], "building", "blue")
+            ]
+        },
+        "devices-inventory": {
+            title: "Device inventory",
+            summary: "Intune-managed and Entra-registered devices in the tenant.",
+            groups: [
+                ovGroup("managedDevices", "Intune managed devices", ["devicesOverview", "inventory", "managedDevices"], "devices", "blue"),
+                ovGroup("entraDevices", "Entra devices", ["devicesOverview", "inventory", "entraDevices"], "laptop", "sky")
+            ]
+        },
+        "devices-compliance": {
+            title: "Device compliance",
+            summary: "Compliance state reported by managed devices.",
+            groups: [
+                ovGroup("compliant", "Compliant devices", ["devicesOverview", "compliance", "compliant"], "pass", "mint"),
+                ovGroup("unknownCompliance", "Unknown compliance", ["devicesOverview", "compliance", "unknownCompliance"], "warn", "violet")
+            ]
+        },
+        "devices-encryption": {
+            title: "Encryption",
+            summary: "Managed devices that report disk encryption.",
+            groups: [
+                ovGroup("encrypted", "Encrypted devices", ["devicesOverview", "encryption", "encrypted"], "lock", "teal")
+            ]
+        },
+        "devices-ownership": {
+            title: "Ownership",
+            summary: "Company, personal, and unknown ownership for managed devices.",
+            groups: [
+                ovGroup("companyOwned", "Company owned", ["devicesOverview", "ownership", "companyOwned"], "building", "blue"),
+                ovGroup("personalOwned", "Personal owned", ["devicesOverview", "ownership", "personalOwned"], "users", "sky"),
+                ovGroup("unknownOwner", "Unknown owner", ["devicesOverview", "ownership", "unknownOwner"], "search", "violet")
+            ]
+        },
+        "devices-policies": {
+            title: "Compliance policies",
+            summary: "Intune compliance policies and the controls they require.",
+            groups: [
+                ovGroup("policies", "Compliance policies", ["devicesOverview", "policies", "policies"], "shield", "mint"),
+                ovGroup("assigned", "Assigned policies", ["devicesOverview", "policies", "assigned"], "pass", "teal"),
+                ovGroup("unassigned", "Unassigned policies", ["devicesOverview", "policies", "unassigned"], "warn", "violet"),
+                ovGroup("minOs", "Minimum OS", ["devicesOverview", "policies", "minOs"], "clock", "blue"),
+                ovGroup("encryption", "Encryption required", ["devicesOverview", "policies", "encryption"], "lock", "sky"),
+                ovGroup("firewall", "Firewall required", ["devicesOverview", "policies", "firewall"], "shield", "purple"),
+                ovGroup("secureBoot", "Secure Boot required", ["devicesOverview", "policies", "secureBoot"], "pass", "mint"),
+                ovGroup("tpm", "TPM required", ["devicesOverview", "policies", "tpm"], "key", "teal")
+            ]
+        },
+        "devices-enrollment": {
+            title: "Enrollment",
+            summary: "Enrollment configurations and platform restrictions.",
+            groups: [
+                ovGroup("configurations", "Enrollment configurations", ["devicesOverview", "enrollment", "configurations"], "apps", "blue"),
+                ovGroup("restrictions", "Restriction configs", ["devicesOverview", "enrollment", "restrictions"], "lock", "violet"),
+                ovGroup("platformRestrictions", "Platform restrictions", ["devicesOverview", "enrollment", "platformRestrictions"], "shield", "sky")
+            ]
+        },
+        "devices-entra": {
+            title: "Entra device state",
+            summary: "Entra-managed and compliant device counts.",
+            groups: [
+                ovGroup("managed", "Entra managed", ["devicesOverview", "entra", "managed"], "devices", "mint"),
+                ovGroup("compliant", "Entra compliant", ["devicesOverview", "entra", "compliant"], "pass", "teal")
+            ]
+        },
+        "data-protection": {
+            title: "Information protection",
+            summary: "Sensitivity labels and protection settings collected from Purview.",
+            groups: [
+                ovGroup("labels", "Sensitivity labels", ["dataOverview", "informationProtection", "labels"], "lock", "violet"),
+                ovGroup("encrypted", "Encrypted labels", ["dataOverview", "informationProtection", "encrypted"], "shield", "mint"),
+                ovGroup("contentMarking", "Content marking", ["dataOverview", "informationProtection", "contentMarking"], "pass", "teal"),
+                ovGroup("autoLabel", "Auto-labeling", ["dataOverview", "informationProtection", "autoLabel"], "search", "sky")
+            ]
+        },
+        "data-dlp": {
+            title: "Data loss prevention",
+            summary: "DLP scopes and protected locations.",
+            groups: [
+                ovGroup("scopes", "DLP scopes", ["dataOverview", "dlp", "scopes"], "shield", "mint"),
+                ovGroup("locations", "Protected locations", ["dataOverview", "dlp", "locations"], "building", "blue")
+            ]
+        },
+        "data-sharing": {
+            title: "Sharing and collaboration",
+            summary: "Anonymous sharing, external resharing, and legacy authentication controls.",
+            groups: [
+                ovGroup("anonymousSharing", "Anonymous sharing", ["dataOverview", "sharing", "anonymousSharing"], "warn", "purple"),
+                ovGroup("resharing", "External resharing", ["dataOverview", "sharing", "resharing"], "users", "sky"),
+                ovGroup("legacyAuthBlocked", "Legacy auth blocked", ["dataOverview", "sharing", "legacyAuthBlocked"], "lock", "teal")
+            ]
+        },
+        "data-retention": {
+            title: "Retention and records",
+            summary: "Retention labels published in the tenant.",
+            groups: [
+                ovGroup("labels", "Retention labels", ["dataOverview", "retention", "labels"], "clock", "blue"),
+                ovGroup("published", "Published labels", ["dataOverview", "retention", "published"], "pass", "mint")
+            ]
+        },
+        "data-audit": {
+            title: "Audit and visibility",
+            summary: "Directory audit records collected for this assessment.",
+            groups: [
+                ovGroup("directoryAudits", "Directory audit records", ["dataOverview", "audit", "directoryAudits"], "search", "teal"),
+                ovGroup("success", "Successful audit events", ["dataOverview", "audit", "success"], "pass", "mint")
+            ]
+        },
+        "infra-inventory": {
+            title: "Infrastructure inventory",
+            summary: "Resource groups, compute, and storage inventory for the subscription.",
+            groups: [
+                ovGroup("resourceGroups", "Resource groups", ["infrastructureOverview", "inventory", "resourceGroups"], "building", "blue"),
+                ovGroup("vms", "Trusted Launch VMs", ["infrastructureOverview", "inventory", "vms"], "devices", "sky"),
+                ovGroup("storageHttps", "Storage HTTPS", ["infrastructureOverview", "inventory", "storageHttps"], "lock", "teal"),
+                ovGroup("storagePublic", "Public storage", ["infrastructureOverview", "inventory", "storagePublic"], "warn", "violet")
+            ]
+        },
+        "infra-privileged": {
+            title: "Privileged access",
+            summary: "Key Vault purge protection and privileged ARM assignments.",
+            groups: [
+                ovGroup("keyVaultPurge", "Key Vault purge protection", ["infrastructureOverview", "privileged", "keyVaultPurge"], "key", "purple"),
+                ovGroup("privilegedAssignments", "Privileged ARM assignments", ["infrastructureOverview", "privileged", "privilegedAssignments"], "users", "mint")
+            ]
+        },
+        "infra-defender": {
+            title: "Defender for Cloud",
+            summary: "Defender secure score and unhealthy assessments.",
+            groups: [
+                ovGroup("defenderScore", "Defender secure score", ["infrastructureOverview", "defender", "defenderScore"], "shield", "mint"),
+                ovGroup("unhealthyAssessments", "Unhealthy assessments", ["infrastructureOverview", "defender", "unhealthyAssessments"], "fail", "purple")
+            ]
+        },
+        "infra-defender-coverage": {
+            title: "Defender coverage",
+            summary: "Healthy assessments, total assessments, and Defender plans.",
+            groups: [
+                ovGroup("healthyAssessments", "Healthy assessments", ["infrastructureOverview", "defender", "healthyAssessments"], "pass", "mint"),
+                ovGroup("assessmentCount", "Assessments", ["infrastructureOverview", "defender", "assessmentCount"], "search", "blue"),
+                ovGroup("defenderPlans", "Standard plans", ["infrastructureOverview", "defender", "defenderPlans"], "shield", "purple")
+            ]
+        },
+        "infra-compute": {
+            title: "Compute",
+            summary: "Virtual machines, scale sets, App Services, and managed identity coverage.",
+            groups: [
+                ovGroup("vms", "Virtual machines", ["infrastructureOverview", "compute", "vms"], "devices", "blue"),
+                ovGroup("vmss", "VM scale sets", ["infrastructureOverview", "compute", "vmss"], "laptop", "sky"),
+                ovGroup("trustedLaunch", "Trusted Launch", ["infrastructureOverview", "compute", "trustedLaunch"], "shield", "teal"),
+                ovGroup("encryptedOs", "Encrypted OS disks", ["infrastructureOverview", "compute", "encryptedOs"], "lock", "mint"),
+                ovGroup("computeIdentity", "Compute managed identity", ["infrastructureOverview", "compute", "computeIdentity"], "key", "violet"),
+                ovGroup("appServices", "App Services", ["infrastructureOverview", "compute", "appServices"], "apps", "purple"),
+                ovGroup("functionApps", "Function Apps", ["infrastructureOverview", "compute", "functionApps"], "apps", "sky")
+            ]
+        },
+        "infra-storage": {
+            title: "Storage",
+            summary: "HTTPS, public network access, and storage identity settings.",
+            groups: [
+                ovGroup("https", "HTTPS required", ["infrastructureOverview", "storage", "https"], "lock", "teal"),
+                ovGroup("public", "Public network access", ["infrastructureOverview", "storage", "public"], "warn", "violet"),
+                ovGroup("noPublicBlob", "Blob public access disabled", ["infrastructureOverview", "storage", "noPublicBlob"], "shield", "mint"),
+                ovGroup("identity", "Storage managed identity", ["infrastructureOverview", "storage", "identity"], "key", "blue")
+            ]
+        },
+        "infra-exposure": {
+            title: "Network exposure",
+            summary: "Open management paths, public IPs, and private service endpoints.",
+            groups: [
+                ovGroup("openManagementRules", "Open management rules", ["infrastructureOverview", "exposure", "openManagementRules"], "fail", "purple"),
+                ovGroup("internetAllowRules", "Internet allow rules", ["infrastructureOverview", "exposure", "internetAllowRules"], "warn", "sky"),
+                ovGroup("publicIps", "Public IPs attached", ["infrastructureOverview", "exposure", "publicIps"], "laptop", "teal"),
+                ovGroup("privateEndpoints", "Private endpoints", ["infrastructureOverview", "exposure", "privateEndpoints"], "lock", "violet"),
+                ovGroup("keyVaultPublic", "Public Key Vaults", ["infrastructureOverview", "exposure", "keyVaultPublic"], "key", "blue"),
+                ovGroup("aksPrivate", "Private AKS", ["infrastructureOverview", "exposure", "aksPrivate"], "shield", "mint"),
+                ovGroup("acrPrivate", "Private ACR", ["infrastructureOverview", "exposure", "acrPrivate"], "apps", "purple")
+            ]
+        },
+        "infra-keyvault": {
+            title: "Key Vault",
+            summary: "Key Vault authorization, purge protection, and public network state.",
+            groups: [
+                ovGroup("vaults", "Key Vaults", ["infrastructureOverview", "keyVault", "vaults"], "key", "violet"),
+                ovGroup("rbac", "RBAC authorization", ["infrastructureOverview", "keyVault", "rbac"], "lock", "mint"),
+                ovGroup("purge", "Purge protection", ["infrastructureOverview", "keyVault", "purge"], "shield", "purple"),
+                ovGroup("softDelete", "Soft-delete", ["infrastructureOverview", "keyVault", "softDelete"], "pass", "teal"),
+                ovGroup("public", "Public network enabled", ["infrastructureOverview", "keyVault", "public"], "warn", "sky")
+            ]
+        },
+        "infra-rbac": {
+            title: "Privileged access detail",
+            summary: "ARM role assignments and subscription administrators.",
+            groups: [
+                ovGroup("roleAssignments", "Role assignments", ["infrastructureOverview", "rbac", "roleAssignments"], "users", "purple"),
+                ovGroup("privilegedAssignments", "Privileged ARM assignments", ["infrastructureOverview", "rbac", "privilegedAssignments"], "shield", "mint"),
+                ovGroup("subscriptionAdmins", "Subscription admins", ["infrastructureOverview", "rbac", "subscriptionAdmins"], "warn", "sky"),
+                ovGroup("userAssignedIdentities", "User-assigned identities", ["infrastructureOverview", "rbac", "userAssignedIdentities"], "key", "teal")
+            ]
+        },
+        "infra-governance": {
+            title: "Governance",
+            summary: "Policy assignments, exemptions, and tagged resource groups.",
+            groups: [
+                ovGroup("policyAssignments", "Policy assignments", ["infrastructureOverview", "governance", "policyAssignments"], "building", "blue"),
+                ovGroup("policyExemptions", "Policy exemptions", ["infrastructureOverview", "governance", "policyExemptions"], "warn", "violet"),
+                ovGroup("taggedGroups", "Tagged resource groups", ["infrastructureOverview", "governance", "taggedGroups"], "pass", "teal")
+            ]
+        },
+        "infra-monitoring": {
+            title: "Monitoring",
+            summary: "Log Analytics workspaces and subscription diagnostics.",
+            groups: [
+                ovGroup("logAnalytics", "Log Analytics workspaces", ["infrastructureOverview", "monitoring", "logAnalytics"], "search", "mint"),
+                ovGroup("diagnostics", "Subscription diagnostics", ["infrastructureOverview", "monitoring", "diagnostics"], "clock", "sky")
+            ]
+        },
+        "infra-backup": {
+            title: "Backup",
+            summary: "Recovery Services and backup vaults.",
+            groups: [
+                ovGroup("recoveryVaults", "Recovery Services vaults", ["infrastructureOverview", "backup", "recoveryVaults"], "shield", "blue"),
+                ovGroup("backupVaults", "Backup vaults", ["infrastructureOverview", "backup", "backupVaults"], "lock", "teal")
+            ]
+        }
+    };
+
+    function resolveOverviewMetric(group) {
+        var viz = ((state.assessment || {}).visualizations) || {};
+        var cur = viz;
+        var path = (group && group.source) || [];
+        for (var i = 0; i < path.length; i++) {
+            if (!cur) return null;
+            cur = cur[path[i]];
+        }
+        if (group && path[0] === "identityOverview" && path[1] === "inventory") {
+            if (!cur || cur.value == null) {
+                var tenant = (state.assessment || {}).tenant || {};
+                var fallback = tenant[group.key];
+                if (fallback != null) return { value: fallback, items: (cur && cur.items) || [] };
+            }
+        }
+        return cur || null;
+    }
+
+    function overviewGroupHtml(group, index) {
+        var metric = resolveOverviewMetric(group);
+        var shown = formatOverviewValue(metric);
+        if (shown == null && metricValue(metric) == null) shown = "Unavailable";
+        var items = (metric && metric.items) || [];
+        var total = (metric && metric.itemTotal != null) ? metric.itemTotal : items.length;
+        var open = state.drawerOpen[group.key];
+        if (open == null) open = index === 0;
+        var body;
+        if (items.length) {
+            body = '<ul class="zt-ov-list">' + items.map(function (item) {
+                var name = item && (item.name || item.displayName) || "Unnamed";
+                var detail = item && item.detail ? '<em>' + esc(item.detail) + "</em>" : "";
+                return "<li><span>" + esc(name) + "</span>" + detail + "</li>";
+            }).join("") + "</ul>";
+            if (total > items.length) {
+                body += '<p class="zt-dd-muted">Showing ' + items.length + " of " + compactNumber(total) + ".</p>";
+            }
+        } else {
+            body = '<p class="zt-dd-muted">No item list was returned for this metric. Count: ' + esc(shown) + ".</p>";
+        }
+        return '<details class="zt-ov-acc" data-ov-group="' + esc(group.key) + '"' + (open ? " open" : "") + ">" +
+            "<summary>" +
+            '<span class="zt-inv-icon zt-tone-' + esc(group.tone) + '">' + icon(group.ic) + "</span>" +
+            "<span>" + esc(group.label) + "</span>" +
+            "<strong>" + esc(shown) + "</strong>" +
+            "</summary>" + body + "</details>";
+    }
+
+    function overviewSectionHtml(id) {
+        var section = OVERVIEW_SECTIONS[id];
+        if (!section) return "<p>Overview details were not found.</p>";
+        var groups = (section.groups || []).map(function (group, index) {
+            return overviewGroupHtml(group, index);
+        }).join("");
+        return '<section class="zt-dd-card"><h4>Summary</h4><p>' + esc(section.summary) + "</p></section>" +
+            '<section class="zt-dd-card"><h4>Metrics</h4>' + (groups || "<p>No metrics were returned.</p>") + "</section>";
+    }
+
+    function bindOverviewDrawer() {
+        if (!drawerBody) return;
+        drawerBody.querySelectorAll("[data-ov-group]").forEach(function (el) {
+            el.addEventListener("toggle", function () {
+                state.drawerOpen[el.getAttribute("data-ov-group")] = el.open;
+            });
+        });
+    }
+
+    function openOverviewSection(id) {
+        if (!OVERVIEW_SECTIONS[id] || !drawer) return;
+        state.overviewSection = id;
+        state.selectedId = null;
+        state.drawerTab = "overview";
+        state.drawerOpen = {};
+        state.drawerPages = {};
+        state.drawerEvidenceKey = "";
+        state.drawerEvidenceQuery = "";
+        if (drawerTitle) drawerTitle.textContent = OVERVIEW_SECTIONS[id].title;
+        if (drawerBadges) drawerBadges.innerHTML = "";
+        if (drawerTabs) drawerTabs.hidden = true;
+        renderDrawerBody();
+        drawer.hidden = false;
+        if (drawerBackdrop) drawerBackdrop.hidden = false;
+        requestAnimationFrame(function () {
+            drawer.classList.add("is-open");
+            if (drawerBackdrop) drawerBackdrop.classList.add("is-open");
+        });
+    }
+
     function renderDrawerBody() {
+        if (state.overviewSection) {
+            if (!drawerBody) return;
+            drawerBody.innerHTML = '<div class="zt-dd">' + overviewSectionHtml(state.overviewSection) + "</div>";
+            drawerBody.scrollTop = 0;
+            bindOverviewDrawer();
+            return;
+        }
         var test = findTest(state.selectedId);
         if (!test || !drawerBody) return;
         var a = state.assessment || {};
@@ -2348,12 +2810,14 @@
     function openDrawer(id) {
         var test = findTest(id);
         if (!test || !drawer) return;
+        state.overviewSection = null;
         state.selectedId = id;
         state.drawerTab = "overview";
         state.drawerPages = {};
         state.drawerOpen = {};
         state.drawerEvidenceKey = "";
         state.drawerEvidenceQuery = "";
+        if (drawerTabs) drawerTabs.hidden = false;
         if (drawerTitle) drawerTitle.textContent = test.name;
         if (drawerBadges) drawerBadges.innerHTML = riskBadge(test.risk) + statusBadge(test.status);
         syncDrawerTabs();
@@ -2370,9 +2834,11 @@
         if (!drawer) return;
         drawer.classList.remove("is-open");
         if (drawerBackdrop) drawerBackdrop.classList.remove("is-open");
+        state.overviewSection = null;
         setTimeout(function () {
             drawer.hidden = true;
             if (drawerBackdrop) drawerBackdrop.hidden = true;
+            if (drawerTabs) drawerTabs.hidden = false;
         }, 180);
     }
 

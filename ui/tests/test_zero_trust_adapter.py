@@ -870,6 +870,69 @@ class ZeroTrustAdapterTests(unittest.TestCase):
         pim = next(table for table in test["evidenceTables"] if table["title"] == "PIM assignments")
         self.assertEqual(pim["rows"][0]["assignmentType"], "Eligible")
 
+    def test_overview_metrics_include_item_lists(self):
+        adapted = adapt_assessment({
+            "assessment_id": "ov-items-1",
+            "status": "completed",
+            "findings": [],
+            "evidence": {
+                "tenant_profile": {
+                    "available": True,
+                    "users": 2,
+                    "guests": 1,
+                    "groups": 1,
+                    "applications": 1,
+                    "service_principals": 1,
+                    "user_list": [
+                        {"displayName": "Alex Chen", "userPrincipalName": "alex@ltimsec.com"},
+                        {"displayName": "Priya Shah", "userPrincipalName": "priya@ltimsec.com"},
+                    ],
+                    "guest_list": [{"displayName": "Guest One", "userPrincipalName": "guest@external.com"}],
+                    "group_list": [{"displayName": "SecOps"}],
+                    "application_list": [{"displayName": "HeimDRIX", "appId": "111"}],
+                    "service_principal_list": [{"displayName": "HeimDRIX SP"}],
+                },
+                "privileged_roles": {
+                    "available": True,
+                    "privileged_member_count": 2,
+                    "privileged_role_count": 1,
+                    "roles": [
+                        {
+                            "displayName": "Global Administrator",
+                            "privileged": True,
+                            "members": [
+                                {"displayName": "Alex Chen", "userPrincipalName": "alex@ltimsec.com"},
+                            ],
+                        }
+                    ],
+                },
+                "managed_devices": {
+                    "available": True,
+                    "count": 1,
+                    "compliant_count": 1,
+                    "devices": [
+                        {"deviceName": "LAPTOP-1", "operatingSystem": "Windows", "complianceState": "compliant"},
+                    ],
+                },
+                "network_security": {
+                    "available": True,
+                    "open_management_rule_count": 1,
+                    "open_management_rules": [
+                        {"nsg": "nsg-app", "rule": "allow-ssh", "destinationPortRange": "22"},
+                    ],
+                },
+            },
+        })
+        identity = adapted["visualizations"]["identityOverview"]
+        self.assertEqual(identity["inventory"]["users"]["value"], 2)
+        self.assertEqual(identity["inventory"]["users"]["items"][0]["name"], "Alex Chen")
+        self.assertEqual(identity["inventory"]["guests"]["items"][0]["name"], "Guest One")
+        self.assertEqual(identity["privileged"]["members"]["items"][0]["name"], "Alex Chen")
+        devices = adapted["visualizations"]["devicesOverview"]
+        self.assertEqual(devices["inventory"]["managedDevices"]["items"][0]["name"], "LAPTOP-1")
+        network = adapted["visualizations"]["networkOverview"]
+        self.assertEqual(network["exposure"]["openManagementRules"]["items"][0]["name"], "allow-ssh")
+
     def test_csv_export_fields(self):
         adapted = adapt_assessment({
             "assessment_id": "csv-1",

@@ -1550,14 +1550,16 @@
     bottom: 0;
     left: 0;
     z-index: 90;
-    background: rgba(6, 7, 12, 0.88);
+    background: rgba(0, 0, 0, 0.18);
     opacity: 0;
+    pointer-events: none;
     transition: opacity 0.2s ease;
 }
 
 .zt-app .fw-drawer-backdrop.is-open,
 .fw-drawer-backdrop.is-open {
     opacity: 1;
+    pointer-events: auto;
 }
 
 .zt-drawer {
@@ -2392,6 +2394,77 @@
     min-width: 0;
     padding: 18px 16px 16px;
     gap: 12px;
+}
+
+.zt-id-overview .zt-inventory-card[data-overview-section] {
+    cursor: pointer;
+}
+
+.zt-ov-acc {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.18);
+    margin: 0 0 8px;
+}
+
+.zt-ov-acc summary {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.zt-ov-acc summary::-webkit-details-marker {
+    display: none;
+}
+
+.zt-ov-acc summary .zt-inv-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+}
+
+.zt-ov-acc summary span {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.zt-ov-acc summary strong {
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.zt-ov-list {
+    margin: 0;
+    padding: 0 12px 12px;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.zt-ov-list li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.zt-ov-list li span {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.zt-ov-list li em {
+    font-style: normal;
+    color: var(--zt-muted);
+    font-size: 12px;
 }
 
 .zt-id-overview .zt-inventory-card h2 {

@@ -687,6 +687,137 @@ def _compact_metrics(mapping):
     return cleaned or None
 
 
+OVERVIEW_ITEM_LIMIT = 100
+_ITEM_NAME_KEYS = (
+    "displayName",
+    "name",
+    "deviceName",
+    "activityDisplayName",
+    "userPrincipalName",
+    "rule",
+    "nsg",
+    "id",
+    "appId",
+    "resourceId",
+)
+_ITEM_DETAIL_KEYS = (
+    "userPrincipalName",
+    "appId",
+    "state",
+    "operatingSystem",
+    "complianceState",
+    "trustType",
+    "location",
+    "sku",
+    "assignmentType",
+    "role",
+    "severity",
+    "endDateTime",
+)
+
+
+def _block_list(block, *keys):
+    if not isinstance(block, dict):
+        return []
+    for key in keys:
+        value = block.get(key)
+        if isinstance(value, list) and value:
+            return value
+        if isinstance(value, dict):
+            inner = value.get("value") or value.get("items") or value.get("results")
+            if isinstance(inner, list) and inner:
+                return inner
+    return []
+
+
+def _overview_item_name(item):
+    if isinstance(item, str):
+        return sanitize_text(item, 160)
+    if not isinstance(item, dict):
+        return None
+    for key in _ITEM_NAME_KEYS:
+        value = item.get(key)
+        if value:
+            return sanitize_text(value, 160)
+    return None
+
+
+def _overview_item_detail(item, extra_keys=None):
+    if not isinstance(item, dict):
+        return None
+    keys = list(extra_keys or ()) + list(_ITEM_DETAIL_KEYS)
+    parts = []
+    seen = set()
+    name = _overview_item_name(item)
+    for key in keys:
+        if key in seen:
+            continue
+        seen.add(key)
+        value = item.get(key)
+        if value in (None, "", name):
+            continue
+        if isinstance(value, bool):
+            value = "Yes" if value else "No"
+        text = sanitize_text(value, 80)
+        if text and text not in parts:
+            parts.append(text)
+        if len(parts) >= 3:
+            break
+    return " · ".join(parts) if parts else None
+
+
+def _overview_items(items, extra_keys=None):
+    rows = []
+    raw = items if isinstance(items, list) else []
+    for item in raw:
+        name = _overview_item_name(item)
+        if not name:
+            continue
+        row = {"name": name}
+        detail = _overview_item_detail(item, extra_keys)
+        if detail:
+            row["detail"] = detail
+        rows.append(row)
+        if len(rows) >= OVERVIEW_ITEM_LIMIT:
+            break
+    return rows
+
+
+def _with_items(metric, items, extra_keys=None):
+    if not metric:
+        return None
+    rows = _overview_items(items, extra_keys)
+    if not rows:
+        return metric
+    out = dict(metric)
+    out["items"] = rows
+    out["itemTotal"] = len(items) if isinstance(items, list) else len(rows)
+    return out
+
+
+def _privileged_member_items(roles_block):
+    rows = []
+    for role in (roles_block or {}).get("roles") or []:
+        if not isinstance(role, dict):
+            continue
+        role_name = role.get("displayName") or role.get("name") or ""
+        members = role.get("members") or []
+        if not members:
+            if role_name:
+                rows.append({"displayName": role_name, "role": role_name, "assignmentType": "Active"})
+            continue
+        for member in members:
+            if isinstance(member, str):
+                rows.append({"displayName": member, "role": role_name})
+                continue
+            if not isinstance(member, dict):
+                continue
+            row = dict(member)
+            row["role"] = row.get("role") or role_name
+            rows.append(row)
+    return rows
+
+
 def _pillar_metrics_from_evidence(evidence):
     evidence = evidence or {}
     registration = evidence.get("auth_registration") or {}
@@ -772,25 +903,48 @@ def _identity_overview_from_evidence(evidence):
     roles = evidence.get("privileged_roles") or {}
     pim = evidence.get("privileged_eligibility") or {}
     apps = evidence.get("application_credentials") or {}
+    pim_raw = (
+        pim.get("assignments")
+        or pim.get("eligible")
+        or pim.get("active")
+        or pim.get("eligibleAssignments")
+        or pim.get("activeAssignments")
+        or []
+    )
+    if isinstance(pim_raw, dict):
+        pim_raw = pim_raw.get("value") or pim_raw.get("items") or []
+    pim_eligible = [
+        item for item in pim_raw
+        if isinstance(item, dict) and str(item.get("assignmentType") or item.get("type") or item.get("assignmentState") or "").lower() == "eligible"
+    ] or pim_raw
+    pim_active = [
+        item for item in pim_raw
+        if isinstance(item, dict) and str(item.get("assignmentType") or item.get("type") or item.get("assignmentState") or "").lower() == "active"
+    ]
+    creds = list(apps.get("credentials") or [])
+    expired_creds = [item for item in creds if str((item or {}).get("state") or "").lower() == "expired"]
+    expiring_creds = [item for item in creds if "expir" in str((item or {}).get("state") or "").lower()]
+    secrets = [item for item in creds if "secret" in str((item or {}).get("type") or (item or {}).get("credentialType") or "").lower()]
+    certs = [item for item in creds if "cert" in str((item or {}).get("type") or (item or {}).get("credentialType") or "").lower()]
     inventory = _compact_metrics({
-        "users": _count_metric(profile, "users"),
-        "guests": _count_metric(profile, "guests"),
-        "groups": _count_metric(profile, "groups"),
-        "applications": _count_metric(profile, "applications"),
-        "servicePrincipals": _count_metric(profile, "service_principals"),
+        "users": _with_items(_count_metric(profile, "users"), _block_list(profile, "user_list", "users_list", "userList")),
+        "guests": _with_items(_count_metric(profile, "guests"), _block_list(profile, "guest_list", "guests_list", "guestList")),
+        "groups": _with_items(_count_metric(profile, "groups"), _block_list(profile, "group_list", "groups_list", "groupList")),
+        "applications": _with_items(_count_metric(profile, "applications"), _block_list(profile, "application_list", "applications_list", "applicationList")),
+        "servicePrincipals": _with_items(_count_metric(profile, "service_principals"), _block_list(profile, "service_principal_list", "servicePrincipals", "servicePrincipalList")),
     })
     privileged = _compact_metrics({
-        "members": _count_metric(roles, "privileged_member_count"),
-        "roles": _count_metric(roles, "privileged_role_count"),
-        "pimEligible": _count_metric(pim, "eligible_count"),
-        "pimActive": _count_metric(pim, "active_assignment_count"),
+        "members": _with_items(_count_metric(roles, "privileged_member_count"), _privileged_member_items(roles), ("role", "userPrincipalName")),
+        "roles": _with_items(_count_metric(roles, "privileged_role_count"), _block_list(roles, "roles")),
+        "pimEligible": _with_items(_count_metric(pim, "eligible_count"), pim_eligible, ("role", "userPrincipalName")),
+        "pimActive": _with_items(_count_metric(pim, "active_assignment_count"), pim_active or pim_raw, ("role", "userPrincipalName")),
     })
     credentials = _compact_metrics({
-        "applicationsAssessed": _count_metric(apps, "application_count"),
-        "expiredCredentials": _count_metric(apps, "expired_credential_count"),
-        "expiring30d": _count_metric(apps, "expiring_30d_count"),
-        "secrets": _count_metric(apps, "secret_count"),
-        "certificates": _count_metric(apps, "certificate_count"),
+        "applicationsAssessed": _with_items(_count_metric(apps, "application_count"), creds),
+        "expiredCredentials": _with_items(_count_metric(apps, "expired_credential_count"), expired_creds),
+        "expiring30d": _with_items(_count_metric(apps, "expiring_30d_count"), expiring_creds),
+        "secrets": _with_items(_count_metric(apps, "secret_count"), secrets or creds),
+        "certificates": _with_items(_count_metric(apps, "certificate_count"), certs or creds),
     })
     if not inventory and not privileged and not credentials:
         return None
@@ -803,61 +957,67 @@ def _identity_overview_from_evidence(evidence):
 
 def _network_overview_from_evidence(evidence):
     network = (evidence or {}).get("network_security") or {}
+    nsgs = _block_list(network, "nsgs")
+    firewalls = _block_list(network, "firewalls")
+    open_mgmt = _block_list(network, "open_management_rules")
+    internet_allow = _block_list(network, "internet_allow_rules")
+    private_endpoints = _block_list(network, "private_endpoints")
+    public_ips = _block_list(network, "public_ips")
     inventory = _compact_metrics({
-        "nsgsAssociated": _ratio_metric(network, "nsg_associated_count", "nsg_count"),
-        "subnetsWithoutNsg": _count_metric(network, "subnets_without_nsg_count"),
-        "publicIps": _ratio_metric(network, "public_ip_attached_count", "public_ip_count"),
-        "privateEndpoints": _count_metric(network, "private_endpoint_count"),
+        "nsgsAssociated": _with_items(_ratio_metric(network, "nsg_associated_count", "nsg_count"), nsgs),
+        "subnetsWithoutNsg": _with_items(_count_metric(network, "subnets_without_nsg_count"), _block_list(network, "subnets_without_nsg", "unprotected_subnets")),
+        "publicIps": _with_items(_ratio_metric(network, "public_ip_attached_count", "public_ip_count"), public_ips),
+        "privateEndpoints": _with_items(_count_metric(network, "private_endpoint_count"), private_endpoints),
     })
     perimeter = _compact_metrics({
-        "firewalls": _count_metric(network, "firewall_count"),
-        "wafPolicies": _count_metric(network, "waf_policy_count"),
+        "firewalls": _with_items(_count_metric(network, "firewall_count"), firewalls),
+        "wafPolicies": _with_items(_count_metric(network, "waf_policy_count"), _block_list(network, "waf_policies")),
     })
     exposure = _compact_metrics({
-        "openManagementRules": _count_metric(network, "open_management_rule_count"),
-        "internetAllowRules": _count_metric(network, "internet_allow_rule_count"),
-        "firewalls": _count_metric(network, "firewall_count"),
-        "wafPolicies": _count_metric(network, "waf_policy_count"),
+        "openManagementRules": _with_items(_count_metric(network, "open_management_rule_count"), open_mgmt, ("nsg", "rule", "destinationPortRange")),
+        "internetAllowRules": _with_items(_count_metric(network, "internet_allow_rule_count"), internet_allow, ("nsg", "rule", "destinationPortRange")),
+        "firewalls": _with_items(_count_metric(network, "firewall_count"), firewalls),
+        "wafPolicies": _with_items(_count_metric(network, "waf_policy_count"), _block_list(network, "waf_policies")),
     })
     topology = _compact_metrics({
-        "vnets": _count_metric(network, "vnet_count"),
-        "subnets": _count_metric(network, "subnet_count"),
-        "nics": _count_metric(network, "nic_count"),
-        "peerings": _count_metric(network, "peering_count"),
-        "routeTables": _count_metric(network, "route_table_count"),
-        "associatedRouteTables": _count_metric(network, "associated_route_table_count"),
-        "loadBalancers": _count_metric(network, "load_balancer_count"),
-        "networkWatchers": _count_metric(network, "network_watcher_count"),
+        "vnets": _with_items(_count_metric(network, "vnet_count"), _block_list(network, "vnets")),
+        "subnets": _with_items(_count_metric(network, "subnet_count"), _block_list(network, "subnets")),
+        "nics": _with_items(_count_metric(network, "nic_count"), _block_list(network, "nics")),
+        "peerings": _with_items(_count_metric(network, "peering_count"), _block_list(network, "peerings")),
+        "routeTables": _with_items(_count_metric(network, "route_table_count"), _block_list(network, "route_tables")),
+        "associatedRouteTables": _with_items(_count_metric(network, "associated_route_table_count"), _block_list(network, "associated_route_tables")),
+        "loadBalancers": _with_items(_count_metric(network, "load_balancer_count"), _block_list(network, "load_balancers")),
+        "networkWatchers": _with_items(_count_metric(network, "network_watcher_count"), _block_list(network, "network_watchers")),
     })
     addressing = _compact_metrics({
-        "publicIps": _count_metric(network, "public_ip_count"),
-        "publicIpsAttached": _ratio_metric(network, "public_ip_attached_count", "public_ip_count"),
+        "publicIps": _with_items(_count_metric(network, "public_ip_count"), public_ips),
+        "publicIpsAttached": _with_items(_ratio_metric(network, "public_ip_attached_count", "public_ip_count"), public_ips),
     })
     perimeterDetail = _compact_metrics({
-        "firewallPolicies": _count_metric(network, "firewall_policy_count"),
-        "firewallsWithPolicy": _count_metric(network, "firewall_with_policy_count"),
-        "premiumFirewalls": _count_metric(network, "premium_firewall_count"),
+        "firewallPolicies": _with_items(_count_metric(network, "firewall_policy_count"), _block_list(network, "firewall_policies")),
+        "firewallsWithPolicy": _with_items(_count_metric(network, "firewall_with_policy_count"), firewalls),
+        "premiumFirewalls": _with_items(_count_metric(network, "premium_firewall_count"), firewalls),
         "threatIntel": _count_metric(network, "threat_intel_count"),
-        "applicationGateways": _count_metric(network, "application_gateway_count"),
+        "applicationGateways": _with_items(_count_metric(network, "application_gateway_count"), _block_list(network, "application_gateways")),
         "applicationGatewayWaf": _count_metric(network, "application_gateway_waf_count"),
         "wafPrevention": _count_metric(network, "waf_prevention_count"),
         "wafAssociated": _count_metric(network, "waf_associated_count"),
-        "frontDoorProfiles": _count_metric(network, "front_door_profile_count"),
-        "ddosPlans": _count_metric(network, "ddos_plan_count"),
-        "ddosProtectedVnets": _count_metric(network, "ddos_protected_vnet_count"),
+        "frontDoorProfiles": _with_items(_count_metric(network, "front_door_profile_count"), _block_list(network, "front_door_profiles")),
+        "ddosPlans": _with_items(_count_metric(network, "ddos_plan_count"), _block_list(network, "ddos_plans")),
+        "ddosProtectedVnets": _with_items(_count_metric(network, "ddos_protected_vnet_count"), _block_list(network, "ddos_protected_vnets")),
     })
     remoteAccess = _compact_metrics({
-        "vpnGateways": _count_metric(network, "vpn_gateway_count"),
-        "bastions": _count_metric(network, "bastion_count"),
-        "expressRoute": _count_metric(network, "express_route_count"),
+        "vpnGateways": _with_items(_count_metric(network, "vpn_gateway_count"), _block_list(network, "vpn_gateways")),
+        "bastions": _with_items(_count_metric(network, "bastion_count"), _block_list(network, "bastions")),
+        "expressRoute": _with_items(_count_metric(network, "express_route_count"), _block_list(network, "express_route_circuits", "express_routes")),
     })
     paasExposure = _compact_metrics({
-        "privateEndpoints": _count_metric(network, "private_endpoint_count"),
-        "paasPublic": _count_metric(network, "paas_public_count"),
-        "paasRestricted": _count_metric(network, "paas_restricted_count"),
-        "storageAccounts": _count_metric(network, "storage_account_count"),
-        "keyVaults": _count_metric(network, "key_vault_count"),
-        "sqlServers": _count_metric(network, "sql_server_count"),
+        "privateEndpoints": _with_items(_count_metric(network, "private_endpoint_count"), private_endpoints),
+        "paasPublic": _with_items(_count_metric(network, "paas_public_count"), _block_list(network, "paas_public")),
+        "paasRestricted": _with_items(_count_metric(network, "paas_restricted_count"), _block_list(network, "paas_restricted")),
+        "storageAccounts": _with_items(_count_metric(network, "storage_account_count"), _block_list(network, "storage_accounts")),
+        "keyVaults": _with_items(_count_metric(network, "key_vault_count"), _block_list(network, "key_vaults")),
+        "sqlServers": _with_items(_count_metric(network, "sql_server_count"), _block_list(network, "sql_servers")),
     })
     if not any([inventory, perimeter, exposure, topology, addressing, perimeterDetail, remoteAccess, paasExposure]):
         return None
@@ -879,40 +1039,68 @@ def _devices_overview_from_evidence(evidence):
     compliance = evidence.get("device_compliance") or {}
     entra = evidence.get("entra_devices") or {}
     enrollment = evidence.get("device_enrollment") or {}
+    managed_devices = _block_list(managed, "devices")
+    entra_devices = _block_list(entra, "devices")
+    policies_list = _block_list(compliance, "policies")
+    configs = _block_list(enrollment, "configurations")
     inventory = _compact_metrics({
-        "managedDevices": _count_metric(managed, "count"),
-        "entraDevices": _count_metric(entra, "count"),
+        "managedDevices": _with_items(_count_metric(managed, "count"), managed_devices, ("operatingSystem", "complianceState")),
+        "entraDevices": _with_items(_count_metric(entra, "count"), entra_devices, ("operatingSystem", "trustType")),
     })
     compliance_metrics = _compact_metrics({
-        "compliant": _ratio_metric(managed, "compliant_count", "count"),
-        "unknownCompliance": _count_metric(managed, "unknown_compliance_count"),
+        "compliant": _with_items(
+            _ratio_metric(managed, "compliant_count", "count"),
+            [item for item in managed_devices if str((item or {}).get("complianceState") or "").lower() == "compliant"],
+            ("operatingSystem", "complianceState"),
+        ),
+        "unknownCompliance": _with_items(
+            _count_metric(managed, "unknown_compliance_count"),
+            [item for item in managed_devices if "unknown" in str((item or {}).get("complianceState") or "").lower()],
+            ("operatingSystem", "complianceState"),
+        ),
     })
     encryption = _compact_metrics({
-        "encrypted": _ratio_metric(managed, "encrypted_count", "count"),
+        "encrypted": _with_items(
+            _ratio_metric(managed, "encrypted_count", "count"),
+            [item for item in managed_devices if item.get("isEncrypted")],
+            ("operatingSystem", "isEncrypted"),
+        ),
     })
     ownership = _compact_metrics({
-        "companyOwned": _count_metric(managed, "company_owned_count"),
-        "personalOwned": _count_metric(managed, "personal_owned_count"),
-        "unknownOwner": _count_metric(managed, "unknown_owner_count"),
+        "companyOwned": _with_items(
+            _count_metric(managed, "company_owned_count"),
+            [item for item in managed_devices if "company" in str((item or {}).get("managedDeviceOwnerType") or "").lower()],
+            ("managedDeviceOwnerType",),
+        ),
+        "personalOwned": _with_items(
+            _count_metric(managed, "personal_owned_count"),
+            [item for item in managed_devices if "personal" in str((item or {}).get("managedDeviceOwnerType") or "").lower()],
+            ("managedDeviceOwnerType",),
+        ),
+        "unknownOwner": _with_items(
+            _count_metric(managed, "unknown_owner_count"),
+            [item for item in managed_devices if "unknown" in str((item or {}).get("managedDeviceOwnerType") or "").lower()],
+            ("managedDeviceOwnerType",),
+        ),
     })
     policies = _compact_metrics({
-        "policies": _count_metric(compliance, "count"),
-        "assigned": _ratio_metric(compliance, "assigned_count", "count"),
-        "unassigned": _count_metric(compliance, "unassigned_count"),
-        "minOs": _count_metric(compliance, "min_os_policy_count"),
-        "encryption": _count_metric(compliance, "encryption_policy_count"),
-        "firewall": _count_metric(compliance, "firewall_policy_count"),
-        "secureBoot": _count_metric(compliance, "secure_boot_policy_count"),
-        "tpm": _count_metric(compliance, "tpm_policy_count"),
+        "policies": _with_items(_count_metric(compliance, "count"), policies_list),
+        "assigned": _with_items(_ratio_metric(compliance, "assigned_count", "count"), [item for item in policies_list if item.get("assigned")]),
+        "unassigned": _with_items(_count_metric(compliance, "unassigned_count"), [item for item in policies_list if item.get("assigned") is False]),
+        "minOs": _with_items(_count_metric(compliance, "min_os_policy_count"), [item for item in policies_list if item.get("requires_min_os")]),
+        "encryption": _with_items(_count_metric(compliance, "encryption_policy_count"), [item for item in policies_list if item.get("requires_encryption")]),
+        "firewall": _with_items(_count_metric(compliance, "firewall_policy_count"), [item for item in policies_list if item.get("requires_firewall")]),
+        "secureBoot": _with_items(_count_metric(compliance, "secure_boot_policy_count"), [item for item in policies_list if item.get("requires_secure_boot")]),
+        "tpm": _with_items(_count_metric(compliance, "tpm_policy_count"), [item for item in policies_list if item.get("requires_tpm")]),
     })
     enrollment_metrics = _compact_metrics({
-        "configurations": _count_metric(enrollment, "count"),
-        "restrictions": _count_metric(enrollment, "restriction_count"),
-        "platformRestrictions": _count_metric(enrollment, "platform_restriction_count"),
+        "configurations": _with_items(_count_metric(enrollment, "count"), configs),
+        "restrictions": _with_items(_count_metric(enrollment, "restriction_count"), [item for item in configs if item.get("is_restriction")]),
+        "platformRestrictions": _with_items(_count_metric(enrollment, "platform_restriction_count"), [item for item in configs if item.get("is_restriction")]),
     })
     entra_state = _compact_metrics({
-        "managed": _count_metric(entra, "managed_count"),
-        "compliant": _count_metric(entra, "compliant_count"),
+        "managed": _with_items(_count_metric(entra, "managed_count"), [item for item in entra_devices if item.get("isManaged")], ("trustType",)),
+        "compliant": _with_items(_count_metric(entra, "compliant_count"), [item for item in entra_devices if item.get("isCompliant")], ("trustType",)),
     })
     if not any([inventory, compliance_metrics, encryption, ownership, policies, enrollment_metrics, entra_state]):
         return None
@@ -934,14 +1122,18 @@ def _data_overview_from_evidence(evidence):
     retention = evidence.get("retention_labels") or {}
     sharepoint = evidence.get("sharepoint_settings") or {}
     audits = evidence.get("directory_audits") or {}
+    label_items = _block_list(labels, "labels")
+    dlp_items = _block_list(dlp, "policies")
+    retention_items = _block_list(retention, "labels")
+    audit_items = _block_list(audits, "events")
     informationProtection = _compact_metrics({
-        "labels": _ratio_metric(labels, "active_count", "count"),
-        "encrypted": _count_metric(labels, "encrypted_count"),
-        "contentMarking": _count_metric(labels, "content_marking_count"),
-        "autoLabel": _count_metric(labels, "auto_label_count"),
+        "labels": _with_items(_ratio_metric(labels, "active_count", "count"), label_items),
+        "encrypted": _with_items(_count_metric(labels, "encrypted_count"), [item for item in label_items if item.get("encrypted") or item.get("encryption")]),
+        "contentMarking": _with_items(_count_metric(labels, "content_marking_count"), [item for item in label_items if item.get("contentMarking")]),
+        "autoLabel": _with_items(_count_metric(labels, "auto_label_count"), [item for item in label_items if item.get("autoLabel") or item.get("auto_label")]),
     })
     dlp_metrics = _compact_metrics({
-        "scopes": _ratio_metric(dlp, "enabled_count", "count"),
+        "scopes": _with_items(_ratio_metric(dlp, "enabled_count", "count"), dlp_items, ("executionMode", "locations")),
         "locations": _count_metric(dlp, "location_count"),
     })
     sharing = _compact_metrics({
@@ -950,12 +1142,12 @@ def _data_overview_from_evidence(evidence):
         "legacyAuthBlocked": _bool_metric(sharepoint, "legacy_auth_blocked"),
     })
     retention_metrics = _compact_metrics({
-        "labels": _count_metric(retention, "count"),
-        "published": _count_metric(retention, "published_count"),
+        "labels": _with_items(_count_metric(retention, "count"), retention_items),
+        "published": _with_items(_count_metric(retention, "published_count"), [item for item in retention_items if item.get("isEnabled") or item.get("published")]),
     })
     audit = _compact_metrics({
-        "directoryAudits": _count_metric(audits, "count"),
-        "success": _count_metric(audits, "success_count"),
+        "directoryAudits": _with_items(_count_metric(audits, "count"), audit_items, ("activityDisplayName", "result")),
+        "success": _with_items(_count_metric(audits, "success_count"), [item for item in audit_items if str((item or {}).get("result") or "").lower() in ("success", "succeeded")]),
     })
     if not any([informationProtection, dlp_metrics, sharing, retention_metrics, audit]):
         return None
@@ -974,74 +1166,81 @@ def _infrastructure_overview_from_evidence(evidence):
     score = evidence.get("defender_secure_score") or {}
     assessments = evidence.get("defender_assessments") or {}
     network = evidence.get("network_security") or {}
+    resource_groups = _block_list(infra, "resource_groups")
+    vms = _block_list(infra, "vms")
+    storage_accounts = _block_list(infra, "storage_accounts")
+    key_vaults = _block_list(infra, "key_vaults")
+    unhealthy = _block_list(assessments, "unhealthy_assessments")
+    healthy = _block_list(assessments, "healthy_assessments")
+    plans = _block_list(assessments, "defender_plans")
     inventory = _compact_metrics({
-        "resourceGroups": _count_metric(infra, "resource_group_count"),
-        "vms": _ratio_metric(infra, "trusted_launch_count", "vm_count"),
-        "storageHttps": _ratio_metric(infra, "storage_https_count", "storage_account_count"),
-        "storagePublic": _count_metric(infra, "storage_public_count"),
+        "resourceGroups": _with_items(_count_metric(infra, "resource_group_count"), resource_groups),
+        "vms": _with_items(_ratio_metric(infra, "trusted_launch_count", "vm_count"), vms),
+        "storageHttps": _with_items(_ratio_metric(infra, "storage_https_count", "storage_account_count"), storage_accounts),
+        "storagePublic": _with_items(_count_metric(infra, "storage_public_count"), _block_list(infra, "public_storage", "storage_public")),
     })
     privileged = _compact_metrics({
-        "keyVaultPurge": _ratio_metric(infra, "key_vault_purge_protection_count", "key_vault_count"),
-        "privilegedAssignments": _count_metric(infra, "privileged_assignment_count"),
+        "keyVaultPurge": _with_items(_ratio_metric(infra, "key_vault_purge_protection_count", "key_vault_count"), key_vaults),
+        "privilegedAssignments": _with_items(_count_metric(infra, "privileged_assignment_count"), _block_list(infra, "privileged_assignments")),
     })
     defender = _compact_metrics({
         "defenderScore": _score_metric(score, "percentage"),
-        "unhealthyAssessments": _count_metric(assessments, "unhealthy_count"),
-        "keyVaultPurge": _ratio_metric(infra, "key_vault_purge_protection_count", "key_vault_count"),
-        "privilegedAssignments": _count_metric(infra, "privileged_assignment_count"),
-        "healthyAssessments": _count_metric(assessments, "healthy_count"),
+        "unhealthyAssessments": _with_items(_count_metric(assessments, "unhealthy_count"), unhealthy, ("severity", "resourceId")),
+        "keyVaultPurge": _with_items(_ratio_metric(infra, "key_vault_purge_protection_count", "key_vault_count"), key_vaults),
+        "privilegedAssignments": _with_items(_count_metric(infra, "privileged_assignment_count"), _block_list(infra, "privileged_assignments")),
+        "healthyAssessments": _with_items(_count_metric(assessments, "healthy_count"), healthy),
         "assessmentCount": _count_metric(assessments, "assessment_count"),
-        "defenderPlans": _count_metric(assessments, "defender_plan_count"),
+        "defenderPlans": _with_items(_count_metric(assessments, "defender_plan_count"), plans),
     })
     compute = _compact_metrics({
-        "vms": _count_metric(infra, "vm_count"),
-        "vmss": _count_metric(infra, "vmss_count"),
-        "trustedLaunch": _ratio_metric(infra, "trusted_launch_count", "vm_count"),
-        "encryptedOs": _ratio_metric(infra, "encrypted_os_disk_count", "vm_count"),
+        "vms": _with_items(_count_metric(infra, "vm_count"), vms),
+        "vmss": _with_items(_count_metric(infra, "vmss_count"), _block_list(infra, "vmss")),
+        "trustedLaunch": _with_items(_ratio_metric(infra, "trusted_launch_count", "vm_count"), vms),
+        "encryptedOs": _with_items(_ratio_metric(infra, "encrypted_os_disk_count", "vm_count"), vms),
         "computeIdentity": _ratio_metric(infra, "compute_identity_count", "compute_count"),
-        "appServices": _count_metric(infra, "app_service_count"),
-        "functionApps": _count_metric(infra, "function_app_count"),
+        "appServices": _with_items(_count_metric(infra, "app_service_count"), _block_list(infra, "app_services")),
+        "functionApps": _with_items(_count_metric(infra, "function_app_count"), _block_list(infra, "function_apps")),
     })
     storage = _compact_metrics({
-        "https": _ratio_metric(infra, "storage_https_count", "storage_account_count"),
-        "public": _count_metric(infra, "storage_public_count"),
-        "noPublicBlob": _ratio_metric(infra, "storage_no_public_blob_count", "storage_account_count"),
+        "https": _with_items(_ratio_metric(infra, "storage_https_count", "storage_account_count"), storage_accounts),
+        "public": _with_items(_count_metric(infra, "storage_public_count"), _block_list(infra, "public_storage", "storage_public")),
+        "noPublicBlob": _with_items(_ratio_metric(infra, "storage_no_public_blob_count", "storage_account_count"), storage_accounts),
         "identity": _count_metric(infra, "storage_identity_count"),
     })
     exposure = _compact_metrics({
-        "openManagementRules": _count_metric(network, "open_management_rule_count"),
-        "internetAllowRules": _count_metric(network, "internet_allow_rule_count"),
-        "publicIps": _ratio_metric(network, "public_ip_attached_count", "public_ip_count"),
-        "privateEndpoints": _count_metric(network, "private_endpoint_count"),
-        "keyVaultPublic": _count_metric(infra, "key_vault_public_count"),
-        "aksPrivate": _ratio_metric(infra, "aks_private_count", "aks_count"),
-        "acrPrivate": _ratio_metric(infra, "acr_private_count", "acr_count"),
+        "openManagementRules": _with_items(_count_metric(network, "open_management_rule_count"), _block_list(network, "open_management_rules"), ("nsg", "rule")),
+        "internetAllowRules": _with_items(_count_metric(network, "internet_allow_rule_count"), _block_list(network, "internet_allow_rules"), ("nsg", "rule")),
+        "publicIps": _with_items(_ratio_metric(network, "public_ip_attached_count", "public_ip_count"), _block_list(network, "public_ips")),
+        "privateEndpoints": _with_items(_count_metric(network, "private_endpoint_count"), _block_list(network, "private_endpoints")),
+        "keyVaultPublic": _with_items(_count_metric(infra, "key_vault_public_count"), key_vaults),
+        "aksPrivate": _with_items(_ratio_metric(infra, "aks_private_count", "aks_count"), _block_list(infra, "aks")),
+        "acrPrivate": _with_items(_ratio_metric(infra, "acr_private_count", "acr_count"), _block_list(infra, "acrs")),
     })
     rbac = _compact_metrics({
-        "roleAssignments": _count_metric(infra, "role_assignment_count"),
-        "privilegedAssignments": _count_metric(infra, "privileged_assignment_count"),
-        "subscriptionAdmins": _count_metric(infra, "subscription_admin_count"),
-        "userAssignedIdentities": _count_metric(infra, "user_assigned_identity_count"),
+        "roleAssignments": _with_items(_count_metric(infra, "role_assignment_count"), _block_list(infra, "role_assignments")),
+        "privilegedAssignments": _with_items(_count_metric(infra, "privileged_assignment_count"), _block_list(infra, "privileged_assignments")),
+        "subscriptionAdmins": _with_items(_count_metric(infra, "subscription_admin_count"), _block_list(infra, "subscription_admins")),
+        "userAssignedIdentities": _with_items(_count_metric(infra, "user_assigned_identity_count"), _block_list(infra, "user_assigned_identities")),
     })
     key_vault = _compact_metrics({
-        "vaults": _count_metric(infra, "key_vault_count"),
-        "rbac": _ratio_metric(infra, "key_vault_rbac_count", "key_vault_count"),
-        "purge": _ratio_metric(infra, "key_vault_purge_protection_count", "key_vault_count"),
-        "softDelete": _ratio_metric(infra, "key_vault_soft_delete_count", "key_vault_count"),
-        "public": _count_metric(infra, "key_vault_public_count"),
+        "vaults": _with_items(_count_metric(infra, "key_vault_count"), key_vaults),
+        "rbac": _with_items(_ratio_metric(infra, "key_vault_rbac_count", "key_vault_count"), key_vaults),
+        "purge": _with_items(_ratio_metric(infra, "key_vault_purge_protection_count", "key_vault_count"), key_vaults),
+        "softDelete": _with_items(_ratio_metric(infra, "key_vault_soft_delete_count", "key_vault_count"), key_vaults),
+        "public": _with_items(_count_metric(infra, "key_vault_public_count"), key_vaults),
     })
     governance = _compact_metrics({
-        "policyAssignments": _count_metric(infra, "policy_assignment_count"),
-        "policyExemptions": _count_metric(infra, "policy_exemption_count"),
-        "taggedGroups": _ratio_metric(infra, "tagged_resource_group_count", "resource_group_count"),
+        "policyAssignments": _with_items(_count_metric(infra, "policy_assignment_count"), _block_list(infra, "policy_assignments")),
+        "policyExemptions": _with_items(_count_metric(infra, "policy_exemption_count"), _block_list(infra, "policy_exemptions")),
+        "taggedGroups": _with_items(_ratio_metric(infra, "tagged_resource_group_count", "resource_group_count"), resource_groups),
     })
     monitoring = _compact_metrics({
-        "logAnalytics": _count_metric(infra, "log_analytics_count"),
-        "diagnostics": _count_metric(infra, "subscription_diagnostic_count"),
+        "logAnalytics": _with_items(_count_metric(infra, "log_analytics_count"), _block_list(infra, "log_analytics")),
+        "diagnostics": _with_items(_count_metric(infra, "subscription_diagnostic_count"), _block_list(infra, "diagnostics")),
     })
     backup = _compact_metrics({
-        "recoveryVaults": _count_metric(infra, "recovery_vault_count"),
-        "backupVaults": _count_metric(infra, "backup_vault_count"),
+        "recoveryVaults": _with_items(_count_metric(infra, "recovery_vault_count"), _block_list(infra, "recovery_vaults")),
+        "backupVaults": _with_items(_count_metric(infra, "backup_vault_count"), _block_list(infra, "backup_vaults")),
     })
     if not any([
         inventory, privileged, defender, compute, storage, exposure,

@@ -242,10 +242,17 @@ class ZeroTrustStoreTests(unittest.TestCase):
         self.assertIsNone(zero_trust_store.latest_summary())
         self.assertFalse(zero_trust_store.available())
 
-    def test_legacy_row_is_mirrored_into_canonical_storage(self):
+    def test_results_do_not_read_legacy_table(self):
         self.canonical = FakeCanonical(payload=None)
-        payload = zero_trust_store.get_results("zt-1")
-        self.assertEqual(payload["status"], "completed")
+        with self.assertRaises(zero_trust_store.ZeroTrustStoreError) as ctx:
+            zero_trust_store.get_results("zt-1")
+        self.assertEqual(ctx.exception.status_code, 404)
+        self.assertEqual(self.canonical.saved, [])
+
+    def test_sync_legacy_mirrors_into_canonical_storage(self):
+        self.canonical = FakeCanonical(payload=None)
+        payload = zero_trust_store.sync_legacy("zt-1")
+        self.assertEqual(payload["assessment_id"], "zt-1")
         self.assertEqual(len(self.canonical.saved), 1)
         mirrored, user_id = self.canonical.saved[0]
         self.assertEqual(mirrored["assessment_id"], "zt-1")
@@ -256,10 +263,10 @@ class ZeroTrustStoreTests(unittest.TestCase):
         mirrored = zero_trust_store.sync_missing()
         self.assertEqual(mirrored, [])
 
-    def test_latest_summary_falls_back_to_legacy_row(self):
+    def test_latest_summary_ignores_legacy_row(self):
         self.canonical = FakeCanonical(payload=None)
-        summary = zero_trust_store.latest_summary()
-        self.assertEqual(summary["assessmentId"], "zt-1")
+        self.assertIsNone(zero_trust_store.latest_summary())
+        self.assertFalse(zero_trust_store.available())
 
 
 if __name__ == "__main__":

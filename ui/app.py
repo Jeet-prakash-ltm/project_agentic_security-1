@@ -1864,27 +1864,6 @@ def api_insights_conversation(conversation_id):
     return jsonify({"conversation": summary})
 
 
-def _persist_functions_run(assessment_id, status=None):
-    """Mirror a Function App run into canonical storage once it completes.
-
-    The Function App package is read-only and writes only the transitional
-    ``zero_trust_assessments`` table, so the canonical rows are produced here
-    from its own report payload. Failures never break the API response.
-    """
-
-    if not assessment_id or str(status or "").lower() != "completed":
-        return
-    try:
-        report = zero_trust_service.fetch_report(assessment_id)
-        if str(report.get("status") or "").lower() != "completed":
-            return
-        zero_trust_store.store_run(report, user_id=current_user_id() or "zero-trust")
-    except Exception as exc:  # pragma: no cover - defensive
-        app.logger.warning(
-            "Could not persist Zero Trust run %s: %s", assessment_id, exc
-        )
-
-
 @app.route("/api/zero-trust/config")
 @login_required
 def api_zero_trust_config():
@@ -1892,7 +1871,7 @@ def api_zero_trust_config():
 
     ``configured`` keeps the existing client contract (can assessments run),
     while ``hasData`` tells the page whether stored results already exist in
-    PostgreSQL so it can render without contacting the Function App.
+    canonical PostgreSQL so it can render without contacting the Function App.
     """
 
     return jsonify(
@@ -1931,13 +1910,6 @@ def api_zero_trust_status():
     try:
         return jsonify(zero_trust_store.get_status(assessment_id, full=full))
     except zero_trust_store.ZeroTrustStoreError as exc:
-        if exc.status_code == 404 and zero_trust_service.configured():
-            try:
-                result = zero_trust_service.get_status(assessment_id, full=full)
-                _persist_functions_run(assessment_id, result.get("status"))
-                return jsonify(result)
-            except zero_trust_service.ZeroTrustError as upstream:
-                return jsonify({"error": str(upstream)}), upstream.status_code
         return jsonify({"error": str(exc)}), exc.status_code
     except Exception as exc:
         app.logger.warning("Zero Trust status lookup failed: %s", exc)
@@ -1952,13 +1924,6 @@ def api_zero_trust_results():
     try:
         return jsonify(zero_trust_store.get_results(assessment_id))
     except zero_trust_store.ZeroTrustStoreError as exc:
-        if exc.status_code == 404 and zero_trust_service.configured():
-            try:
-                result = zero_trust_service.get_results(assessment_id)
-                _persist_functions_run(assessment_id, result.get("status"))
-                return jsonify(result)
-            except zero_trust_service.ZeroTrustError as upstream:
-                return jsonify({"error": str(upstream)}), upstream.status_code
         return jsonify({"error": str(exc)}), exc.status_code
     except Exception as exc:
         app.logger.warning("Zero Trust results lookup failed: %s", exc)
@@ -1968,7 +1933,7 @@ def api_zero_trust_results():
 @app.route("/api/zero-trust/latest")
 @login_required
 def api_zero_trust_latest():
-    """Latest stored assessment, used to seed the Cloud Security page."""
+    """Latest canonical assessment, used to seed the Cloud Security page."""
 
     try:
         summary = zero_trust_store.latest_summary()

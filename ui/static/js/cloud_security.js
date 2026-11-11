@@ -2974,7 +2974,7 @@
             state.pollTimer = setTimeout(pollStatus, retryDelay(data.retryAfter));
         }).catch(function (err) {
             if (err.name === "AbortError") return;
-            if (err.status === 429) {
+            if (err.status === 429 || err.status === 404) {
                 state.pollTimer = setTimeout(pollStatus, retryDelay(err.retryAfter));
                 return;
             }

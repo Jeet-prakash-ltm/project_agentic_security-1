@@ -410,15 +410,13 @@ class FirewallJob(Base):
 
 
 class ZeroTrustAssessment(Base):
-    """One Zero Trust assessment run (transitional table).
+    """One Zero Trust assessment run (historical table).
 
-    The assessment Function App writes this table directly. Its deployment
-    package is read-only, so canonical rows in ``assessments`` /
-    ``assessment_findings`` / ``assessment_evidence`` are produced by
-    ``services.zero_trust_store``, which mirrors every row here. ``report``
-    holds the graded findings and per-pillar scores, ``evidence`` the raw
-    collector output (tenant profile, Entra, Intune, Azure), and ``summary``
-    the compact counts used by the overview cards.
+    Live runs are written to canonical ``assessments`` /
+    ``assessment_findings`` / ``assessment_evidence``. This table retains
+    pre-migration rows. ``report`` holds graded findings and per-pillar
+    scores, ``evidence`` the raw collector output, and ``summary`` the
+    compact counts. Dashboard reads do not use this model.
     """
 
     __tablename__ = "zero_trust_assessments"

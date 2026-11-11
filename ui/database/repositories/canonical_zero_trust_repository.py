@@ -9,14 +9,13 @@ tables:
 * ``assessment_findings``   one row per scored control
 * ``assessment_evidence``   one row per collector payload
 
-The legacy ``zero_trust_assessments`` table is transitional: rows written
-there are mirrored into canonical storage (see ``save_run``) so both readers
-and history converge on the shared model.
+The live Function App writes these tables directly. The legacy
+``zero_trust_assessments`` table is historical only; dashboard reads never
+consult it.
 
 Reads return Function-App-shaped payloads so ``services.zero_trust_adapter``
-can adapt them without knowing which table they came from. Writes are
-idempotent per ``assessment_id``: a re-sync replaces findings and evidence but
-never duplicates them.
+can adapt them. Writes are idempotent per ``assessment_id``: a re-sync
+replaces findings and evidence but never duplicates them.
 """
 
 from __future__ import annotations

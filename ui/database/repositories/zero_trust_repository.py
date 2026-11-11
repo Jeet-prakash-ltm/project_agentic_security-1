@@ -1,11 +1,9 @@
 """Zero Trust assessment repository (table ``zero_trust_assessments``).
 
-Transitional table: the assessment Function App still writes here, and its
-package is read-only so it cannot be changed from the UI. Every row is
-mirrored into canonical storage (``assessments`` / ``assessment_findings`` /
-``assessment_evidence``) by ``services.zero_trust_store``, which is the model
-the Cloud Security page renders from. Keep this repository for the legacy
-fallback and for reading runs the Function App has just created.
+Historical table. The live Function App writes canonical ``assessments`` /
+``assessment_findings`` / ``assessment_evidence``. Dashboard reads never use
+this repository. Keep it for one-shot ``zero_trust_store.sync_legacy``
+migration of remaining historical rows.
 """
 
 from sqlalchemy import func

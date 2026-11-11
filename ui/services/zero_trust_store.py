@@ -1,14 +1,13 @@
-"""Zero Trust assessment reads served from PostgreSQL.
+"""Zero Trust assessment reads served from canonical PostgreSQL.
 
 Canonical storage is ``assessments`` + ``assessment_findings`` +
-``assessment_evidence`` (see ``CanonicalZeroTrustRepository``). The Function
-App historically wrote only to ``zero_trust_assessments``, so this module also
-reads that transitional table and mirrors any row it finds into canonical
-storage on first access. That keeps history converging on the shared model
-without a destructive migration.
+``assessment_evidence`` (see ``CanonicalZeroTrustRepository``). The Cloud
+Security dashboard renders only from those tables. The Function App is used
+to start a run; it writes canonical rows itself. ``zero_trust_assessments``
+is historical and is not consulted for dashboard overview, pillar, test, or
+details payloads.
 
-The UI never depends on the Function App for rendering: every read below is a
-database query. Writes originate from the assessment Function App.
+``sync_legacy`` / ``sync_missing`` remain as one-shot migration helpers.
 """
 
 from __future__ import annotations
@@ -116,6 +115,7 @@ def sync_legacy(assessment_id):
 
     Returns the canonical payload, or ``None`` when the row does not exist.
     Safe to call repeatedly: canonical writes replace findings/evidence.
+    Dashboard reads do not call this.
     """
 
     row = _legacy().get_assessment(assessment_id)
@@ -149,59 +149,22 @@ def sync_missing(limit=200):
 
 
 def _load(assessment_id):
-    """Canonical payload first, legacy (mirrored) second."""
+    """Canonical payload only. Missing ids are a 404 at the API layer."""
 
-    payload = _canonical().load_run(assessment_id)
-    if payload is not None:
-        return payload
-    return sync_legacy(assessment_id)
-
-
-def _latest_legacy_row():
-    rows = _legacy().list_assessments(limit=1)
-    return rows[0] if rows else None
-
-
-def _ts(value):
-    if value is None:
-        return None
-    try:
-        return value.timestamp()
-    except AttributeError:
-        return None
+    return _canonical().load_run(assessment_id)
 
 
 def latest_summary():
-    """Summary of the most recent completed run, or ``None``.
-
-    A run started from the UI lands in the transitional table first, so a
-    newer legacy row is mirrored into canonical storage before reporting.
-    """
-
-    legacy_row = _latest_legacy_row()
-    canonical_completed = _ts(_canonical().latest_completed_at())
-    legacy_completed = _ts(legacy_row.completed_at) if legacy_row else None
-
-    needs_mirror = legacy_row is not None and (
-        canonical_completed is None
-        or (legacy_completed is not None and legacy_completed > canonical_completed)
-    )
-    if needs_mirror:
-        sync_legacy(legacy_row.assessment_id)
+    """Summary of the most recent canonical run, or ``None``."""
 
     payload = _canonical().latest_run()
-    if payload is not None:
-        return _summary_from_payload(payload)
-    if legacy_row is None:
+    if payload is None:
         return None
-    mirrored = sync_legacy(legacy_row.assessment_id)
-    return _summary_from_payload(mirrored or _legacy_payload(legacy_row))
+    return _summary_from_payload(payload)
 
 
 def has_data():
-    if _canonical().count():
-        return True
-    return _legacy().count() > 0
+    return _canonical().count() > 0
 
 
 def latest_id():
@@ -210,7 +173,7 @@ def latest_id():
 
 
 def get_status(assessment_id, full=False):
-    """Status for one assessment.
+    """Status for one canonical assessment.
 
     The polled payload stays small: the full adapted assessment is only
     included when ``full`` is requested, which keeps status polling cheap.
@@ -260,25 +223,13 @@ def latest_results():
 
 
 def iter_assessment_payloads(limit=200):
-    """Yield stored Zero Trust assessment payloads (canonical, then legacy)."""
+    """Yield stored Zero Trust assessment payloads from canonical tables."""
 
-    seen = set()
     try:
         for payload in _canonical().list_runs(limit=limit):
-            assessment_id = payload.get("assessment_id")
-            if assessment_id:
-                seen.add(assessment_id)
             yield payload
     except Exception as exc:  # pragma: no cover - defensive
         logger.warning("Canonical Zero Trust listing failed: %s", exc)
-
-    try:
-        for row in _legacy().list_assessments(limit=limit):
-            if row.assessment_id in seen:
-                continue
-            yield _legacy_payload(row)
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.warning("Legacy Zero Trust listing failed: %s", exc)
 
 
 def store_run(payload, user_id="zero-trust-function"):

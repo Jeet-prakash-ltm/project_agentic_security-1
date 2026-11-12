@@ -5,10 +5,12 @@ Flow enforced here:
 1. ``preflight`` / ``create`` check that the firewall answers on the XML API.
    If it is down the request fails with ``cannot proceed firewall is down``
    and no job is created or queued.
-2. A created job waits in ``awaiting_approval``; nothing is applied until a
-   user explicitly approves it.
-3. ``approve`` re-checks the firewall, marks the job ``queued`` and publishes
-   it to the session-enabled Service Bus queue.
+2. Chat or Hub submit is the single approval. ``create`` stages the job then
+   immediately queues it. The Jobs page is status-only (queued / running /
+   successful / failed) and does not collect a second approve.
+3. ``approve`` remains for leftover jobs; it re-checks the firewall, marks
+   the job ``queued`` and publishes it to the session-enabled Service Bus
+   queue.
 4. The queue worker applies every ``security_job_operations`` row, commits
    once, polls the PAN-OS job and records every transition in PostgreSQL.
 """
@@ -256,7 +258,7 @@ def create_job(user_id, payload, workbook_bytes=None):
         xpath=device_group,
         result=AWAITING_APPROVAL,
     )
-    return job
+    return approve_job(job_id, user_id, approve=True)
 
 
 def _truthy(value, default=False):

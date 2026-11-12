@@ -156,7 +156,8 @@ def config_get(req):
 def _write_via_job_required(operation):
     return error(
         "{0} is not a live write path. Submit the change through "
-        "POST /api/firewall/jobs (PrepareFirewallJob) and approve it.".format(
+        "POST /api/firewall/jobs (PrepareFirewallJob) after the user "
+        "approves it in chat.".format(
             operation
         ),
         409,
@@ -180,7 +181,7 @@ def config_delete(req):
 
 @app.route(route="panos/change", methods=["POST"])
 def panos_change(req: func.HttpRequest):
-    """Prepare one structured change as a security job. Does not write PAN-OS."""
+    """Queue one structured change. Chat approval is the only approval gate."""
     from services.firewall_jobs import create_job
 
     body = get_body(req)
@@ -249,7 +250,7 @@ def panos_analyze_workbook(req: func.HttpRequest):
 
 @app.route(route="panos/workbook/run", methods=["POST"])
 def panos_run_workbook(req: func.HttpRequest):
-    """Prepare a bulk workbook/changes job. Does not write PAN-OS until approved."""
+    """Queue a bulk workbook/changes job. Chat or Hub submit is the approval."""
     from services.firewall_jobs import create_job
 
     body = get_body(req)

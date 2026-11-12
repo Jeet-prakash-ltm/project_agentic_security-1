@@ -1568,7 +1568,7 @@ def api_netsec_workbook_get():
 @app.route("/api/netsec/playbooks/run", methods=["POST"])
 @login_required
 def api_netsec_playbooks_run():
-    """Prepare a bulk workbook job. Execution waits for Jobs-page approval."""
+    """Queue a bulk workbook job. Hub Execute is the approval."""
 
     from services import firewall_jobs_service
     from services import netsec_service
@@ -1610,8 +1610,8 @@ def api_automation_jobs_list():
 def api_automation_jobs_create():
     return jsonify({
         "error": (
-            "Firewall jobs are prepared by POST /api/firewall/jobs. "
-            "Approve them on the Jobs page."
+            "Firewall jobs are queued by POST /api/firewall/jobs. "
+            "The Jobs page is status only."
         )
     }), 409
 
@@ -1619,7 +1619,7 @@ def api_automation_jobs_create():
 @app.route("/api/netsec/manual", methods=["POST"])
 @login_required
 def api_netsec_manual():
-    """Prepare a single manual change. Execution waits for Jobs-page approval."""
+    """Queue a single manual change. Chat or Hub submit is the approval."""
 
     from services import firewall_jobs_service
     from services import netsec_service

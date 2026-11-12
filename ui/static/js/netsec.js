@@ -242,7 +242,7 @@
         var bridge = chat();
         if (!bridge) return Promise.resolve();
         var label = (data && (data.job_number || data.job_id)) || "Jobs";
-        return persist([bridge.assistantText("Job " + label + " is registered in the Jobs section and awaiting approval.")]);
+        return persist([bridge.assistantText("Job " + label + " is registered in the Jobs section and queued.")]);
     }
 
     function registerJob(data, pb, extras) {
@@ -274,9 +274,10 @@
     function resultsHtml(data) {
         var c = data.counts || {};
         var dry = !!data.dry_run;
-        var awaiting = !!(data.awaiting_approval || data.status === "awaiting_approval");
-        var badgeClass = awaiting ? "netsec-ok" : (dry ? "netsec-ok" : (c.errors ? "netsec-partial" : "netsec-ok"));
-        var pill = awaiting ? "Awaiting approval" : (dry ? "Dry-run" : (c.errors ? "Applied with errors" : "Applied"));
+        var status = String(data.status || "").toLowerCase();
+        var queued = status === "queued" || status === "running" || status === "committing" || status === "approved" || status === "awaiting_approval";
+        var badgeClass = queued ? "netsec-ok" : (dry ? "netsec-ok" : (c.errors ? "netsec-partial" : "netsec-ok"));
+        var pill = queued ? (status === "running" || status === "committing" ? "Running" : "Queued") : (dry ? "Dry-run" : (c.errors ? "Applied with errors" : "Applied"));
 
         var html = '<div class="netsec-result-card">' +
             '<div class="netsec-result-head"><span class="netsec-result-title">' + esc(data.playbook_title || data.playbook_id || "Playbook") + "</span>" +
@@ -286,8 +287,8 @@
             countChip(c.deleted, "deleted", false) + countChip(c.errors, "errors", true) +
             "</div>" +
             (data.summary ? "<p class=\"netsec-result-summary\">" + esc(data.summary) + "</p>" : "") +
-            (awaiting
-                ? '<p class="netsec-commit netsec-commit-ok">Prepared as ' + esc(data.job_number || data.job_id || "a job") + '. Approve it on the Jobs page to apply the firewall change.</p>'
+            (queued
+                ? '<p class="netsec-commit netsec-commit-ok">Queued as ' + esc(data.job_number || data.job_id || "a job") + '. Watch status on the Jobs page.</p>'
                 : (data.committed
                 ? '<p class="netsec-commit netsec-commit-ok">Changes committed to the running firewall configuration.</p>'
                 : (data.commit_error

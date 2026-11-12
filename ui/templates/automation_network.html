@@ -11,7 +11,7 @@
 <div class="auto-ns-layout">
     <div class="page-title-line">
         <h1>Network Security</h1>
-        {% with page_info_label="About automation hub", page_info_text="Automation Hub Network Security executes approved firewall changes from an Excel workbook against a selected device." %}
+        {% with page_info_label="About automation hub", page_info_text="Automation Hub Network Security queues firewall changes from an Excel workbook against a selected device. Watch status on Jobs." %}
         {% include "_page_info.html" %}
         {% endwith %}
     </div>
@@ -59,5 +59,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/automation_network.js') }}?v=9"></script>
+<script src="{{ url_for('static', filename='js/automation_network.js') }}?v=10"></script>
 {% endblock %}

@@ -1,8 +1,8 @@
 """Route Maestro chat approvals onto the Firewall Execution Agent job pipeline.
 
 Maestro collects and confirms the change in AI Workspace. Chat confirm
-prepares a canonical ``security_jobs`` row (awaiting_approval). Execution
-happens only after a Jobs-page approve.
+is the only approval: it creates and queues a canonical ``security_jobs``
+row. The Jobs page is status and audit only.
 """
 
 import logging
@@ -846,11 +846,15 @@ def try_handle(agent, user_id, message, messages=None):
 
         job_id = job.get("job_id") or job.get("task_id") or ""
         job_label = "JOB-{0}".format(str(job_id)[:8].upper()) if job_id else "job"
-        status = job.get("status") or "awaiting_approval"
+        status = job.get("status") or "queued"
         reply = (
-            "{0}. Job {1} ({2}) is awaiting approval. "
-            "Open the Jobs page to approve or reject before the firewall is changed."
-        ).format(JOBS_NOTICE, job_label, change["summary"])
+            "{0}. Job {1} ({2}) is {3}."
+        ).format(
+            JOBS_NOTICE,
+            job_label,
+            change["summary"],
+            str(status).replace("_", " "),
+        )
         blocks = [
             {
                 "type": "card",
@@ -895,8 +899,8 @@ def try_handle(agent, user_id, message, messages=None):
         ], started=started)
 
     lead = (
-        "I can {0}. Confirming prepares a Jobs-page entry; "
-        "the firewall is changed only after you approve it there."
+        "I can {0}. Confirming queues the change; "
+        "watch status on the Jobs page."
     ).format(change["summary"].lower())
     return _result(lead, _confirm_blocks(change), started=started)
 

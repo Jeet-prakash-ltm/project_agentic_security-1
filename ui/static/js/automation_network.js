@@ -427,7 +427,7 @@
         setStatus("Preparing", "run");
         line("Execute", "head");
         line("Target " + target.label, "muted");
-        line("Preparing a bulk firewall job. Nothing is written until you approve it on Jobs.", "muted");
+        line("Queuing a bulk firewall job. Watch status on the Jobs page.", "muted");
         blank();
 
         fetch(URLS.run, {
@@ -447,11 +447,11 @@
             var data = res.data || {};
             var jobNumber = data.job_number || "";
             var ops = (data.changes || data.rows || []).length || ((data.counts && (data.counts.created + data.counts.updated + data.counts.deleted)) || 0);
-            line("Prepared " + ops + " operation(s) as " + (jobNumber || "a Jobs entry") + ".", "ok");
+            line("Queued " + ops + " operation(s) as " + (jobNumber || "a Jobs entry") + ".", "ok");
             if (data.operation) line("operation=" + data.operation + " source_type=" + (data.source_type || "automation_hub"), "muted");
-            line("Open Automation Hub · Jobs and approve the job to apply it on the firewall.", "muted");
-            setStatus("Awaiting approval", "ok");
-            if (window.showToast) window.showToast("Job prepared. Approve it on the Jobs page.", "success");
+            line("Open Automation Hub · Jobs to watch queued, running, successful, or failed.", "muted");
+            setStatus("Queued", "ok");
+            if (window.showToast) window.showToast("Job queued. Watch status on the Jobs page.", "success");
         }).catch(function (err) {
             line("The workbook job could not be prepared. " + (err.message || "Prepare failed."), "err");
             setStatus("Failed", "err");

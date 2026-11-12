@@ -3,7 +3,7 @@
   "info": {
     "title": "Firewall Execution Agent",
     "version": "1.0.0",
-    "description": "Palo Alto PAN-OS firewall operations exposed through Azure Functions."
+    "description": "Palo Alto PAN-OS firewall operations exposed through Azure Functions. Chat or Hub submit is the only approval. POST /api/firewall/jobs and POST /api/panos/change queue the change immediately. The Jobs page is status only (queued, running, successful, failed)."
   },
   "servers": [
     {
@@ -109,7 +109,7 @@
     "/api/panos/config/set": {
       "post": {
         "operationId": "setConfig",
-        "summary": "Create configuration",
+        "summary": "Not a live write path. Use PrepareFirewallJob after chat approval.",
         "requestBody": {
           "required": true,
           "content": {
@@ -142,7 +142,7 @@
     "/api/panos/config/edit": {
       "post": {
         "operationId": "editConfig",
-        "summary": "Edit configuration",
+        "summary": "Not a live write path. Use PrepareFirewallJob after chat approval.",
         "requestBody": {
           "required": true,
           "content": {
@@ -175,7 +175,7 @@
     "/api/panos/config/delete": {
       "post": {
         "operationId": "deleteConfig",
-        "summary": "Delete configuration",
+        "summary": "Not a live write path. Use PrepareFirewallJob after chat approval.",
         "requestBody": {
           "required": true,
           "content": {
@@ -204,7 +204,7 @@
     "/api/panos/commit": {
       "post": {
         "operationId": "commitConfig",
-        "summary": "Commit firewall configuration",
+        "summary": "Not a live write path. Use PrepareFirewallJob after chat approval.",
         "responses": {
           "200": {
             "description": "Commit successful"
@@ -215,8 +215,8 @@
     "/api/panos/workbook/run": {
       "post": {
         "operationId": "runWorkbook",
-        "summary": "Parse an Excel workbook and apply each row via setConfig, editConfig, or deleteConfig",
-        "description": "Parses a filled-in .xlsx workbook in code (not via RAG or playbooks). For each data row, Action create calls setConfig, update calls editConfig, and delete calls deleteConfig. Does not commit. After this tool returns, call commitConfig. Do not invent xpaths.",
+        "summary": "Queue a bulk workbook job after chat or Hub submit",
+        "description": "Parses a filled-in .xlsx workbook and queues a firewall job. Chat or Hub Execute is the only approval. Do not send users to Jobs to approve. Do not invent xpaths.",
         "requestBody": {
           "required": true,
           "content": {
@@ -246,7 +246,97 @@
         },
         "responses": {
           "200": {
-            "description": "Workbook parsed and row actions applied; call commitConfig next"
+            "description": "Workbook job queued. Watch Jobs for queued, running, successful, or failed."
+          }
+        }
+      }
+    },
+    "/api/panos/change": {
+      "post": {
+        "operationId": "prepareFirewallChange",
+        "summary": "Queue one structured firewall change after chat approval",
+        "description": "Call only after the user approves in chat. Queues the change immediately. Do not send the user to Jobs to approve.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "category": { "type": "string" },
+                  "action": { "type": "string" },
+                  "name": { "type": "string" },
+                  "fields": { "type": "object" },
+                  "source_type": { "type": "string" },
+                  "user_id": { "type": "string" }
+                },
+                "required": ["category", "action", "name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Job queued"
+          }
+        }
+      }
+    },
+    "/api/firewall/jobs": {
+      "get": {
+        "operationId": "listFirewallJobs",
+        "summary": "List firewall jobs",
+        "responses": {
+          "200": {
+            "description": "Job list"
+          }
+        }
+      },
+      "post": {
+        "operationId": "PrepareFirewallJob",
+        "summary": "Queue a firewall job after chat or Hub approval",
+        "description": "Chat or Hub Execute is the only approval. This call queues the job. Jobs is status only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "operation": { "type": "string" },
+                  "source_type": { "type": "string" },
+                  "source_name": { "type": "string" },
+                  "device_group": { "type": "string" },
+                  "firewall_host": { "type": "string" },
+                  "changes": { "type": "array", "items": { "type": "object" } },
+                  "user_id": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Job queued"
+          }
+        }
+      }
+    },
+    "/api/firewall/jobs/{task_id}": {
+      "get": {
+        "operationId": "getFirewallJob",
+        "summary": "Get one firewall job",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job status"
           }
         }
       }

@@ -1,7 +1,7 @@
 """Workspace / Automation Hub bridge onto PrepareFirewallJob.
 
-Manual rows and uploaded Excel workbooks are prepared as canonical
-``security_jobs``. Nothing is written to PAN-OS until a Jobs-page approve.
+Manual rows and uploaded Excel workbooks are queued as canonical
+``security_jobs``. Hub Execute is the approval; Jobs is status only.
 """
 
 import io
@@ -325,8 +325,8 @@ def _job_preview(job):
         "job": job,
         "job_id": job_id,
         "job_number": "JOB-{0}".format(str(job_id)[:8].upper()) if job_id else "",
-        "status": job.get("status") or "awaiting_approval",
-        "approval_status": job.get("approval_status") or "pending",
+        "status": job.get("status") or "queued",
+        "approval_status": job.get("approval_status") or "approved",
         "playbook_id": job.get("operation") or "",
         "playbook_title": job.get("source_name") or "Firewall change",
         "host": job.get("firewall_host") or "",
@@ -337,12 +337,11 @@ def _job_preview(job):
         "committed": False,
         "commit_error": "",
         "summary": (
-            "Prepared {0} operation(s). Approve the job on the Jobs page "
-            "to apply it on the firewall."
+            "Queued {0} operation(s). Watch status on the Jobs page."
         ).format(len(operations) or len(preview_changes)),
         "rows": rows,
         "changes": preview_changes,
-        "awaiting_approval": True,
+        "awaiting_approval": False,
     }
 
 

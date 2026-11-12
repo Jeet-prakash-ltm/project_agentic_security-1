@@ -81,7 +81,7 @@
         var key = String(status || "").toLowerCase();
         if (key === "successful") return { cls: "is-ok", label: "Successful" };
         if (key === "queued") return { cls: "is-run", label: "Queued" };
-        if (key === "pending" || key === "awaiting_approval") return { cls: "is-wait", label: "Awaiting approval" };
+        if (key === "pending" || key === "awaiting_approval") return { cls: "is-run", label: "Queued" };
         if (key === "running" || key === "committing") return { cls: "is-wait", label: "Running" };
         if (key === "cancelled" || key === "rejected") return { cls: "is-cancel", label: key === "rejected" ? "Rejected" : "Cancelled" };
         return { cls: "is-err", label: "Failed" };
@@ -169,16 +169,9 @@
         setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
     }
 
-    function approveCell(job) {
-        if (!job.can_approve) return "";
-        return '<button type="button" class="auto-job-approve" data-job-approve="' + esc(job.id) + '" title="Approve job">Approve</button>' +
-            '<button type="button" class="auto-job-reject" data-job-reject="' + esc(job.id) + '" title="Reject job">Reject</button>';
-    }
-
     function logsCell(job) {
-        if (!(job.operations || []).length && !job.can_approve) return "—";
+        if (!(job.operations || []).length) return "—";
         return '<div class="auto-job-log-actions">' +
-            approveCell(job) +
             '<button type="button" class="auto-job-fail-dl" data-fail-dl="' + esc(job.id) + '" title="Download log">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>' +
             "</button>" +
@@ -307,7 +300,7 @@
         var key = String((job && job.status) || "").toLowerCase();
         if (key === "successful") return "successful";
         if (key === "queued") return "queued";
-        if (key === "pending" || key === "awaiting_approval") return "pending";
+        if (key === "pending" || key === "awaiting_approval") return "queued";
         if (key === "running" || key === "committing") return "running";
         if (key === "cancelled" || key === "rejected") return "cancelled";
         return "failed";
@@ -495,16 +488,6 @@
     }
 
     body.addEventListener("click", function (e) {
-        var approveBtn = e.target.closest("[data-job-approve]");
-        if (approveBtn) {
-            decideJob(approveBtn.getAttribute("data-job-approve"), true);
-            return;
-        }
-        var rejectBtn = e.target.closest("[data-job-reject]");
-        if (rejectBtn) {
-            decideJob(rejectBtn.getAttribute("data-job-reject"), false);
-            return;
-        }
         var info = e.target.closest("[data-device-info]");
         if (info) {
             var infoJob = jobsById[info.getAttribute("data-device-info")];
@@ -672,32 +655,10 @@
     var pollTimer = null;
     var signalrConnected = false;
 
-    function decideJob(jobId, approve) {
-        if (!jobId) return;
-        var path = approve
-            ? "/api/firewall/jobs/" + encodeURIComponent(jobId) + "/approve"
-            : "/api/firewall/jobs/" + encodeURIComponent(jobId) + "/reject";
-        fetch(path, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Accept": "application/json" },
-            body: JSON.stringify(approve ? { approve: true } : {})
-        }).then(function (r) {
-            return r.json().then(function (data) { return { ok: r.ok, data: data }; });
-        }).then(function (res) {
-            if (!res.ok) throw new Error((res.data && (res.data.error || res.data.message)) || "Request failed");
-            if (window.showToast) {
-                window.showToast(approve ? "Job approved and queued." : "Job rejected.", approve ? "success" : "");
-            }
-            return loadJobs(true);
-        }).catch(function (err) {
-            if (window.showToast) window.showToast(err.message || "Could not update the job.");
-        });
-    }
-
     function hasActiveJobs() {
         return (allJobs || []).some(function (job) {
             var key = jobStatusKey(job);
-            return key === "queued" || key === "running" || key === "pending";
+            return key === "queued" || key === "running";
         });
     }
 

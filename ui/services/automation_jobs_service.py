@@ -29,9 +29,9 @@ _CATEGORY_TITLES = {
 }
 
 _STATUS_TO_UI = {
-    "awaiting_approval": "pending",
-    "pending_approval": "pending",
-    "pending": "pending",
+    "awaiting_approval": "queued",
+    "pending_approval": "queued",
+    "pending": "queued",
     "queued": "queued",
     "approved": "queued",
     "running": "running",
@@ -262,8 +262,7 @@ def _as_dict(job, names=None):
         if created
         else "",
         "operations": operations,
-        "can_approve": approval == "pending"
-        and feat_ui_status(job.status) == "pending",
+        "can_approve": False,
     }
 
 

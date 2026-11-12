@@ -104,6 +104,25 @@ def create_job(user_id, payload):
     return _request("POST", "firewall/jobs", user_id, body).get("job")
 
 
+def create_and_dispatch_job(user_id, payload):
+    """Create a job and queue it. Hub Execute / chat confirm is the approval."""
+    job = create_job(user_id, payload)
+    if not job:
+        return job
+    job_id = job.get("job_id") or job.get("task_id")
+    status = str(job.get("status") or "").strip().lower()
+    approval = str(job.get("approval_status") or "").strip().lower()
+    if not job_id:
+        return job
+    if approval == "pending" and status in (
+        "awaiting_approval",
+        "pending",
+        "pending_approval",
+    ):
+        job = approve_job(user_id, job_id, approve=True) or job
+    return job
+
+
 def get_job(user_id, task_id):
     return _request(
         "GET", "firewall/jobs/{0}".format(task_id), user_id

@@ -784,7 +784,7 @@ def _submit_change(user_id, change):
             "summary": change.get("summary") or "",
         },
     }
-    job = firewall_jobs_service.create_job(user_id, body)
+    job = firewall_jobs_service.create_and_dispatch_job(user_id, body)
     if not job or not (job.get("job_id") or job.get("task_id")):
         raise firewall_jobs_service.FirewallJobsError(
             "Firewall Execution Agent did not return a job id.",

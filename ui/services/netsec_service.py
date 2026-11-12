@@ -414,7 +414,7 @@ def prepare_workbook_job(
             for item in preview.get("changes") or []
         ],
     }
-    job = firewall_jobs_service.create_job(user_id, body)
+    job = firewall_jobs_service.create_and_dispatch_job(user_id, body)
     if not job:
         raise firewall_jobs_service.FirewallJobsError(
             "Firewall Execution Agent did not return a job.",
@@ -500,7 +500,7 @@ def run_row(user_id, playbook_id, row, commit=None):
             }
         ],
     }
-    job = firewall_jobs_service.create_job(user_id, body)
+    job = firewall_jobs_service.create_and_dispatch_job(user_id, body)
     if not job:
         raise firewall_jobs_service.FirewallJobsError(
             "Firewall Execution Agent did not return a job.",

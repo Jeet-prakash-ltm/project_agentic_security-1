@@ -22,6 +22,34 @@ _FENCE_RE = re.compile(
 )
 
 
+def _as_number(value):
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip().replace("%", "")
+    if not text:
+        return None
+    match = re.search(r"-?\d+(?:\.\d+)?", text)
+    if not match:
+        return None
+    try:
+        return float(match.group(0))
+    except (TypeError, ValueError):
+        return None
+
+
+def _selection_options(payload):
+    if not isinstance(payload, dict):
+        return []
+    options = payload.get("options")
+    if not isinstance(options, list) or not options:
+        options = payload.get("firewalls")
+    if not isinstance(options, list):
+        return []
+    return [item for item in options if isinstance(item, dict)]
+
+
 def is_audit_payload(payload):
     if not isinstance(payload, dict):
         return False
@@ -37,7 +65,7 @@ def is_audit_payload(payload):
         return True
     if payload.get("top_findings") and payload.get("device"):
         return True
-    if payload.get("firewalls") and payload.get("action_required"):
+    if payload.get("action_required") and _selection_options(payload):
         return True
     return False
 
@@ -58,6 +86,32 @@ def normalize_audit_payload(payload):
         else:
             response_type = "firewall_assessment"
         data["response_type"] = response_type
+    options = _selection_options(data)
+    if options:
+        data["options"] = options
+        data["firewalls"] = options
+    summary = data.get("summary")
+    if isinstance(summary, dict):
+        summary = dict(summary)
+        score = _as_number(summary.get("compliance_score"))
+        if score is None:
+            score = _as_number(summary.get("compliance_pct"))
+        if score is not None:
+            summary["compliance_score"] = score
+            summary["compliance_pct"] = score
+        data["summary"] = summary
+    posture = data.get("overall_posture")
+    if isinstance(posture, dict):
+        posture = dict(posture)
+        score = _as_number(posture.get("compliance_score"))
+        if score is None:
+            score = _as_number(posture.get("compliance_pct"))
+        if score is None and isinstance(summary, dict):
+            score = _as_number(summary.get("compliance_score"))
+        if score is not None:
+            posture["compliance_score"] = score
+            posture["compliance_pct"] = score
+        data["overall_posture"] = posture
     return data
 
 

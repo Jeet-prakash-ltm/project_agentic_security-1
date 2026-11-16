@@ -202,9 +202,10 @@ def _system_prompt(agent):
             "If the user selects a down firewall, reply exactly: firewall down or stopped. "
             "After the user selects a live firewall or ALL, call the tool again with firewall=<name> or firewall=ALL. "
             "Do not assess a down firewall. ALL assesses every live firewall and produces a combined executive summary and Excel report. "
-            "The workspace renders structured cards from response_type. Prefer returning the tool JSON unchanged; "
-            "if you add prose, keep Device Information, Overall Posture, Findings, Business Impact, and Recommendations "
-            "in that order. Use executive_summary and generate_excel_report after an assessment when asked."
+            "The workspace renders structured cards from the tool JSON. Return the tool payload unchanged, including "
+            "response_type, options[] for firewall_selection, summary.compliance_score, and classified findings[]. "
+            "Do not convert options into a plain text list. Do not recompute compliance_score. "
+            "Use executive_summary and generate_excel_report after an assessment when asked."
         )
     elif "zero trust" in agent_key or "zero-trust" in agent_key:
         base = (

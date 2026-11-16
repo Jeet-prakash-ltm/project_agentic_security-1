@@ -2486,7 +2486,7 @@
             if (fwSelect) {
                 var selectedName = fwSelect.getAttribute("data-fw-select");
                 var selectedStatus = String(fwSelect.getAttribute("data-fw-status") || "").toLowerCase();
-                var selectHost = fwSelect.closest(".audit-wrap") || fwSelect.parentNode;
+                var selectHost = fwSelect.closest(".fw-picker-card") || fwSelect.closest(".audit-wrap") || fwSelect.parentNode;
                 if (selectHost) {
                     Array.prototype.forEach.call(selectHost.querySelectorAll("[data-fw-select]"), function (chip) {
                         chip.classList.remove("is-selected");

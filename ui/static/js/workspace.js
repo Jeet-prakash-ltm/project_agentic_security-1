@@ -2486,7 +2486,14 @@
             if (fwSelect) {
                 var selectedName = fwSelect.getAttribute("data-fw-select");
                 var selectedStatus = String(fwSelect.getAttribute("data-fw-status") || "").toLowerCase();
-                if (selectedStatus && selectedStatus !== "live") {
+                var selectHost = fwSelect.closest(".audit-wrap") || fwSelect.parentNode;
+                if (selectHost) {
+                    Array.prototype.forEach.call(selectHost.querySelectorAll("[data-fw-select]"), function (chip) {
+                        chip.classList.remove("is-selected");
+                    });
+                }
+                fwSelect.classList.add("is-selected");
+                if (selectedStatus && selectedStatus !== "live" && selectedStatus !== "up" && selectedStatus !== "online" && selectedStatus !== "active" && selectedStatus !== "reachable") {
                     appendMessage({
                         role: "assistant",
                         content: "firewall down or stopped",

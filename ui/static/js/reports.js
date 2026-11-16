@@ -536,7 +536,11 @@
                 p.setAttribute("aria-pressed", on ? "true" : "false");
             });
         }
-        if (generateFwWrap) generateFwWrap.hidden = generateCat !== "network";
+        if (generateModal) generateModal.classList.toggle("is-cloud", generateCat === "cloud");
+        if (generateFwWrap) {
+            generateFwWrap.hidden = generateCat !== "network";
+            generateFwWrap.setAttribute("aria-hidden", generateCat !== "network" ? "true" : "false");
+        }
         if (generateTypeWrap) generateTypeWrap.hidden = generateCat !== "network";
         closeFwList();
         if (generateNote) {

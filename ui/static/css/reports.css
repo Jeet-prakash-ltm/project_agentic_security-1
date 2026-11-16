@@ -141,6 +141,13 @@
     color: var(--text-2);
 }
 
+#repGenerateFwWrap[hidden],
+#repGenerateTypeWrap[hidden],
+#repGenerateModal.is-cloud #repGenerateFwWrap,
+#repGenerateModal.is-cloud #repGenerateTypeWrap {
+    display: none !important;
+}
+
 #repGenerateFwWrap .fw-combobox {
     position: relative;
     margin-top: 6px;

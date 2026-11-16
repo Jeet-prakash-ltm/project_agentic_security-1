@@ -3441,6 +3441,67 @@ select.ws-ui-input[multiple] {
     line-height: 1.45;
 }
 
+.fw-audit-mcq {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 10px;
+}
+
+.fw-audit-letter {
+    grid-row: 1 / span 3;
+    align-self: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fw-audit-item {
+    cursor: default;
+    margin: 0 12px 8px;
+    width: auto;
+}
+
+.fw-audit-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0 12px 12px;
+}
+
+.fw-audit-action,
+.fw-audit-download {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--glass-soft);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.fw-audit-action:hover,
+.fw-audit-download:hover {
+    border-color: var(--red);
+}
+
+.fw-structured-card[data-fw-response-type="ERROR"] .ns-note-text {
+    color: var(--danger);
+}
+
 @media (max-width: 640px) {
     .fw-audit-kv,
     .fw-audit-posture {

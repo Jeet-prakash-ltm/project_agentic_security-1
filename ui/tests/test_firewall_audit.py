@@ -82,6 +82,29 @@ class FirewallAuditParseTests(unittest.TestCase):
         self.assertIsNotNone(extracted)
         self.assertEqual(extracted["options"][1]["name"], "vmpafw01")
 
+    def test_structured_firewall_auditor_payload(self):
+        payload = {
+            "schema_version": "1.0",
+            "source_agent": "FIREWALL_AUDITOR",
+            "response_type": "FIREWALL_SELECTION",
+            "title": "Select Firewall",
+            "summary": "Choose a live firewall.",
+            "items": [
+                {"id": "ALL", "title": "ALL", "status": "live"},
+                {"id": "vmpafw01", "title": "vmpafw01", "vendor": "Palo Alto", "management_ip": "10.1.0.5", "status": "live"},
+            ],
+            "actions": [],
+        }
+        self.assertTrue(is_audit_payload(payload))
+        normalized = normalize_audit_payload(payload)
+        self.assertEqual(normalized["source_agent"], "FIREWALL_AUDITOR")
+        self.assertEqual(len(normalized["items"]), 2)
+
+    def test_invalid_structured_payload_is_ignored(self):
+        payload = {"response_type": "CAPABILITY", "items": [{"title": "Assess"}]}
+        self.assertFalse(is_audit_payload(payload))
+        self.assertIsNone(normalize_audit_payload(payload))
+
 
 if __name__ == "__main__":
     unittest.main()

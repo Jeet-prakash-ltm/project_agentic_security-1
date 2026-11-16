@@ -16,6 +16,18 @@ AUDIT_RESPONSE_TYPES = {
     "executive_summary",
 }
 
+STRUCTURED_RESPONSE_TYPES = {
+    "CAPABILITY",
+    "FIREWALL_SELECTION",
+    "ASSESSMENT_SUMMARY",
+    "FINDINGS",
+    "FINDING_DETAIL",
+    "EXECUTIVE_SUMMARY",
+    "REPORT_READY",
+    "ADVISORY",
+    "ERROR",
+}
+
 _FENCE_RE = re.compile(
     r"```[ \t]*([A-Za-z0-9_\-]*)[ \t]*\r?\n(.*?)```",
     re.DOTALL,
@@ -50,9 +62,24 @@ def _selection_options(payload):
     return [item for item in options if isinstance(item, dict)]
 
 
+def is_structured_auditor_payload(payload):
+    if not isinstance(payload, dict):
+        return False
+    source = str(payload.get("source_agent") or "").strip().upper()
+    if source != "FIREWALL_AUDITOR":
+        return False
+    schema = str(payload.get("schema_version") or "").strip()
+    if not schema:
+        return False
+    response_type = str(payload.get("response_type") or "").strip().upper()
+    return response_type in STRUCTURED_RESPONSE_TYPES
+
+
 def is_audit_payload(payload):
     if not isinstance(payload, dict):
         return False
+    if is_structured_auditor_payload(payload):
+        return True
     response_type = str(payload.get("response_type") or "").strip()
     if response_type in AUDIT_RESPONSE_TYPES:
         return True
@@ -74,6 +101,17 @@ def normalize_audit_payload(payload):
     if not is_audit_payload(payload):
         return None
     data = dict(payload)
+    if is_structured_auditor_payload(data):
+        data["schema_version"] = str(data.get("schema_version") or "").strip()
+        data["source_agent"] = "FIREWALL_AUDITOR"
+        data["response_type"] = str(data.get("response_type") or "").strip().upper()
+        items = data.get("items")
+        data["items"] = [item for item in items if isinstance(item, dict)] if isinstance(items, list) else []
+        actions = data.get("actions")
+        data["actions"] = [item for item in actions if isinstance(item, dict)] if isinstance(actions, list) else []
+        if not isinstance(data.get("context"), dict):
+            data["context"] = {}
+        return data
     status = str(data.get("status") or "").strip().upper()
     response_type = str(data.get("response_type") or "").strip()
     if not response_type:
@@ -173,6 +211,11 @@ def _extract_json_objects(text):
 
 
 def extract_audit_payload(text, tool_payload=None):
+    if is_structured_auditor_payload(tool_payload):
+        return normalize_audit_payload(tool_payload)
+    for candidate in _extract_json_objects(text or ""):
+        if is_structured_auditor_payload(candidate):
+            return normalize_audit_payload(candidate)
     if is_audit_payload(tool_payload):
         return normalize_audit_payload(tool_payload)
     for candidate in _extract_json_objects(text or ""):

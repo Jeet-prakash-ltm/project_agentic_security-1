@@ -768,7 +768,11 @@
             html = '<div class="ws-msg-text">' + formatAgentReply(msg.content || "") + "</div>";
         }
         if (isFirewallAuditMessage(msg) && window.FirewallAuditCards && window.FirewallAuditCards.wrapAgentOutput) {
-            return window.FirewallAuditCards.wrapAgentOutput(html);
+            var content = String((msg && msg.content) || "");
+            if (window.FirewallAuditCards.extractAuditPayload && window.FirewallAuditCards.extractAuditPayload(content, msg && msg.audit)) {
+                return window.FirewallAuditCards.wrapAgentOutput(html);
+            }
+            return html;
         }
         return html;
     }
@@ -2482,6 +2486,17 @@
                 goBackFromCard(backRow);
                 return;
             }
+            var fwAction = e.target.closest("[data-fw-action-prompt], .fw-audit-action");
+            if (fwAction) {
+                var actionPrompt = fwAction.getAttribute("data-fw-action-prompt");
+                var actionIntent = fwAction.getAttribute("data-fw-intent") || "";
+                var actionTarget = fwAction.getAttribute("data-fw-target") || "";
+                if (!actionPrompt) {
+                    actionPrompt = (actionIntent.replace(/_/g, " ") + (actionTarget ? " " + actionTarget : "")).trim();
+                }
+                if (actionPrompt) sendPrompt(actionPrompt);
+                return;
+            }
             var fwSelect = e.target.closest("[data-fw-select]");
             if (fwSelect) {
                 var selectedName = fwSelect.getAttribute("data-fw-select");
@@ -2493,16 +2508,20 @@
                     });
                 }
                 fwSelect.classList.add("is-selected");
-                if (selectedStatus && selectedStatus !== "live" && selectedStatus !== "up" && selectedStatus !== "online" && selectedStatus !== "active" && selectedStatus !== "reachable") {
-                    appendMessage({
-                        role: "assistant",
-                        content: "firewall down or stopped",
-                        agentName: "Firewall Audit Agent",
-                        ts: now()
-                    });
-                    return;
+                var selectIntent = String(fwSelect.getAttribute("data-fw-intent") || "").toUpperCase();
+                var selectTarget = fwSelect.getAttribute("data-fw-target") || selectedName;
+                if (selectIntent === "SELECT_FIREWALL" || !selectIntent) {
+                    if (selectedStatus && selectedStatus !== "live" && selectedStatus !== "up" && selectedStatus !== "online" && selectedStatus !== "active" && selectedStatus !== "reachable") {
+                        appendMessage({
+                            role: "assistant",
+                            content: "firewall down or stopped",
+                            agentName: "Firewall Audit Agent",
+                            ts: now()
+                        });
+                        return;
+                    }
                 }
-                if (selectedName) sendPrompt(selectedName);
+                if (selectTarget) sendPrompt(selectTarget);
                 return;
             }
             var fwPick = e.target.closest("[data-fw-pick-name]");

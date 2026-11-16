@@ -8,6 +8,18 @@
         executive_summary: 1
     };
 
+    var STRUCTURED_TYPES = {
+        CAPABILITY: 1,
+        FIREWALL_SELECTION: 1,
+        ASSESSMENT_SUMMARY: 1,
+        FINDINGS: 1,
+        FINDING_DETAIL: 1,
+        EXECUTIVE_SUMMARY: 1,
+        REPORT_READY: 1,
+        ADVISORY: 1,
+        ERROR: 1
+    };
+
     function escapeHtml(value) {
         return String(value == null ? "" : value)
             .replace(/&/g, "&amp;")
@@ -101,8 +113,18 @@
         return payloads;
     }
 
+    function isStructuredAuditorPayload(payload) {
+        if (!payload || typeof payload !== "object") return false;
+        var source = String(payload.source_agent || "").trim().toUpperCase();
+        if (source !== "FIREWALL_AUDITOR") return false;
+        if (!String(payload.schema_version || "").trim()) return false;
+        var type = String(payload.response_type || "").trim().toUpperCase();
+        return !!STRUCTURED_TYPES[type];
+    }
+
     function isAuditPayload(payload) {
         if (!payload || typeof payload !== "object") return false;
+        if (isStructuredAuditorPayload(payload)) return true;
         var type = String(payload.response_type || "").trim();
         if (RESPONSE_TYPES[type]) return true;
         var status = String(payload.status || "").trim().toUpperCase();
@@ -115,6 +137,18 @@
 
     function normalizeAuditPayload(payload) {
         if (!isAuditPayload(payload)) return null;
+        if (isStructuredAuditorPayload(payload)) {
+            var items = asList(payload.items).filter(function (item) { return item && typeof item === "object"; });
+            var actions = asList(payload.actions).filter(function (item) { return item && typeof item === "object"; });
+            return Object.assign({}, payload, {
+                schema_version: String(payload.schema_version || "").trim(),
+                source_agent: "FIREWALL_AUDITOR",
+                response_type: String(payload.response_type || "").trim().toUpperCase(),
+                items: items,
+                actions: actions,
+                context: payload.context && typeof payload.context === "object" ? payload.context : {}
+            });
+        }
         var data = payload;
         var status = String(data.status || "").trim().toUpperCase();
         var type = String(data.response_type || "").trim();
@@ -156,10 +190,15 @@
     }
 
     function extractAuditPayload(text, toolPayload) {
+        if (isStructuredAuditorPayload(toolPayload)) return normalizeAuditPayload(toolPayload);
+        var objects = extractJsonObjects(text || "");
+        var i;
+        for (i = 0; i < objects.length; i++) {
+            if (isStructuredAuditorPayload(objects[i])) return normalizeAuditPayload(objects[i]);
+        }
         var fromTool = normalizeAuditPayload(toolPayload);
         if (fromTool) return fromTool;
-        var objects = extractJsonObjects(text || "");
-        for (var i = 0; i < objects.length; i++) {
+        for (i = 0; i < objects.length; i++) {
             var normalized = normalizeAuditPayload(objects[i]);
             if (normalized) return normalized;
         }
@@ -808,9 +847,200 @@
             "<span>" + escapeHtml(subtitle) + "</span></div></div>";
     }
 
+    function optionLetter(index) {
+        var letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        if (index < 26) return letters.charAt(index);
+        return String(index + 1);
+    }
+
+    function itemField(item, names) {
+        item = item || {};
+        var details = item.details && typeof item.details === "object" ? item.details : {};
+        var metadata = item.metadata && typeof item.metadata === "object" ? item.metadata : {};
+        for (var i = 0; i < names.length; i++) {
+            var value = textOf(item[names[i]] || details[names[i]] || metadata[names[i]]);
+            if (value) return value;
+        }
+        return "";
+    }
+
+    function itemDownload(item) {
+        item = item || {};
+        var details = item.details && typeof item.details === "object" ? item.details : {};
+        var url = textOf(item.download_url || item.url || details.download_url || details.url);
+        var label = textOf(item.file_name || item.filename || details.file_name || "Download");
+        if (!url || !/^https?:\/\//i.test(url) && url.charAt(0) !== "/") return "";
+        return '<a class="fw-audit-download" href="' + escapeHtml(url) + '" target="_blank" rel="noopener">' + escapeHtml(label) + "</a>";
+    }
+
+    function structuredActionsHtml(actions) {
+        var list = asList(actions).filter(function (action) { return action && typeof action === "object"; });
+        if (!list.length) return "";
+        var html = '<div class="fw-audit-actions">';
+        list.forEach(function (action) {
+            var label = textOf(action.label || action.title || action.intent);
+            if (!label) return;
+            var intent = textOf(action.intent || action.id);
+            var target = textOf(action.target_id || action.target || action.id);
+            var prompt = textOf(action.prompt);
+            if (!prompt) {
+                prompt = intent ? intent.replace(/_/g, " ").toLowerCase() : label;
+                if (target) prompt += " " + target;
+            }
+            html += '<button type="button" class="fw-audit-action" data-fw-intent="' + escapeHtml(intent) +
+                '" data-fw-target="' + escapeHtml(target) + '" data-fw-action-prompt="' + escapeHtml(prompt) + '">' +
+                escapeHtml(label) + "</button>";
+        });
+        html += "</div>";
+        return html;
+    }
+
+    function structuredItemDetails(item) {
+        var cells = [
+            ["Evidence", itemField(item, ["evidence"])],
+            ["Observed Finding", itemField(item, ["observed_finding", "observed"])],
+            ["Identified Gap", itemField(item, ["identified_gap", "gap", "finding"])],
+            ["Business Impact", itemField(item, ["business_impact", "impact"])],
+            ["Recommendation", itemField(item, ["recommendation", "remediation"])]
+        ];
+        var html = "";
+        cells.forEach(function (cell) {
+            html += detailCell(cell[0], cell[1]);
+        });
+        return html ? '<div class="fw-audit-details">' + html + "</div>" : "";
+    }
+
+    function structuredSelectableItem(item, index, type) {
+        var title = itemField(item, ["title", "name", "id"]);
+        var summary = itemField(item, ["summary", "description"]);
+        var vendor = itemField(item, ["vendor"]);
+        var ip = itemField(item, ["management_ip", "ip"]);
+        var status = itemField(item, ["status"]);
+        var target = textOf(item.id || item.name || title);
+        var live = !status || isLiveStatus(status);
+        var html = '<button type="button" class="ws-fw-select-option fw-audit-mcq' + (live ? "" : " is-down") +
+            '" data-fw-select="' + escapeHtml(target) + '" data-fw-status="' + escapeHtml(status || "live") +
+            '" data-fw-intent="' + escapeHtml(type === "FIREWALL_SELECTION" ? "SELECT_FIREWALL" : "SELECT_ITEM") +
+            '" data-fw-target="' + escapeHtml(target) + '">';
+        html += '<span class="fw-audit-letter">' + escapeHtml(optionLetter(index)) + "</span>";
+        html += '<span class="ws-fw-select-name">' + escapeHtml(title || target);
+        if (status) {
+            html += ' <span class="fw-status ' + (live ? "is-live" : "is-down") + '">' + escapeHtml(status) + "</span>";
+        }
+        html += "</span>";
+        var meta = [vendor, ip].filter(Boolean).join(" \u00b7 ");
+        if (meta) html += '<span class="ws-fw-select-meta">' + escapeHtml(meta) + "</span>";
+        if (summary) html += '<span class="ws-fw-select-desc">' + escapeHtml(summary) + "</span>";
+        html += "</button>";
+        return html;
+    }
+
+    function structuredFindingItem(item, expanded) {
+        var title = itemField(item, ["title", "metric", "name"]);
+        var checkId = itemField(item, ["check_id", "id", "control"]);
+        var status = itemField(item, ["status"]);
+        var risk = itemField(item, ["risk"]);
+        var summary = itemField(item, ["summary", "description"]);
+        var details = structuredItemDetails(item);
+        var html = '<details class="fw-audit-finding ' + riskClass(risk) + '"' + (expanded ? " open" : "") + ">";
+        html += '<summary class="fw-audit-finding-summary">';
+        html += '<span class="ws-fw-select-name">';
+        if (checkId) html += escapeHtml(checkId);
+        if (checkId && title && title !== checkId) html += " | ";
+        if (title && title !== checkId) html += escapeHtml(title);
+        html += "</span>";
+        html += '<span class="fw-audit-badges">';
+        html += badge(status, statusClass(status));
+        html += badge(risk, riskClass(risk));
+        html += "</span>";
+        if (summary) html += '<span class="ws-fw-select-meta">' + escapeHtml(summary.length > 160 ? summary.slice(0, 157) + "..." : summary) + "</span>";
+        html += "</summary>";
+        html += '<div class="fw-audit-finding-body">';
+        html += details || '<div class="ws-fw-select-meta">No additional evidence in this finding.</div>';
+        html += "</div></details>";
+        return html;
+    }
+
+    function structuredGenericItem(item, type) {
+        var title = itemField(item, ["title", "name", "id"]);
+        var summary = itemField(item, ["summary", "description"]);
+        var status = itemField(item, ["status"]);
+        var risk = itemField(item, ["risk"]);
+        var details = structuredItemDetails(item);
+        var download = type === "REPORT_READY" ? itemDownload(item) : "";
+        var html = '<div class="ws-fw-select-option fw-audit-item">';
+        if (title) html += '<span class="ws-fw-select-name">' + escapeHtml(title) + "</span>";
+        html += '<span class="fw-audit-badges">';
+        html += badge(status, statusClass(status));
+        html += badge(risk, riskClass(risk));
+        html += "</span>";
+        if (summary) html += '<span class="ws-fw-select-meta">' + escapeHtml(summary) + "</span>";
+        if (details) html += '<div class="fw-audit-finding-body">' + details + "</div>";
+        if (download) html += download;
+        html += "</div>";
+        return html;
+    }
+
+    function structuredItemsHtml(payload) {
+        var type = String(payload.response_type || "").toUpperCase();
+        var items = asList(payload.items);
+        if (!items.length) return "";
+        if (type === "FIREWALL_SELECTION" || type === "CAPABILITY") {
+            var list = '<div class="ws-fw-select-list">';
+            items.forEach(function (item, index) { list += structuredSelectableItem(item, index, type); });
+            return list + "</div>";
+        }
+        if (type === "FINDINGS") {
+            return items.map(function (item) { return structuredFindingItem(item, false); }).join("");
+        }
+        if (type === "FINDING_DETAIL") {
+            return items.map(function (item) { return structuredFindingItem(item, true); }).join("");
+        }
+        return items.map(function (item) { return structuredGenericItem(item, type); }).join("");
+    }
+
+    function defaultStructuredTitle(type) {
+        if (type === "CAPABILITY") return "Firewall Auditor";
+        if (type === "FIREWALL_SELECTION") return "Select Firewall";
+        if (type === "ASSESSMENT_SUMMARY") return "Firewall Assessment";
+        if (type === "FINDINGS") return "Findings";
+        if (type === "FINDING_DETAIL") return "Finding Detail";
+        if (type === "EXECUTIVE_SUMMARY") return "Executive Summary";
+        if (type === "REPORT_READY") return "Report Ready";
+        if (type === "ADVISORY") return "Advisory";
+        if (type === "ERROR") return "Unable to continue";
+        return "Firewall Auditor";
+    }
+
+    function renderStructuredAuditor(payload) {
+        var data = normalizeAuditPayload(payload);
+        if (!data || !isStructuredAuditorPayload(data)) return null;
+        var type = data.response_type;
+        var title = textOf(data.title) || defaultStructuredTitle(type);
+        var summary = typeof data.summary === "string" ? textOf(data.summary) : "";
+        var html = '<div class="ws-mcq-card ns-card fw-audit-card fw-structured-card" data-fw-response-type="' + escapeHtml(type) + '">';
+        html += '<div class="ws-mcq-head"><strong>' + escapeHtml(title) + "</strong>";
+        if (summary) html += "<span>" + escapeHtml(summary) + "</span>";
+        html += "</div>";
+        if (type === "ERROR") html += '<div class="ns-block"><p class="ns-note-text">' + escapeHtml(summary || title) + "</p></div>";
+        html += structuredItemsHtml(data);
+        if (textOf(data.notice)) html += '<div class="ns-block"><p class="ns-note-text">' + escapeHtml(data.notice) + "</p></div>";
+        html += structuredActionsHtml(data.actions);
+        html += "</div>";
+        return {
+            html: html,
+            findings: type === "FINDINGS" || type === "FINDING_DETAIL" ? data.items : [],
+            cardTitle: title,
+            response_type: type,
+            audit: data
+        };
+    }
+
     function renderAuditCards(payload) {
+        if (isStructuredAuditorPayload(payload)) return renderStructuredAuditor(payload);
         var data = normalizeAuditPayload(payload);
         if (!data) return null;
+        if (isStructuredAuditorPayload(data)) return renderStructuredAuditor(data);
         var type = data.response_type;
         if (type === "firewall_selection") {
             return { html: selectionCard(data), findings: [], cardTitle: "Select Firewall", response_type: type };
@@ -836,6 +1066,7 @@
 
     root.FirewallAuditCards = {
         isAuditPayload: isAuditPayload,
+        isStructuredAuditorPayload: isStructuredAuditorPayload,
         normalizeAuditPayload: normalizeAuditPayload,
         extractAuditPayload: extractAuditPayload,
         parseBeforeDisplay: parseBeforeDisplay,

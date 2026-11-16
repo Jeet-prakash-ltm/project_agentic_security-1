@@ -112,8 +112,72 @@ function testTopFiveFindingsOnly() {
     assert.ok(rendered.html.indexOf("Assessment Notice") === -1);
 }
 
+function testStructuredSelectionCards() {
+    var rendered = cards.renderAuditCards({
+        schema_version: "1.0",
+        source_agent: "FIREWALL_AUDITOR",
+        response_type: "FIREWALL_SELECTION",
+        title: "Select Firewall",
+        summary: "Choose a live firewall.",
+        items: [
+            { id: "ALL", title: "ALL", status: "live" },
+            { id: "vmpafw01", title: "vmpafw01", vendor: "Palo Alto", management_ip: "10.1.0.5", status: "live" }
+        ],
+        actions: [{ label: "Run Assessment", intent: "RUN_ASSESSMENT", target_id: "vmpafw01" }]
+    });
+    assert.ok(rendered.html.indexOf("fw-audit-letter") !== -1);
+    assert.ok(rendered.html.indexOf(">A<") !== -1);
+    assert.ok(rendered.html.indexOf(">B<") !== -1);
+    assert.ok(rendered.html.indexOf("data-fw-select=\"vmpafw01\"") !== -1);
+    assert.ok(rendered.html.indexOf("data-fw-intent=\"RUN_ASSESSMENT\"") !== -1);
+}
+
+function testStructuredFindingsExpand() {
+    var rendered = cards.renderAuditCards({
+        schema_version: "1.0",
+        source_agent: "FIREWALL_AUDITOR",
+        response_type: "FINDINGS",
+        title: "Key Findings",
+        items: [
+            { id: "PA-24", title: "Threat Prevention Disabled", status: "NON_COMPLIANT", risk: "CRITICAL", summary: "Threat Prevention is off.", observed_finding: "false", recommendation: "Enable it." },
+            { id: "PA-10", title: "Disk", status: "NON_COMPLIANT", risk: "MEDIUM", summary: "Disk high." }
+        ]
+    });
+    assert.ok(rendered.html.indexOf("PA-24") !== -1);
+    assert.ok(rendered.html.indexOf("PA-10") !== -1);
+    assert.ok(rendered.html.indexOf("Enable it.") !== -1);
+}
+
+function testStructuredReportDownloadOnlyWhenUrlExists() {
+    var withUrl = cards.renderAuditCards({
+        schema_version: "1.0",
+        source_agent: "FIREWALL_AUDITOR",
+        response_type: "REPORT_READY",
+        title: "Report Ready",
+        items: [{ title: "Workbook", download_url: "/api/excel?firewall=vmpafw01", file_name: "Workbook.xlsx" }]
+    });
+    var withoutUrl = cards.renderAuditCards({
+        schema_version: "1.0",
+        source_agent: "FIREWALL_AUDITOR",
+        response_type: "REPORT_READY",
+        title: "Report Ready",
+        items: [{ title: "Workbook" }]
+    });
+    assert.ok(withUrl.html.indexOf("fw-audit-download") !== -1);
+    assert.ok(withoutUrl.html.indexOf("fw-audit-download") === -1);
+}
+
+function testInvalidStructuredFallsBack() {
+    assert.equal(cards.isStructuredAuditorPayload({ response_type: "CAPABILITY" }), false);
+    assert.equal(cards.parseBeforeDisplay("Hello, I can assess firewalls.", null), null);
+}
+
 testSelectionOptions();
 testComplianceScoreNotNaN();
 testMarkdownAssessment();
 testTopFiveFindingsOnly();
+testStructuredSelectionCards();
+testStructuredFindingsExpand();
+testStructuredReportDownloadOnlyWhenUrlExists();
+testInvalidStructuredFallsBack();
 console.log("ok");

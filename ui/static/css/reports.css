@@ -141,14 +141,117 @@
     color: var(--text-2);
 }
 
-#repGenerateFirewall {
-    width: 100%;
+#repGenerateFwWrap .fw-combobox {
+    position: relative;
     margin-top: 6px;
-    padding: 8px 10px;
-    border-radius: 10px;
+}
+
+#repGenerateFwWrap .fw-combo-search {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    color: var(--text-3);
+    pointer-events: none;
+}
+
+#repGenerateFwWrap .fw-combo-input {
+    width: 100%;
     border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--glass-soft);
+    padding: 8px 30px 8px 30px;
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--text);
+}
+
+#repGenerateFwWrap .fw-combo-input:focus {
+    outline: 2px solid var(--red);
+    outline-offset: -1px;
+    border-color: var(--red);
+}
+
+#repGenerateFwWrap .fw-combo-clear {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    border: 0;
+    background: transparent;
+    color: var(--text-3);
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+#repGenerateFwWrap .fw-combo-clear:hover {
     background: var(--glass-soft);
     color: var(--text);
+}
+
+#repGenerateFwWrap .fw-combo-clear[hidden] {
+    display: none;
+}
+
+#repGenerateFwWrap .fw-combo-clear svg {
+    width: 12px;
+    height: 12px;
+}
+
+#repGenerateFwWrap .fw-combo-list {
+    position: absolute;
+    z-index: 40;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    list-style: none;
+    margin: 0;
+    padding: 4px;
+    background: var(--glass-strong);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    max-height: 230px;
+    overflow: auto;
+}
+
+#repGenerateFwWrap .fw-combo-row {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+#repGenerateFwWrap .fw-combo-row:hover,
+#repGenerateFwWrap .fw-combo-row.is-active {
+    background: var(--glass-soft);
+}
+
+#repGenerateFwWrap .fw-combo-name {
+    font-weight: 600;
+    font-size: 12.5px;
+    color: var(--text);
+}
+
+#repGenerateFwWrap .fw-combo-sub,
+#repGenerateFwWrap .fw-combo-empty {
+    font-size: 11px;
+    color: var(--text-2);
+}
+
+#repGenerateFwWrap .fw-combo-empty {
+    padding: 8px;
+    list-style: none;
 }
 
 /* ------------------------------------------------------------

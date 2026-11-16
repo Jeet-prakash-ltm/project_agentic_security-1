@@ -492,7 +492,6 @@
             .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error("failed")); })
             .then(function (data) {
                 state.inventory = (data && data.firewalls) || [];
-                fillFirewallSelect();
             })
             .catch(function () {
                 state.inventory = [];
@@ -505,14 +504,18 @@
     var generateModal = document.getElementById("repGenerateModal");
     var generateCancel = document.getElementById("repGenerateCancel");
     var generateRun = document.getElementById("repGenerateRun");
-    var generateFw = document.getElementById("repGenerateFirewall");
     var generateFwWrap = document.getElementById("repGenerateFwWrap");
     var generateType = document.getElementById("repGenerateType");
     var generateTypeWrap = document.getElementById("repGenerateTypeWrap");
     var generateDomain = document.getElementById("repGenerateDomain");
     var generateNote = document.getElementById("repGenerateNote");
+    var fwInput = document.getElementById("repFwSearchInput");
+    var fwList = document.getElementById("repFwSearchList");
+    var fwClear = document.getElementById("repFwSearchClear");
+    var fwWrap = document.getElementById("repFwCombobox");
     var generateKind = "excel";
     var generateCat = "network";
+    var selectedFw = "all";
 
     function setGenerateKind(kind) {
         generateKind = kind === "pdf" ? "pdf" : "excel";
@@ -535,33 +538,124 @@
         }
         if (generateFwWrap) generateFwWrap.hidden = generateCat !== "network";
         if (generateTypeWrap) generateTypeWrap.hidden = generateCat !== "network";
+        closeFwList();
         if (generateNote) {
             generateNote.textContent = generateCat === "cloud"
-                ? "Zero Trust Excel is generated from the last stored cloud assessment."
-                : "Select a firewall, then generate Excel or PDF from its last stored assessment.";
+                ? "Zero Trust Excel is generated from the last stored Zero Trust assessment."
+                : "Search the firewall inventory or choose All firewalls, then generate Excel or PDF from the last stored assessment.";
         }
         if (generateCat === "cloud") setGenerateKind("excel");
     }
 
-    function fillFirewallSelect() {
-        if (!generateFw) return;
-        var list = (state.inventory || []).filter(function (e) { return e && e.device_name; });
-        var html = '<option value="">Select a firewall</option>';
-        list.forEach(function (fw) {
-            html += '<option value="' + escapeHtml(fw.device_name) + '">' + escapeHtml(fw.device_name) + "</option>";
+    function fwSource() {
+        return (state.inventory || []).filter(function (e) { return e && e.device_name; });
+    }
+
+    function fwComboRows(query) {
+        var q = String(query || "").trim().toLowerCase();
+        var out = "";
+        if (!q || q.indexOf("all") !== -1 || q.indexOf("firewall") !== -1 || q.indexOf("inventory") !== -1) {
+            out += '<li class="fw-combo-row" role="option" data-value="all">' +
+                '<span class="fw-combo-name">All firewalls</span>' +
+                '<span class="fw-combo-sub">Every managed firewall in the inventory</span></li>';
+        }
+        fwSource().forEach(function (fw) {
+            var name = fw.device_name || "";
+            if (!name) return;
+            var hay = (name + " " + (fw.host_ip || "") + " " + (fw.clone_of || "")).toLowerCase();
+            if (q && hay.indexOf(q) === -1) return;
+            var bits = [fw.host_ip || "", fw.status ? (fw.status === "live" ? "Live" : "Down") : ""];
+            if (fw.clone_of) bits.push("Clone of " + fw.clone_of);
+            var sub = bits.filter(Boolean).join(" \u00b7 ") || "Managed device";
+            out += '<li class="fw-combo-row" role="option" data-value="' + escapeHtml(name) + '">' +
+                '<span class="fw-combo-name">' + escapeHtml(name) + "</span>" +
+                '<span class="fw-combo-sub">' + escapeHtml(sub) + "</span></li>";
         });
-        generateFw.innerHTML = html;
+        if (!out) out = '<li class="fw-combo-empty">No firewalls match</li>';
+        return out;
+    }
+
+    function reflectFwSearch() {
+        if (!fwInput) return;
+        if (!selectedFw || selectedFw === "all") {
+            fwInput.value = "";
+            fwInput.placeholder = "All firewalls \u2014 search inventory";
+        } else {
+            fwInput.value = selectedFw;
+            fwInput.placeholder = "Search firewall inventory";
+        }
+        if (fwClear) fwClear.hidden = !selectedFw || selectedFw === "all";
+    }
+
+    function closeFwList() {
+        if (!fwList || !fwInput) return;
+        fwList.hidden = true;
+        fwInput.setAttribute("aria-expanded", "false");
+        document.removeEventListener("click", fwOutside);
+    }
+
+    function fwOutside(e) {
+        if (fwWrap && !fwWrap.contains(e.target)) closeFwList();
+    }
+
+    function openFwList() {
+        if (!fwList || !fwInput) return;
+        document.removeEventListener("click", fwOutside);
+        fwList.innerHTML = fwComboRows(fwInput.value);
+        fwList.hidden = false;
+        fwInput.setAttribute("aria-expanded", "true");
+        document.addEventListener("click", fwOutside);
+    }
+
+    function pickFirewall(value) {
+        selectedFw = value || "all";
+        reflectFwSearch();
+        closeFwList();
+    }
+
+    function bindFwSearch() {
+        if (!fwInput || !fwList || !fwWrap) return;
+        fwInput.addEventListener("focus", openFwList);
+        fwInput.addEventListener("input", function () {
+            selectedFw = "";
+            if (fwClear) fwClear.hidden = !fwInput.value;
+            openFwList();
+        });
+        fwList.addEventListener("mousedown", function (e) { e.preventDefault(); });
+        fwList.addEventListener("click", function (e) {
+            var row = e.target.closest(".fw-combo-row");
+            if (!row) return;
+            pickFirewall(row.getAttribute("data-value") || "all");
+        });
+        if (fwClear) {
+            fwClear.addEventListener("click", function () {
+                pickFirewall("all");
+            });
+        }
+        fwInput.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") { closeFwList(); return; }
+            if (e.key === "Enter") {
+                e.preventDefault();
+                var first = fwList.querySelector(".fw-combo-row");
+                if (first) pickFirewall(first.getAttribute("data-value") || "all");
+                else closeFwList();
+            }
+        });
     }
 
     function openGenerate() {
         if (!generateModal) return;
+        selectedFw = "all";
         setGenerateCat(state.domain === "cloud" ? "cloud" : "network");
         setGenerateKind("excel");
-        fillFirewallSelect();
+        reflectFwSearch();
+        closeFwList();
         generateModal.hidden = false;
+        if (generateCat === "network" && fwInput) fwInput.focus();
     }
 
     function closeGenerate() {
+        closeFwList();
         if (generateModal) generateModal.hidden = true;
         if (generateRun) generateRun.disabled = false;
     }
@@ -579,14 +673,22 @@
         if (generateCat === "cloud") {
             url = "/api/zero-trust/excel";
         } else {
-            var fw = generateFw ? generateFw.value.trim() : "";
+            var fw = selectedFw || "";
             if (!fw) {
                 if (window.showToast) window.showToast("Select a firewall before generating a report.", "error");
                 return;
             }
-            url = generateKind === "pdf"
-                ? "/api/summary?firewall=" + encodeURIComponent(fw) + "&stored=1"
-                : "/api/excel?firewall=" + encodeURIComponent(fw) + "&stored=1";
+            if (fw === "all") {
+                if (generateKind === "pdf") {
+                    if (window.showToast) window.showToast("Select a firewall to generate a PDF executive summary.", "error");
+                    return;
+                }
+                url = "/api/estate/excel";
+            } else {
+                url = generateKind === "pdf"
+                    ? "/api/summary?firewall=" + encodeURIComponent(fw) + "&stored=1"
+                    : "/api/excel?firewall=" + encodeURIComponent(fw) + "&stored=1";
+            }
         }
         if (generateRun) generateRun.disabled = true;
         fetch(url, { headers: { "Accept": "application/json" } })
@@ -606,6 +708,7 @@
             });
     }
 
+    bindFwSearch();
     if (generateBtn) generateBtn.addEventListener("click", openGenerate);
     if (generateCancel) generateCancel.addEventListener("click", closeGenerate);
     if (generateRun) generateRun.addEventListener("click", runGenerate);

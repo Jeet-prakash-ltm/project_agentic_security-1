@@ -227,10 +227,17 @@
                     <button type="button" class="rep-pill" data-domain="cloud" aria-pressed="false">Cloud Security</button>
                 </div>
             </div>
-            <label class="rep-date-field" id="repGenerateFwWrap">
-                <span>Firewall</span>
-                <select id="repGenerateFirewall" aria-label="Select firewall"></select>
-            </label>
+            <div class="rep-filter-section" id="repGenerateFwWrap">
+                <span class="rep-filter-label">Firewall</span>
+                <div class="fw-combobox" id="repFwCombobox">
+                    <svg class="fw-combo-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+                    <input type="text" id="repFwSearchInput" class="fw-combo-input" placeholder="All firewalls — search inventory" autocomplete="off" role="combobox" aria-expanded="false" aria-label="Search firewall inventory">
+                    <button type="button" class="fw-combo-clear" id="repFwSearchClear" hidden aria-label="Clear firewall selection">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    </button>
+                    <ul class="fw-combo-list" id="repFwSearchList" role="listbox" hidden></ul>
+                </div>
+            </div>
             <div class="rep-filter-section" id="repGenerateTypeWrap">
                 <span class="rep-filter-label">Report type</span>
                 <div class="rep-filter-pills" id="repGenerateType" role="group" aria-label="Report type">
@@ -238,7 +245,7 @@
                     <button type="button" class="rep-pill" data-kind="pdf" aria-pressed="false">PDF executive summary</button>
                 </div>
             </div>
-            <p class="rep-generate-note" id="repGenerateNote">Select a firewall, then generate Excel or PDF from its last stored assessment.</p>
+            <p class="rep-generate-note" id="repGenerateNote">Search the firewall inventory or choose All firewalls, then generate Excel or PDF from the last stored assessment.</p>
             <div class="modal-foot">
                 <button class="btn btn-ghost" id="repGenerateCancel" type="button">Cancel</button>
                 <button class="btn btn-primary" id="repGenerateRun" type="button">Generate</button>
@@ -253,5 +260,5 @@
 <script>
     window.REPORT_DATA = {{ reports | tojson }};
 </script>
-<script src="{{ url_for('static', filename='js/reports.js') }}?v=13"></script>
+<script src="{{ url_for('static', filename='js/reports.js') }}?v=14"></script>
 {% endblock %}

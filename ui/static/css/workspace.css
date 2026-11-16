@@ -3136,6 +3136,16 @@ select.ws-ui-input[multiple] {
     box-shadow: var(--shadow-soft);
 }
 
+.ws-fw-select-option.is-selected {
+    border-color: var(--red);
+    box-shadow: var(--shadow-soft);
+    background: var(--rose);
+}
+
+.ws-fw-select-option.is-down {
+    opacity: 0.72;
+}
+
 .ws-fw-select-name {
     display: flex;
     align-items: center;

@@ -482,6 +482,7 @@
     function wrapAgentOutput(innerHtml) {
         var html = innerHtml || "";
         if (html.indexOf('class="audit-wrap"') !== -1) return html;
+        if (html.indexOf("ws-mcq-card") !== -1 || html.indexOf("ws-tool-card") !== -1 || html.indexOf("fw-picker-card") !== -1) return html;
         if (typeof document !== "undefined") {
             var scratch = document.createElement("div");
             scratch.innerHTML = html;
@@ -654,52 +655,60 @@
         return { html: wrap(html), findings: findings };
     }
 
-    function selectionBody(payload) {
-        var options = asList(payload.firewalls);
-        var html = '<div class="audit-card audit-select-card"><div class="muted">INVENTORY</div>';
-        html += "<h2>Select Firewall</h2>";
-        html += '<div class="muted" style="margin-top:10px;">Choose a live firewall or ALL. Click a card to run the assessment.</div>';
+    function selectionOptionHtml(fw) {
+        var name = textOf(fw.name || fw.hostname || fw.device_name);
+        var vendor = textOf(fw.vendor);
+        var ip = textOf(fw.ip || fw.management_ip || fw.host_ip);
+        var status = textOf(fw.status) || "live";
+        var live = isLiveStatus(status);
+        var html = '<button type="button" class="ws-fw-select-option' + (live ? "" : " is-down") + '" data-fw-select="' +
+            escapeHtml(name) + '" data-fw-status="' + escapeHtml(status) + '">';
+        html += '<span class="ws-fw-select-name">' + escapeHtml(name) +
+            ' <span class="fw-status ' + (live ? "is-live" : "is-down") + '">' +
+            escapeHtml(live ? "Live" : "Down") + "</span></span>";
+        var meta = [vendor, ip, live ? "live" : "down"].filter(Boolean).join(" \u00b7 ");
+        if (meta) html += '<span class="ws-fw-select-meta">' + escapeHtml(meta) + "</span>";
+        if (fw.description) html += '<span class="ws-fw-select-desc">' + escapeHtml(fw.description) + "</span>";
+        html += "</button>";
+        return html;
+    }
+
+    function selectionBody(payload, options) {
+        options = options || {};
+        var firewalls = asList(payload.firewalls);
+        var title = options.title || "Select Firewall";
+        var subtitle = options.subtitle || "Choose a live firewall or ALL. Name, vendor, IP, and live/down status are shown for every option.";
+        var html = '<div class="ws-mcq-card ns-card fw-picker-card">';
+        html += '<div class="ws-mcq-head"><strong>' + escapeHtml(title) + "</strong><span>" + escapeHtml(subtitle) + "</span></div>";
         if (payload.invalid_selection) {
-            html += '<div class="notice" style="margin-top:12px;">Firewall ' +
-                escapeHtml(payload.invalid_selection) + " was not found in inventory.</div>";
+            html += '<div class="ns-block"><p class="ns-note-text">Firewall ' +
+                escapeHtml(payload.invalid_selection) + " was not found in inventory.</p></div>";
         }
-        html += '<div class="audit-fw-grid">';
-        options.forEach(function (fw) {
-            var name = textOf(fw.name || fw.hostname);
-            var vendor = textOf(fw.vendor);
-            var ip = textOf(fw.ip || fw.management_ip);
-            var status = textOf(fw.status) || "live";
-            var live = isLiveStatus(status);
-            html += '<button type="button" class="audit-fw-chip' + (live ? "" : " is-down") + '" data-fw-select="' +
-                escapeHtml(name) + '" data-fw-status="' + escapeHtml(status) + '">';
-            html += '<span class="audit-fw-chip-top"><span class="audit-fw-chip-name">' + escapeHtml(name) + "</span>";
-            html += '<span class="fw-status ' + (live ? "is-live" : "is-down") + '">' + escapeHtml(live ? "Live" : "Down") + "</span></span>";
-            var meta = [vendor, ip].filter(Boolean).join(" · ");
-            if (meta) html += '<span class="audit-fw-chip-meta">' + escapeHtml(meta) + "</span>";
-            if (fw.description) html += '<span class="audit-fw-chip-desc">' + escapeHtml(fw.description) + "</span>";
-            html += "</button>";
-        });
-        return html + "</div></div>";
+        html += '<div class="ws-fw-select-list">';
+        firewalls.forEach(function (fw) { html += selectionOptionHtml(fw); });
+        html += "</div></div>";
+        return html;
     }
 
     function selectionCard(payload) {
-        return wrap(selectionBody(payload));
+        return selectionBody(payload);
     }
 
     function downCard(payload) {
         var selected = payload.selected_firewall || {};
-        var html = '<div class="audit-card"><h2>Firewall down or stopped</h2>';
-        html += '<div class="finding-summary">' +
-            escapeHtml(payload.message || "firewall down or stopped") + "</div>";
+        var subtitle = textOf(payload.message) || "firewall down or stopped";
         if (selected.name) {
-            html += '<div class="muted" style="margin-top:10px;">' +
-                escapeHtml(selected.name) +
-                (selected.status ? " is " + escapeHtml(selected.status) : "") +
-                ".</div>";
+            subtitle = selected.name + (selected.status ? " is " + selected.status : "") + ". " + subtitle;
         }
-        html += "</div>";
-        if (asList(payload.firewalls).length) html += selectionBody(payload);
-        return wrap(html);
+        if (asList(payload.firewalls).length) {
+            return selectionBody(payload, {
+                title: "Firewall down or stopped",
+                subtitle: subtitle
+            });
+        }
+        return '<div class="ws-mcq-card ns-card">' +
+            '<div class="ws-mcq-head"><strong>Firewall down or stopped</strong>' +
+            "<span>" + escapeHtml(subtitle) + "</span></div></div>";
     }
 
     function renderAuditCards(payload) {

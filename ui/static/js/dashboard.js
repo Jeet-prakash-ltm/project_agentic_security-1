@@ -1097,9 +1097,9 @@
         if (summary) {
             summary.href = fw === "all"
                 ? "/reports?firewall=all"
-                : "/executive-summary?firewall=" + encodeURIComponent(fw);
+                : "/executive-summary?firewall=" + encodeURIComponent(fw) + "&stored=1";
         }
-        if (report) report.href = "/generate-excel?firewall=" + encodeURIComponent(fw);
+        if (report) report.href = "/generate-excel?firewall=" + encodeURIComponent(fw) + "&stored=1";
     }
 
     function applyNetsecData(root, data, fw) {

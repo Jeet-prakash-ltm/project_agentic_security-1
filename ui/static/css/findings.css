@@ -107,34 +107,8 @@
 .findings-header p { color: var(--muted); font-size: 14px; }
 .findings-header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-self: flex-start; margin-left: auto; }
 
-.zt-export { position: relative; }
-.zt-export-menu {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 6px);
-    min-width: 210px;
-    background: rgba(30, 30, 30, 0.96);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    padding: 6px;
-    z-index: 30;
-}
-.zt-export-menu button {
-    display: block;
-    width: 100%;
-    text-align: left;
-    background: none;
-    border: 0;
-    color: #fff;
-    padding: 8px 10px;
-    border-radius: 8px;
-    font-size: 13px;
-    cursor: pointer;
-}
-.zt-export-menu button:hover,
-.zt-export-menu button:focus-visible {
-    background: rgba(255, 255, 255, 0.08);
+.finding-card.is-selected {
+    box-shadow: inset 0 0 0 1px rgba(255, 94, 79, 0.35);
 }
 .zt-progress {
     margin: 0 0 16px;
@@ -553,7 +527,8 @@
 }
 .finding-card:last-child { border-bottom: none; }
 .finding-card:hover { background: var(--bg); }
-.finding-card.is-active { background: var(--bg); }
+.finding-card.is-active,
+.finding-card.is-selected { background: var(--bg); }
 
 .finding-card-accent {
     position: absolute;
@@ -659,7 +634,8 @@
     transition: transform 0.2s ease;
 }
 .finding-chevron svg { width: 16px; height: 16px; }
-.finding-card.is-active .finding-chevron { transform: rotate(180deg); }
+.finding-card.is-active .finding-chevron,
+.finding-card.is-selected .finding-chevron { transform: rotate(180deg); }
 
 /* Expanded body */
 .finding-body {

@@ -55,16 +55,6 @@
             Run Assessment
         </a>
         {% else %}
-        <div class="zt-export">
-            <button class="btn btn-ghost" id="ztExportBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="ztExportMenu">Export</button>
-            <div class="zt-export-menu" id="ztExportMenu" hidden>
-                <button type="button" data-export="csv">Filtered results CSV</button>
-                <button type="button" data-export="json">Full results JSON</button>
-                <button type="button" data-export="pdf">Control details PDF</button>
-                <button type="button" data-export="print">Printable summary</button>
-                <button type="button" data-export="exec">Executive summary</button>
-            </div>
-        </div>
         <button class="btn btn-primary" id="ztRunBtn" type="button">Run assessment</button>
         {% endif %}
     </div>
@@ -285,8 +275,8 @@
         <div class="findings-list-head">
             <div class="findings-count" id="findingsCount">— findings</div>
             <div class="findings-expand-actions">
-                <button class="btn btn-ghost btn-sm" id="btnExpandAll" type="button">Expand all</button>
-                <button class="btn btn-ghost btn-sm" id="btnCollapseAll" type="button">Collapse all</button>
+                <button class="btn btn-ghost btn-sm" id="btnExpandAll" type="button">Expand groups</button>
+                <button class="btn btn-ghost btn-sm" id="btnCollapseAll" type="button">Collapse groups</button>
             </div>
         </div>
         <div class="findings-groups" id="findingsRoot">
@@ -331,6 +321,31 @@
     </div>
     <div class="copilot-body" id="copilotBody"><p class="copilot-placeholder">Select an action to get AI assistance for this finding.</p></div>
 </div>
+
+{% if findings_view == 'firewall_audit' %}
+<div class="fw-drawer-backdrop" id="faIcDrawerBackdrop" hidden></div>
+<aside class="fw-drawer zt-drawer" id="faIcDrawer" hidden aria-label="Finding details">
+    <div class="fw-drawer-head zt-dd-head">
+        <div class="zt-dd-head-text">
+            <h3 id="faIcDrawerTitle">Finding details</h3>
+            <div class="zt-dd-head-badges" id="faIcDrawerBadges"></div>
+        </div>
+        <div class="zt-dd-head-actions">
+            <button type="button" class="fw-drawer-close" id="faIcDrawerClose" aria-label="Close details">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+    </div>
+    <nav class="zt-dd-tabs" id="faIcDrawerTabs" role="tablist" aria-label="Finding details">
+        <button type="button" role="tab" data-drawer-tab="overview" class="is-active" aria-selected="true">Overview</button>
+        <button type="button" role="tab" data-drawer-tab="profile" aria-selected="false">Control profile</button>
+        <button type="button" role="tab" data-drawer-tab="assessment" aria-selected="false">Assessment</button>
+        <button type="button" role="tab" data-drawer-tab="evidence" aria-selected="false">Evidence</button>
+        <button type="button" role="tab" data-drawer-tab="remediation" aria-selected="false">Remediation</button>
+    </nav>
+    <div class="fw-drawer-body" id="faIcDrawerBody"></div>
+</aside>
+{% endif %}
 
 {% if findings_view == 'zero_trust' %}
 <div class="fw-drawer-backdrop" id="ztIcDrawerBackdrop" hidden></div>
@@ -387,6 +402,6 @@
 {% block scripts %}
 {% if not assessment_blocked %}
 <script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=8"></script>
-<script src="{{ url_for('static', filename='js/findings.js') }}?v=25"></script>
+<script src="{{ url_for('static', filename='js/findings.js') }}?v=27"></script>
 {% endif %}
 {% endblock %}

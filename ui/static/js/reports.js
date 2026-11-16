@@ -78,13 +78,26 @@
         return true;
     }
 
+    function reportDomain(report) {
+        var d = String(report.security_domain || "").toLowerCase();
+        if (d === "zero_trust" || d === "cloud" || d === "cloud_security") return "cloud";
+        return "network";
+    }
+
+    function deviceLabel(report) {
+        var name = report.firewall || DEVICE_NAME;
+        if (name === "estate") return "Full inventory";
+        if (name === "cloud") return "Cloud";
+        return name;
+    }
+
     function matchesSearch(report) {
         if (!state.search) return true;
         var q = state.search.toLowerCase();
         var hay = [
             report.name || "",
             report._rid || "",
-            DEVICE_NAME,
+            deviceLabel(report),
             report.firewall || ""
         ].join(" ").toLowerCase();
         return hay.indexOf(q) !== -1;
@@ -103,7 +116,8 @@
 
     function filteredReports() {
         return reports.filter(function (report) {
-            return matchesType(report) && matchesSearch(report) && matchesDate(report);
+            return reportDomain(report) === state.domain &&
+                matchesType(report) && matchesSearch(report) && matchesDate(report);
         });
     }
 
@@ -186,6 +200,7 @@
             var statusClassValue = statusClass(report);
             var icon = isPdf ? "PDF" : "XLS";
             var iconClass = isPdf ? "file-icon-purple" : "file-icon-green";
+            var deviceName = deviceLabel(report);
             var downloadHref = report.id
                 ? "/report-download/" + report.id
                 : (report.download_url ? "/static/" + report.download_url : "");
@@ -199,8 +214,8 @@
                 '<td><span class="report-name"><span class="file-icon ' + iconClass + '">' + icon + "</span>" +
                 escapeHtml(report.name || "") + "</span></td>" +
                 '<td><span class="tag">' + escapeHtml(label) + "</span></td>" +
-                '<td><span class="rep-device">' + escapeHtml(DEVICE_NAME) +
-                '<button type="button" class="rep-device-info" data-device="' + escapeHtml(DEVICE_NAME) +
+                '<td><span class="rep-device">' + escapeHtml(deviceName) +
+                '<button type="button" class="rep-device-info" data-device="' + escapeHtml(deviceName) +
                 '" aria-label="Device information" title="Device information">' +
                 '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/></svg>' +
                 "</button></span></td>" +
@@ -289,8 +304,8 @@
     }
 
     function applyDomainPanels() {
-        if (networkPanel) networkPanel.hidden = state.domain !== "network";
-        if (cloudPanel) cloudPanel.hidden = state.domain !== "cloud";
+        if (networkPanel) networkPanel.hidden = false;
+        if (cloudPanel) cloudPanel.hidden = true;
     }
 
     if (domainNav) {
@@ -392,20 +407,20 @@
 
     var devicePop = document.getElementById("repDevicePop");
 
-    function deviceMatches() {
-        return reports.filter(function (r) { return true; }).length;
+    function deviceMatches(name) {
+        return reports.filter(function (r) { return deviceLabel(r) === name || r.firewall === name; }).length;
     }
 
-    function deviceInfo() {
+    function deviceInfo(name) {
         var inv = (state.inventory || []).filter(function (e) {
-            return e && e.device_name === DEVICE_NAME;
+            return e && e.device_name === name;
         })[0] || {};
         return {
-            name: DEVICE_NAME,
+            name: name || DEVICE_NAME,
             ip: inv.host_ip || "Not available",
             status: inv.status ? (inv.status === "live" ? "Live" : "Down") : "Unknown",
             clone: inv.clone_of || "",
-            reports: deviceMatches()
+            reports: deviceMatches(name)
         };
     }
 
@@ -415,7 +430,7 @@
 
     function openDevicePop(anchor) {
         if (!devicePop) return;
-        var info = deviceInfo();
+        var info = deviceInfo(anchor.getAttribute("data-device") || DEVICE_NAME);
         var rows = [
             ["Device", info.name],
             ["IP Address", info.ip],
@@ -477,11 +492,145 @@
             .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error("failed")); })
             .then(function (data) {
                 state.inventory = (data && data.firewalls) || [];
+                fillFirewallSelect();
             })
             .catch(function () {
                 state.inventory = [];
             });
     }
+
+    // ---- Generate report modal ----
+
+    var generateBtn = document.getElementById("btnGenerateReport");
+    var generateModal = document.getElementById("repGenerateModal");
+    var generateCancel = document.getElementById("repGenerateCancel");
+    var generateRun = document.getElementById("repGenerateRun");
+    var generateFw = document.getElementById("repGenerateFirewall");
+    var generateFwWrap = document.getElementById("repGenerateFwWrap");
+    var generateType = document.getElementById("repGenerateType");
+    var generateTypeWrap = document.getElementById("repGenerateTypeWrap");
+    var generateDomain = document.getElementById("repGenerateDomain");
+    var generateNote = document.getElementById("repGenerateNote");
+    var generateKind = "excel";
+    var generateCat = "network";
+
+    function setGenerateKind(kind) {
+        generateKind = kind === "pdf" ? "pdf" : "excel";
+        if (!generateType) return;
+        generateType.querySelectorAll(".rep-pill").forEach(function (p) {
+            var on = p.getAttribute("data-kind") === generateKind;
+            p.classList.toggle("is-active", on);
+            p.setAttribute("aria-pressed", on ? "true" : "false");
+        });
+    }
+
+    function setGenerateCat(cat) {
+        generateCat = cat === "cloud" ? "cloud" : "network";
+        if (generateDomain) {
+            generateDomain.querySelectorAll(".rep-pill").forEach(function (p) {
+                var on = p.getAttribute("data-domain") === generateCat;
+                p.classList.toggle("is-active", on);
+                p.setAttribute("aria-pressed", on ? "true" : "false");
+            });
+        }
+        if (generateFwWrap) generateFwWrap.hidden = generateCat !== "network";
+        if (generateTypeWrap) generateTypeWrap.hidden = generateCat !== "network";
+        if (generateNote) {
+            generateNote.textContent = generateCat === "cloud"
+                ? "Zero Trust Excel is generated from the last stored cloud assessment."
+                : "Select a firewall, then generate Excel or PDF from its last stored assessment.";
+        }
+        if (generateCat === "cloud") setGenerateKind("excel");
+    }
+
+    function fillFirewallSelect() {
+        if (!generateFw) return;
+        var list = (state.inventory || []).filter(function (e) { return e && e.device_name; });
+        var html = '<option value="">Select a firewall</option>';
+        list.forEach(function (fw) {
+            html += '<option value="' + escapeHtml(fw.device_name) + '">' + escapeHtml(fw.device_name) + "</option>";
+        });
+        generateFw.innerHTML = html;
+    }
+
+    function openGenerate() {
+        if (!generateModal) return;
+        setGenerateCat(state.domain === "cloud" ? "cloud" : "network");
+        setGenerateKind("excel");
+        fillFirewallSelect();
+        generateModal.hidden = false;
+    }
+
+    function closeGenerate() {
+        if (generateModal) generateModal.hidden = true;
+        if (generateRun) generateRun.disabled = false;
+    }
+
+    function parseJson(res) {
+        return res.json().then(function (data) {
+            return { ok: res.ok, data: data || {} };
+        }).catch(function () {
+            return { ok: res.ok, data: {} };
+        });
+    }
+
+    function runGenerate() {
+        var url;
+        if (generateCat === "cloud") {
+            url = "/api/zero-trust/excel";
+        } else {
+            var fw = generateFw ? generateFw.value.trim() : "";
+            if (!fw) {
+                if (window.showToast) window.showToast("Select a firewall before generating a report.", "error");
+                return;
+            }
+            url = generateKind === "pdf"
+                ? "/api/summary?firewall=" + encodeURIComponent(fw) + "&stored=1"
+                : "/api/excel?firewall=" + encodeURIComponent(fw) + "&stored=1";
+        }
+        if (generateRun) generateRun.disabled = true;
+        fetch(url, { headers: { "Accept": "application/json" } })
+            .then(parseJson)
+            .then(function (res) {
+                var data = res.data || {};
+                if (!res.ok || data.error) {
+                    throw new Error(data.error || "no assessment conducted before for this device");
+                }
+                if (window.showToast) window.showToast("Report generated and stored in Report Center.", "success");
+                closeGenerate();
+                window.location.reload();
+            })
+            .catch(function (err) {
+                if (generateRun) generateRun.disabled = false;
+                if (window.showToast) window.showToast(err.message || "Report generation failed.", "error");
+            });
+    }
+
+    if (generateBtn) generateBtn.addEventListener("click", openGenerate);
+    if (generateCancel) generateCancel.addEventListener("click", closeGenerate);
+    if (generateRun) generateRun.addEventListener("click", runGenerate);
+    if (generateModal) {
+        generateModal.addEventListener("click", function (event) {
+            if (event.target === generateModal) closeGenerate();
+        });
+    }
+    if (generateType) {
+        generateType.addEventListener("click", function (event) {
+            var pill = event.target.closest(".rep-pill");
+            if (!pill) return;
+            setGenerateKind(pill.getAttribute("data-kind") || "excel");
+        });
+    }
+    if (generateDomain) {
+        generateDomain.addEventListener("click", function (event) {
+            var pill = event.target.closest(".rep-pill");
+            if (!pill) return;
+            setGenerateCat(pill.getAttribute("data-domain") || "network");
+        });
+    }
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") closeGenerate();
+    });
 
     syncDraftFromState();
     applyDomainPanels();

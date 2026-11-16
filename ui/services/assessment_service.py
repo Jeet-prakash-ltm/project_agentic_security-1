@@ -29,12 +29,19 @@ from services import timeutil
 log = logging.getLogger("assessment")
 
 
+NO_STORED_ASSESSMENT = "no assessment conducted before for this device"
+
+
 class AssessmentUnavailableError(Exception):
     """Raised when a firewall must be reached for a live assessment but is not.
 
     Carries a human-readable message the UI surfaces to the user so a stopped
     or offline firewall VM produces a clear message instead of a silent hang.
     """
+
+
+class NoStoredAssessmentError(Exception):
+    """Raised when a report is requested but no completed assessment exists."""
 
 
 def _would_run_live():
@@ -149,6 +156,16 @@ def get_stored_assessment(assessment_id=None, firewall_id="vmpafw01"):
                 stored, stored.get("_firewall_id") or firewall_id or "vmpafw01"
             )
     return get_full_assessment(firewall_id or "vmpafw01", force=False)
+
+
+def get_last_stored_assessment(firewall_id="vmpafw01"):
+    """Latest completed canonical assessment for ``firewall_id``, or raise."""
+    firewall_id = firewall_id or "vmpafw01"
+    stored = _canonical_payload(firewall_id)
+    if not stored:
+        raise NoStoredAssessmentError(NO_STORED_ASSESSMENT)
+    stored["_source"] = stored.get("_source") or "stored"
+    return _apply_firewall(stored, stored.get("_firewall_id") or firewall_id)
 
 
 def _canonical_history(firewall_id=None, limit=200):
@@ -689,7 +706,7 @@ def get_posture(firewall_id="vmpafw01", force=False):
     }
 
 
-def get_executive_summary(firewall_id="vmpafw01", force=False, assessment_id=None):
+def get_executive_summary(firewall_id="vmpafw01", force=False, assessment_id=None, stored_only=False):
 
     from reports.executive_summary import (
         ExecutiveSummary
@@ -697,6 +714,10 @@ def get_executive_summary(firewall_id="vmpafw01", force=False, assessment_id=Non
 
     if assessment_id:
         data = get_stored_assessment(assessment_id, firewall_id)
+        if stored_only and not data:
+            raise NoStoredAssessmentError(NO_STORED_ASSESSMENT)
+    elif stored_only:
+        data = get_last_stored_assessment(firewall_id)
     else:
         data = get_full_assessment(firewall_id, force=False)
 
@@ -719,14 +740,16 @@ def get_executive_summary(firewall_id="vmpafw01", force=False, assessment_id=Non
     return summary
 
 
-def get_executive_summary_pdf(firewall_id="vmpafw01", force=False, assessment_id=None, filename=None):
+def get_executive_summary_pdf(firewall_id="vmpafw01", force=False, assessment_id=None, filename=None, stored_only=False):
 
     from reports.executive_summary_pdf import (
         generate as generate_pdf
     )
 
     firewall_id = firewall_id or "vmpafw01"
-    summary = get_executive_summary(firewall_id, force, assessment_id=assessment_id)
+    summary = get_executive_summary(
+        firewall_id, force, assessment_id=assessment_id, stored_only=stored_only
+    )
 
     month = timeutil.ist_now().strftime("%b_%Y")
     filename = filename or "Executive_Summary_{0}_{1}.pdf".format(firewall_id, month)
@@ -757,7 +780,7 @@ def get_executive_summary_pdf(firewall_id="vmpafw01", force=False, assessment_id
     }
 
 
-def get_excel_report(firewall_id="vmpafw01", force=False, assessment_id=None, filename=None):
+def get_excel_report(firewall_id="vmpafw01", force=False, assessment_id=None, filename=None, stored_only=False):
 
     from reports.excel_report import (
         ExcelReport
@@ -766,6 +789,10 @@ def get_excel_report(firewall_id="vmpafw01", force=False, assessment_id=None, fi
     firewall_id = firewall_id or "vmpafw01"
     if assessment_id:
         data = get_stored_assessment(assessment_id, firewall_id)
+        if stored_only and not data:
+            raise NoStoredAssessmentError(NO_STORED_ASSESSMENT)
+    elif stored_only:
+        data = get_last_stored_assessment(firewall_id)
     else:
         data = get_full_assessment(firewall_id, force=False)
 

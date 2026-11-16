@@ -1224,24 +1224,24 @@
     function runSummaryForDevice(device) {
         selectedFirewall = device || selectedFirewall;
         var node = busy();
-        fetch("/executive-summary?firewall=" + encodeURIComponent(selectedFirewall))
-            .then(function (r) { return r.ok; })
-            .then(function (ok) {
+        fetch("/api/summary?firewall=" + encodeURIComponent(selectedFirewall) + "&stored=1")
+            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data || {} }; }).catch(function () { return { ok: r.ok, data: {} }; }); })
+            .then(function (res) {
                 idle(node);
-                if (!ok) throw new Error("failed");
+                if (!res.ok || (res.data && res.data.error)) throw new Error((res.data && res.data.error) || "failed");
                 appendMessage({ role: "assistant", content: "Executive summary for **" + selectedFirewall + "** generated and stored in Reports.", tool: "summary", ts: now() });
                 loadConversations();
             })
-            .catch(function () {
+            .catch(function (err) {
                 idle(node);
-                appendMessage({ role: "assistant", content: "Executive summary generation failed.", ts: now() });
+                appendMessage({ role: "assistant", content: (err && err.message) || "no assessment conducted before for this device", ts: now() });
             });
     }
 
     function runReportForDevice(device) {
         selectedFirewall = device || selectedFirewall;
         var node = busy();
-        fetch("/api/excel?firewall=" + encodeURIComponent(selectedFirewall))
+        fetch("/api/excel?firewall=" + encodeURIComponent(selectedFirewall) + "&stored=1")
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 idle(node);
@@ -1249,9 +1249,9 @@
                 appendMessage({ role: "assistant", content: "Assessment workbook for **" + selectedFirewall + "** generated and stored in Reports.", tool: "excel", ts: now() });
                 loadConversations();
             })
-            .catch(function () {
+            .catch(function (err) {
                 idle(node);
-                appendMessage({ role: "assistant", content: "Report generation failed.", ts: now() });
+                appendMessage({ role: "assistant", content: (err && err.message) || "no assessment conducted before for this device", ts: now() });
             });
     }
 
@@ -1513,7 +1513,7 @@
         renderConversationList();
         var typing = appendTyping();
         sendBtn.disabled = true;
-        fetch("/api/excel?firewall=" + encodeURIComponent(selectedFirewall))
+        fetch("/api/excel?firewall=" + encodeURIComponent(selectedFirewall) + "&stored=1")
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 removeTyping(typing);
@@ -1521,9 +1521,9 @@
                 appendMessage({ role: "assistant", content: "Assessment workbook generated and stored in Reports.", tool: "excel", ts: now() });
                 loadConversations();
             })
-            .catch(function () {
+            .catch(function (err) {
                 removeTyping(typing);
-                appendMessage({ role: "assistant", content: "Report generation failed.", ts: now() });
+                appendMessage({ role: "assistant", content: (err && err.message) || "no assessment conducted before for this device", ts: now() });
             })
             .finally(function () { sendBtn.disabled = false; promptInput.focus(); });
     }
@@ -1534,17 +1534,17 @@
         renderConversationList();
         var typing = appendTyping();
         sendBtn.disabled = true;
-        fetch("/executive-summary?firewall=" + encodeURIComponent(selectedFirewall))
-            .then(function (r) { return r.ok; })
-            .then(function (ok) {
+        fetch("/api/summary?firewall=" + encodeURIComponent(selectedFirewall) + "&stored=1")
+            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data || {} }; }).catch(function () { return { ok: r.ok, data: {} }; }); })
+            .then(function (res) {
                 removeTyping(typing);
-                if (!ok) throw new Error("failed");
+                if (!res.ok || (res.data && res.data.error)) throw new Error((res.data && res.data.error) || "failed");
                 appendMessage({ role: "assistant", content: "Executive summary generated and stored in Reports.", tool: "summary", ts: now() });
                 loadConversations();
             })
-            .catch(function () {
+            .catch(function (err) {
                 removeTyping(typing);
-                appendMessage({ role: "assistant", content: "Executive summary generation failed.", ts: now() });
+                appendMessage({ role: "assistant", content: (err && err.message) || "no assessment conducted before for this device", ts: now() });
             })
             .finally(function () { sendBtn.disabled = false; promptInput.focus(); });
     }

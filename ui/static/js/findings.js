@@ -440,8 +440,6 @@
             (PAGE_DOMAIN === "zero_trust"
                 ? '<span class="finding-card-actions">' +
                     '<button class="action-btn ai" data-act="copilot" type="button">' + ICONS.spark + ' Ask Maestro AI</button>' +
-                    '<button class="action-btn" data-act="export" type="button">JSON</button>' +
-                    '<button class="action-btn" data-act="pdf" type="button">PDF</button>' +
                     '</span>'
                 : '') +
             '</div>' +
@@ -455,11 +453,6 @@
             (isReviewed ? '<div class="meta-item"><span class="meta-label">Review</span><span class="meta-value ok">Reviewed</span></div>' : '') +
             (assignee ? '<div class="meta-item"><span class="meta-label">Owner</span><span class="meta-value owner">' + escapeHtml(assignee) + '</span></div>' : '') +
             '</div>' +
-            '</div>' +
-            '<span class="finding-chevron">' + ICONS.chevron + '</span>' +
-            '<div class="finding-body">' +
-            findingBodyHtml(rec) +
-            (PAGE_DOMAIN === "zero_trust" ? "" : actionsHtml(rec, isReviewed, !!assignee)) +
             '</div>' +
             '</div>' +
             '</div>';
@@ -1297,7 +1290,7 @@
         } else if (act === "pdf") {
             printZtControlPdf(ztControlFromFinding(rec));
         } else if (act === "report") {
-            generateReport();
+            generateReport(rec._firewall);
         } else if (act === "share") {
             shareFinding(rec);
         } else if (act === "review") {
@@ -1465,13 +1458,19 @@
         URL.revokeObjectURL(url);
     }
 
-    function generateReport() {
-        fetch("/api/excel")
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                if (data && data.error) throw new Error(data.error);
+    function generateReport(firewallId) {
+        var fw = (firewallId || state.filters.firewall || "").trim();
+        if (!fw || fw === "all") {
+            if (window.showToast) window.showToast("Select a firewall before generating a report.", "error");
+            return;
+        }
+        fetch("/api/excel?firewall=" + encodeURIComponent(fw) + "&stored=1")
+            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+            .then(function (res) {
+                var data = res.data || {};
+                if (!res.ok || data.error) throw new Error(data.error || "Report generation failed.");
                 if (window.showToast) window.showToast("Workbook generated. Download from Reports.", "success");
-                if (data && data.download_url) {
+                if (data.download_url) {
                     var a = document.createElement("a");
                     a.href = data.download_url;
                     a.download = "";
@@ -1480,7 +1479,9 @@
                     document.body.removeChild(a);
                 }
             })
-            .catch(function () { if (window.showToast) window.showToast("Report generation failed.", "error"); });
+            .catch(function (err) {
+                if (window.showToast) window.showToast(err.message || "Report generation failed.", "error");
+            });
     }
 
     function shareFinding(rec) {
@@ -1932,6 +1933,174 @@
         ztDetails.current = null;
     }
 
+    var faDetails = {
+        drawer: document.getElementById("faIcDrawer"),
+        backdrop: document.getElementById("faIcDrawerBackdrop"),
+        body: document.getElementById("faIcDrawerBody"),
+        title: document.getElementById("faIcDrawerTitle"),
+        badges: document.getElementById("faIcDrawerBadges"),
+        tabs: document.getElementById("faIcDrawerTabs"),
+        current: null,
+        tab: "overview"
+    };
+
+    function faStatusLabel(rec) {
+        return (rec && (rec.status_label || rec.status)) || "Not assessed";
+    }
+
+    function faOverviewTabHtml(rec) {
+        var summary = rec._compliant
+            ? "Observed value meets the expected baseline."
+            : (rec._gap || rec._finding || "Finding requires attention.");
+        return '<section class="zt-dd-card"><h4>Finding summary</h4><p>' + escapeHtml(summary) + "</p></section>" +
+            '<section class="zt-dd-card"><h4>Why it matters</h4><p>' + escapeHtml(rec._impact || "This control affects the security posture of the assessed firewall.") + "</p></section>" +
+            '<section class="zt-dd-card"><h4>Baseline</h4><p>' + escapeHtml(formatExpected(rec.expected, rec.operator) || "The firewall configuration must meet this control.") + "</p></section>" +
+            compareBlockHtml(rec, !!rec._compliant);
+    }
+
+    function faProfileTabHtml(rec) {
+        return '<section class="zt-dd-card zt-dd-profile"><h4>Control information</h4><div class="zt-dd-facts">' +
+            ztDrawerFact("Control ID", rec.control) +
+            ztDrawerFact("Category", formatCategory(rec._category)) +
+            ztDrawerFact("Domain", rec._domain) +
+            ztDrawerFact("Risk", rec.risk) +
+            ztDrawerFact("Risk score", String(rec._risk_score || 0)) +
+            ztDrawerFact("Firewall", rec._firewall) +
+            ztDrawerFact("Detected", rec._detected) +
+            ztDrawerFact("Run", rec._run_id) +
+            "</div></section>";
+    }
+
+    function faAssessmentTabHtml(rec) {
+        var result = rec._compliant ? "Compliant" : faStatusLabel(rec);
+        var observed = rec._finding || rec._gap || formatVal(rec.observed);
+        return '<section class="zt-dd-hero is-' + escapeHtml(rec._compliant ? "Passed" : "Failed") + '">' +
+            '<div class="zt-dd-hero-top"><span>Result</span>' + ztMsBadge(rec._compliant ? "Passed" : "Failed", result) + "</div>" +
+            "<p>" + escapeHtml(observed) + "</p></section>" +
+            '<section class="zt-dd-card"><h4>Observed</h4><p>' + escapeHtml(formatVal(rec.observed)) + "</p></section>" +
+            '<section class="zt-dd-card"><h4>Expected</h4><p>' + escapeHtml(formatExpected(rec.expected, rec.operator)) + "</p></section>" +
+            metricHtml(rec) +
+            riskContextHtml(rec);
+    }
+
+    function faEvidenceTabHtml(rec) {
+        var srcs = rec._evidence || [];
+        var rows = srcs.length ? srcs.map(function (item) { return "<li>" + escapeHtml(item) + "</li>"; }).join("") : "";
+        return '<section class="zt-dd-card"><h4>Collected evidence</h4>' +
+            '<div class="evidence-row">' +
+            '<span class="evidence-obs">' + escapeHtml(formatVal(rec.observed)) + "</span>" +
+            '<span class="evidence-arrow">\u2192 expected</span>' +
+            '<span class="evidence-exp">' + escapeHtml(formatExpected(rec.expected, rec.operator)) + "</span>" +
+            "</div>" +
+            '<div class="evidence-meta">' +
+            '<span><span class="em-label">Category</span> ' + escapeHtml(formatCategory(rec._category)) + "</span>" +
+            '<span><span class="em-label">Device</span> ' + escapeHtml(rec._firewall) + "</span>" +
+            '<span><span class="em-label">Collected</span> ' + escapeHtml(formatTs(rec._collected_at || rec._detected)) + "</span>" +
+            '<span><span class="em-label">Run</span> ' + escapeHtml(rec._run_id || "\u2014") + "</span>" +
+            "</div>" +
+            (rows ? '<ul class="zt-dd-steps">' + rows + "</ul>" : '<p class="zt-dd-muted">No collector evidence rows were stored for this finding.</p>') +
+            "</section>";
+    }
+
+    function faRemediationTabHtml(rec) {
+        var actions = rec._remediation ? [rec._remediation] : [];
+        return '<section class="zt-dd-card"><h4>Required actions</h4>' +
+            (actions.length
+                ? '<ol class="zt-dd-steps">' + actions.map(function (item, i) {
+                    return "<li><em>0" + (i + 1) + "</em><span>" + escapeHtml(item) + "</span></li>";
+                }).join("") + "</ol>"
+                : "<p>No remediation summary returned.</p>") +
+            "</section>" +
+            (rec._method
+                ? '<section class="zt-dd-card"><h4>Verification method</h4><p>' + escapeHtml(rec._method) + "</p></section>"
+                : "") +
+            '<section class="zt-dd-card"><h4>Actions</h4><div class="zt-dd-actions">' +
+            '<button class="btn btn-primary" type="button" data-fa-act="copilot">' + ICONS.spark + " Copilot</button>" +
+            '<button class="btn btn-ghost" type="button" data-fa-act="report">Create Report</button>' +
+            "</div></section>";
+    }
+
+    function faSyncDrawerTabs() {
+        if (!faDetails.tabs) return;
+        faDetails.tabs.querySelectorAll("[data-drawer-tab]").forEach(function (btn) {
+            var on = btn.getAttribute("data-drawer-tab") === faDetails.tab;
+            btn.classList.toggle("is-active", on);
+            btn.setAttribute("aria-selected", on ? "true" : "false");
+        });
+    }
+
+    function faRenderDrawerBody() {
+        if (!faDetails.body || !faDetails.current) return;
+        var rec = faDetails.current;
+        var html = "";
+        if (faDetails.tab === "profile") html = faProfileTabHtml(rec);
+        else if (faDetails.tab === "assessment") html = faAssessmentTabHtml(rec);
+        else if (faDetails.tab === "evidence") html = faEvidenceTabHtml(rec);
+        else if (faDetails.tab === "remediation") html = faRemediationTabHtml(rec);
+        else html = faOverviewTabHtml(rec);
+        faDetails.body.innerHTML = '<div class="zt-dd">' + html + "</div>";
+        faDetails.body.scrollTop = 0;
+    }
+
+    function faSetDrawerTab(tab) {
+        if (tab !== "overview" && tab !== "profile" && tab !== "assessment" && tab !== "evidence" && tab !== "remediation") tab = "overview";
+        faDetails.tab = tab;
+        faSyncDrawerTabs();
+        faRenderDrawerBody();
+    }
+
+    function openFaDetails(rec) {
+        if (!faDetails.drawer || !rec) return;
+        faDetails.current = rec;
+        faDetails.tab = "overview";
+        if (faDetails.title) faDetails.title.textContent = rec._check || rec.control || "Finding details";
+        if (faDetails.badges) {
+            faDetails.badges.innerHTML = ztMsBadge(rec.risk, rec.risk) + ztMsBadge(rec._compliant ? "Passed" : "Failed", faStatusLabel(rec));
+        }
+        faSyncDrawerTabs();
+        faRenderDrawerBody();
+        faDetails.drawer.hidden = false;
+        if (faDetails.backdrop) faDetails.backdrop.hidden = false;
+        requestAnimationFrame(function () {
+            faDetails.drawer.classList.add("is-open");
+            if (faDetails.backdrop) faDetails.backdrop.classList.add("is-open");
+        });
+    }
+
+    function closeFaDetails() {
+        if (!faDetails.drawer) return;
+        faDetails.drawer.classList.remove("is-open");
+        if (faDetails.backdrop) faDetails.backdrop.classList.remove("is-open");
+        setTimeout(function () {
+            faDetails.drawer.hidden = true;
+            if (faDetails.backdrop) faDetails.backdrop.hidden = true;
+        }, 180);
+        faDetails.current = null;
+        markFindingSelected(null);
+    }
+
+    function bindFaDetailsEvents() {
+        var closeBtn = document.getElementById("faIcDrawerClose");
+        if (closeBtn) closeBtn.addEventListener("click", closeFaDetails);
+        if (faDetails.backdrop) faDetails.backdrop.addEventListener("click", closeFaDetails);
+        if (faDetails.tabs) {
+            faDetails.tabs.addEventListener("click", function (event) {
+                var btn = event.target.closest("[data-drawer-tab]");
+                if (!btn) return;
+                faSetDrawerTab(btn.getAttribute("data-drawer-tab"));
+            });
+        }
+        if (faDetails.body) {
+            faDetails.body.addEventListener("click", function (e) {
+                var btn = e.target.closest("[data-fa-act]");
+                if (!btn || !faDetails.current) return;
+                var act = btn.getAttribute("data-fa-act");
+                if (act === "copilot") openCopilot(faDetails.current);
+                else if (act === "report") generateReport(faDetails.current._firewall);
+            });
+        }
+    }
+
     function ztControlFromFinding(rec) {
         var ms = (rec && rec._ms) || {};
         var actions = (ms.remediationActions && ms.remediationActions.length)
@@ -2177,27 +2346,14 @@
 
             var card = e.target.closest(".finding-card");
             if (card) {
-                if (PAGE_DOMAIN === "zero_trust") {
-                    var rec = findRecord(card.getAttribute("data-control"), card.getAttribute("data-fw"));
-                    if (rec) openZtDetails(rec);
-                    return;
-                }
-                var wasActive = card.classList.contains("is-active");
-                card.classList.toggle("is-active");
-                card.setAttribute("aria-expanded", String(!wasActive));
+                openFindingFromCard(card);
             }
         });
 
         root.addEventListener("keydown", function (e) {
             if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("finding-card")) {
                 e.preventDefault();
-                if (PAGE_DOMAIN === "zero_trust") {
-                    var rec = findRecord(e.target.getAttribute("data-control"), e.target.getAttribute("data-fw"));
-                    if (rec) openZtDetails(rec);
-                    return;
-                }
-                e.target.classList.toggle("is-active");
-                e.target.setAttribute("aria-expanded", String(e.target.classList.contains("is-active")));
+                openFindingFromCard(e.target);
             }
             if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("group-head")) {
                 e.preventDefault();
@@ -2381,9 +2537,31 @@
         }
 
         document.addEventListener("keydown", function (e) {
-            if (e.key === "Escape") { closeCopilot(); closeEvidence(); closeZtDetails(); closeZtFilter(); }
+            if (e.key === "Escape") { closeCopilot(); closeEvidence(); closeZtDetails(); closeFaDetails(); closeZtFilter(); }
         });
         bindZtDetailsEvents();
+        bindFaDetailsEvents();
+    }
+
+    function markFindingSelected(card) {
+        if (!root) return;
+        root.querySelectorAll(".finding-card.is-selected").forEach(function (el) {
+            el.classList.remove("is-selected");
+            el.setAttribute("aria-expanded", "false");
+        });
+        if (card) {
+            card.classList.add("is-selected");
+            card.setAttribute("aria-expanded", "true");
+        }
+    }
+
+    function openFindingFromCard(card) {
+        if (!card) return;
+        var rec = findRecord(card.getAttribute("data-control"), card.getAttribute("data-fw"));
+        if (!rec) return;
+        markFindingSelected(card);
+        if (PAGE_DOMAIN === "zero_trust") openZtDetails(rec);
+        else openFaDetails(rec);
     }
 
     function findRecord(cid, fw) {
@@ -2669,171 +2847,12 @@
         if (window.showToast) window.showToast("Zero Trust assessment complete.", "success");
     }
 
-    function ztDownload(filename, text, type) {
-        var blob = new Blob([text], { type: type || "text/plain" });
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
-    }
-
-    function ztCsvEscape(value) {
-        var text = String(value == null ? "" : value);
-        if (/[",\n]/.test(text)) return '"' + text.replace(/"/g, '""') + '"';
-        return text;
-    }
-
-    function ztTestsFromAssessment(assessment) {
-        var out = [];
-        ["identity", "devices", "network", "data", "infrastructure"].forEach(function (key) {
-            var bucket = assessment && assessment[key];
-            ((bucket && bucket.tests) || []).forEach(function (t) { out.push(t); });
-        });
-        return out;
-    }
-
-    function ztExportCsv(assessment) {
-        var tests = ztTestsFromAssessment(assessment);
-        var header = ["assessmentId", "timestamp", "area", "name", "category", "risk", "status", "sfiPillar", "recommendation", "evidenceAvailable"];
-        var lines = [header.join(",")];
-        tests.forEach(function (t) {
-            lines.push([
-                assessment.assessmentId, assessment.completedAt || assessment.startedAt, t.area, t.name, t.category, t.risk, t.status,
-                (t.sfiPillars || []).join(" "), t.recommendation || "", t.evidence && t.evidence.length ? "yes" : "no"
-            ].map(ztCsvEscape).join(","));
-        });
-        ztDownload("zero-trust-results.csv", lines.join("\n"), "text/csv");
-    }
-
-    function ztExportJson(assessment) {
-        ztDownload("zero-trust-assessment.json", JSON.stringify(assessment || {}, null, 2), "application/json");
-    }
-
-    function ztExportControlPdfs(assessment) {
-        var tests = ztTestsFromAssessment(assessment);
-        if (!tests.length) {
-            if (window.showToast) window.showToast("No control details to download.", "error");
-            return;
-        }
-        printZtControlPdf({
-            id: assessment.assessmentId,
-            name: "Zero Trust control details",
-            risk: "Assessment",
-            status: "Complete",
-            lastEvaluatedAt: assessment.completedAt || assessment.startedAt,
-            controlSummary: "Full control-detail export for assessment " + (assessment.assessmentId || "") + ".",
-            whyItMatters: "Use this PDF to review every assessed control in the same layout as Cloud Security Details.",
-            baseline: "Each control is scored against the tenant baseline collected in this assessment.",
-            resultSummary: tests.length + " controls included.",
-            impact: tests.map(function (t) { return (t.name || t.id) + " — " + (t.status || "") + " / " + (t.risk || ""); }).join("; "),
-            remediationActions: (assessment.priority || []).map(function (t) { return t.name + " (" + t.risk + " / " + t.status + ")"; }),
-            evidenceTables: [{
-                title: "Controls",
-                columns: [
-                    { key: "id", label: "Control ID" },
-                    { key: "name", label: "Name" },
-                    { key: "area", label: "Pillar" },
-                    { key: "status", label: "Status" },
-                    { key: "risk", label: "Risk" }
-                ],
-                rows: tests.map(function (t) {
-                    return { id: t.id, name: t.name, area: t.area, status: t.status, risk: t.risk };
-                })
-            }]
-        });
-    }
-
-    function ztPrintSummary(assessment, exec) {
-        if (!assessment) {
-            if (window.showToast) window.showToast("No assessment to export.", "error");
-            return;
-        }
-        var w = window.open("", "_blank");
-        if (!w) return;
-        function line(label, bucket) {
-            var s = (bucket && bucket.summary) || {};
-            return label + " passed " + (s.passed || 0) + " of " + (s.total || 0);
-        }
-        function esc(value) {
-            return String(value == null ? "" : value)
-                .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        }
-        w.document.write("<html><head><title>Zero Trust Assessment</title></head><body>");
-        w.document.write("<h1>" + (exec ? "Executive summary" : "Zero Trust assessment") + "</h1>");
-        w.document.write("<p>Assessment ID " + esc(assessment.assessmentId) + " · " + esc(assessment.completedAt || "") + "</p>");
-        w.document.write("<p>" +
-            line("Identity", assessment.identity) + ". " +
-            line("Endpoint Device", assessment.devices) + ". " +
-            line("Network", assessment.network) + ". " +
-            line("Data", assessment.data) + ". " +
-            line("Infrastructure", assessment.infrastructure) + ".</p>");
-        if (exec) {
-            w.document.write("<h2>Priority remediation</h2><ol>");
-            (assessment.priority || []).forEach(function (t) {
-                w.document.write("<li>" + esc(t.name) + " (" + esc(t.risk) + " / " + esc(t.status) + ")</li>");
-            });
-            w.document.write("</ol>");
-        }
-        w.document.write("</body></html>");
-        w.document.close();
-        w.focus();
-        w.print();
-    }
-
-    function ztLoadAssessmentThen(kind) {
-        var id = ztRun.assessmentId || "";
-        try { id = id || localStorage.getItem(ZT_STORAGE_KEY) || ""; } catch (e) {}
-        var runExport = function (assessment) {
-            if (!assessment) {
-                if (window.showToast) window.showToast("No assessment to export.", "error");
-                return;
-            }
-            ztRun.assessment = assessment;
-            if (kind === "csv") ztExportCsv(assessment);
-            else if (kind === "json") ztExportJson(assessment);
-            else if (kind === "pdf") ztExportControlPdfs(assessment);
-            else if (kind === "print") ztPrintSummary(assessment, false);
-            else ztPrintSummary(assessment, true);
-        };
-        if (ztRun.assessment && (!id || ztRun.assessment.assessmentId === id)) {
-            runExport(ztRun.assessment);
-            return;
-        }
-        var loadById = function (assessmentId) {
-            if (!assessmentId) {
-                if (window.showToast) window.showToast("No assessment to export.", "error");
-                return;
-            }
-            ztJsonFetch("/api/zero-trust/results", { assessmentId: assessmentId }).then(function (data) {
-                runExport(data.assessment);
-            }).catch(function (err) {
-                if (window.showToast) window.showToast(err.message || "Could not export assessment.", "error");
-            });
-        };
-        if (id) {
-            loadById(id);
-            return;
-        }
-        fetch("/api/zero-trust/latest", {
-            credentials: "same-origin",
-            headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" }
-        }).then(function (res) { return res.json().catch(function () { return {}; }); }).then(function (data) {
-            loadById(data && data.assessmentId);
-        }).catch(function () {
-            if (window.showToast) window.showToast("Could not export assessment.", "error");
-        });
-    }
-
     function bindZeroTrustActions() {
         if (PAGE_DOMAIN !== "zero_trust") return;
         var runBtn = document.getElementById("ztRunBtn");
         var confirmModal = document.getElementById("ztConfirmModal");
         var confirmCancel = document.getElementById("ztConfirmCancel");
         var confirmRun = document.getElementById("ztConfirmRun");
-        var exportBtn = document.getElementById("ztExportBtn");
-        var exportMenu = document.getElementById("ztExportMenu");
         if (runBtn) runBtn.addEventListener("click", ztOpenConfirm);
         if (confirmCancel) confirmCancel.addEventListener("click", ztCloseConfirm);
         if (confirmRun) confirmRun.addEventListener("click", ztStartAssessment);
@@ -2842,30 +2861,8 @@
                 if (e.target === confirmModal) ztCloseConfirm();
             });
         }
-        if (exportBtn && exportMenu) {
-            exportBtn.addEventListener("click", function (e) {
-                e.stopPropagation();
-                var open = exportMenu.hidden;
-                exportMenu.hidden = !open;
-                exportBtn.setAttribute("aria-expanded", open ? "true" : "false");
-            });
-            exportMenu.addEventListener("click", function (e) {
-                var btn = e.target.closest("[data-export]");
-                if (!btn) return;
-                exportMenu.hidden = true;
-                exportBtn.setAttribute("aria-expanded", "false");
-                ztLoadAssessmentThen(btn.getAttribute("data-export"));
-            });
-            document.addEventListener("click", function () {
-                exportMenu.hidden = true;
-                exportBtn.setAttribute("aria-expanded", "false");
-            });
-        }
         document.addEventListener("keydown", function (e) {
-            if (e.key === "Escape") {
-                ztCloseConfirm();
-                if (exportMenu) exportMenu.hidden = true;
-            }
+            if (e.key === "Escape") ztCloseConfirm();
         });
         window.addEventListener("beforeunload", ztStopPoll);
     }

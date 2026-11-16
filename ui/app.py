@@ -714,7 +714,8 @@ def executive_report():
             assessment_service
             .get_executive_summary_pdf(
                 firewall_id=_firewall_param(),
-                force=False
+                force=False,
+                stored_only=_stored_only_flag(),
             )
         )
 
@@ -747,6 +748,9 @@ def executive_report():
                 summary.get("_source", "live")
             )
         )
+
+    except assessment_service.NoStoredAssessmentError as e:
+        return _no_assessment_response(e)
 
     except Exception as e:
 
@@ -793,7 +797,8 @@ def generate_excel():
                 assessment_service
                 .get_excel_report(
                     firewall_id=_firewall_param(),
-                    force=False
+                    force=False,
+                    stored_only=_stored_only_flag(),
                 )
             )
 
@@ -844,6 +849,9 @@ def generate_excel():
                 result.get("_source", "live")
             )
         )
+
+    except assessment_service.NoStoredAssessmentError as e:
+        return _no_assessment_response(e)
 
     except Exception as e:
 
@@ -1177,6 +1185,18 @@ def api_firewall_backup():
         return jsonify({"error": str(e)}), 500
 
 
+def _stored_only_flag():
+    value = (request.args.get("stored") or request.args.get("from_db") or "").strip().lower()
+    return value in ("1", "true", "yes")
+
+
+def _no_assessment_response(exc):
+    message = str(exc) or assessment_service.NO_STORED_ASSESSMENT
+    if request.path.startswith("/api/"):
+        return jsonify({"error": message, "code": "no_assessment"}), 404
+    return render_reports(summary=None, error=message)
+
+
 @app.route("/api/summary")
 def api_summary():
 
@@ -1186,7 +1206,8 @@ def api_summary():
             assessment_service
             .get_executive_summary_pdf(
                 firewall_id=_firewall_param(),
-                force=False
+                force=False,
+                stored_only=_stored_only_flag(),
             )
         )
 
@@ -1214,6 +1235,9 @@ def api_summary():
 
         return jsonify(payload)
 
+    except assessment_service.NoStoredAssessmentError as e:
+        return _no_assessment_response(e)
+
     except Exception as e:
 
         return jsonify(
@@ -1230,7 +1254,8 @@ def api_excel():
             assessment_service
             .get_excel_report(
                 firewall_id=_firewall_param(),
-                force=False
+                force=False,
+                stored_only=_stored_only_flag(),
             )
         )
 
@@ -1259,11 +1284,46 @@ def api_excel():
 
         return jsonify(payload)
 
+    except assessment_service.NoStoredAssessmentError as e:
+        return _no_assessment_response(e)
+
     except Exception as e:
 
         return jsonify(
             {"error": str(e)}
         ), 500
+
+
+@app.route("/api/zero-trust/excel")
+@login_required
+def api_zero_trust_excel():
+    try:
+        from services.zero_trust_excel import generate_zero_trust_excel
+
+        result = generate_zero_trust_excel()
+        payload = dict(result)
+        if result.get("local_file"):
+            payload["download_url"] = url_for(
+                "static",
+                filename=result["download_url"],
+            )
+        report_history_service.append_report({
+            "name": (result.get("filename") or "Zero_Trust_Assessment").replace(".xlsx", ""),
+            "type": "Workbook",
+            "generated_by": "Zero Trust Agent",
+            "firewall": "cloud",
+            "ts": time.time(),
+            "status": "Completed",
+            "size": file_size_label(result.get("local_file")),
+            "download_url": result.get("download_url"),
+            "assessment_id": result.get("assessment_id"),
+            "security_domain": "zero_trust",
+        }, user_id=current_user_id())
+        return jsonify(payload)
+    except assessment_service.NoStoredAssessmentError as e:
+        return _no_assessment_response(e)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/download-workbook")
@@ -1276,7 +1336,8 @@ def download_workbook():
             assessment_service
             .get_excel_report(
                 firewall_id=_firewall_param(),
-                force=False
+                force=False,
+                stored_only=_stored_only_flag(),
             )
         )
 
@@ -1303,6 +1364,9 @@ def download_workbook():
             download_name=filename
         )
 
+    except assessment_service.NoStoredAssessmentError as e:
+        return _no_assessment_response(e)
+
     except Exception as e:
 
         return jsonify(
@@ -1326,12 +1390,23 @@ def report_download(report_id):
         (report.get("download_url") or report.get("name") or "").replace("\\", "/")
     )
     try:
+        if (report.get("security_domain") or "") == "zero_trust":
+            from services.zero_trust_excel import generate_zero_trust_excel
+            result = generate_zero_trust_excel(
+                filename=stored_name if stored_name.endswith(".xlsx") else None
+            )
+            return send_file(
+                result["local_file"],
+                as_attachment=True,
+                download_name=result.get("filename") or stored_name or "Zero_Trust_Assessment.xlsx",
+            )
         if "executive" in report_type or "pdf" in report_type:
             result = assessment_service.get_executive_summary_pdf(
                 firewall_id=firewall_id if firewall_id != "estate" else "vmpafw01",
                 force=False,
                 assessment_id=assessment_id,
                 filename=stored_name if stored_name.endswith(".pdf") else None,
+                stored_only=True,
             )
             return send_file(
                 result["local_file"],
@@ -1346,6 +1421,7 @@ def report_download(report_id):
                 force=False,
                 assessment_id=assessment_id,
                 filename=stored_name if stored_name.endswith(".xlsx") else None,
+                stored_only=True,
             )
         filename = os.path.basename(
             result.get("download_url") or stored_name or "Assessment_Workbook.xlsx"
@@ -1355,6 +1431,8 @@ def report_download(report_id):
             as_attachment=True,
             download_name=filename,
         )
+    except assessment_service.NoStoredAssessmentError as e:
+        return _no_assessment_response(e)
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 

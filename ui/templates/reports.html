@@ -76,6 +76,7 @@
                 </div>
             </div>
         </div>
+        <button class="btn btn-primary" id="btnGenerateReport" type="button">Generate report</button>
         {% if assessment_source %}
         <span class="hero-chip">
             <span class="pulse-dot"></span>
@@ -210,11 +211,47 @@
 
 <div class="rep-device-pop" id="repDevicePop" hidden role="dialog" aria-label="Device information"></div>
 
+<div class="modal-backdrop" id="repGenerateModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="repGenerateTitle">
+        <div class="modal-head">
+            <div>
+                <h3 id="repGenerateTitle">Generate report</h3>
+                <p>Reports are built from the last completed assessment stored in the database.</p>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div class="rep-filter-section">
+                <span class="rep-filter-label">Category</span>
+                <div class="rep-filter-pills" id="repGenerateDomain" role="group" aria-label="Report category">
+                    <button type="button" class="rep-pill is-active" data-domain="network" aria-pressed="true">Network Security</button>
+                    <button type="button" class="rep-pill" data-domain="cloud" aria-pressed="false">Cloud Security</button>
+                </div>
+            </div>
+            <label class="rep-date-field" id="repGenerateFwWrap">
+                <span>Firewall</span>
+                <select id="repGenerateFirewall" aria-label="Select firewall"></select>
+            </label>
+            <div class="rep-filter-section" id="repGenerateTypeWrap">
+                <span class="rep-filter-label">Report type</span>
+                <div class="rep-filter-pills" id="repGenerateType" role="group" aria-label="Report type">
+                    <button type="button" class="rep-pill is-active" data-kind="excel" aria-pressed="true">Excel assessment workbook</button>
+                    <button type="button" class="rep-pill" data-kind="pdf" aria-pressed="false">PDF executive summary</button>
+                </div>
+            </div>
+            <p class="rep-generate-note" id="repGenerateNote">Select a firewall, then generate Excel or PDF from its last stored assessment.</p>
+            <div class="modal-foot">
+                <button class="btn btn-ghost" id="repGenerateCancel" type="button">Cancel</button>
+                <button class="btn btn-primary" id="repGenerateRun" type="button">Generate</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
     window.REPORT_DATA = {{ reports | tojson }};
 </script>
-<script src="{{ url_for('static', filename='js/reports.js') }}?v=11"></script>
+<script src="{{ url_for('static', filename='js/reports.js') }}?v=13"></script>
 {% endblock %}

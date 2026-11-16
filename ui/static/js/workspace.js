@@ -341,6 +341,7 @@
                 html: m.html,
                 cardTitle: m.cardTitle,
                 blocks: m.blocks,
+                audit: m.audit,
                 tool: m.tool,
                 usage: m.usage,
                 agentName: m.agentName
@@ -732,22 +733,44 @@
         return html + "</div>";
     }
 
+    function parseFirewallAudit(msg) {
+        if (!window.FirewallAuditCards || !window.FirewallAuditCards.parseBeforeDisplay) return null;
+        if (msg && msg.html && msg.audit && msg.cardTitle) return null;
+        return window.FirewallAuditCards.parseBeforeDisplay(msg && msg.content, msg && msg.audit);
+    }
+
+    function isFirewallAuditMessage(msg) {
+        if (isFirewallAgent(state.activeAgent)) return true;
+        var name = String((msg && msg.agentName) || "").toLowerCase();
+        return name.indexOf("firewall audit") !== -1 || name.indexOf("firewall auditor") !== -1;
+    }
+
     function assistantBodyHtml(msg) {
-        if (msg.blocks && msg.blocks.length) {
-            var lead = msg.content && String(msg.content).trim()
-                ? '<div class="ws-msg-text">' + formatAgentReply(msg.content) + "</div>"
-                : "";
-            return lead + renderInteractiveBlocks(msg.blocks);
+        var parsed = parseFirewallAudit(msg);
+        if (parsed && parsed.html) {
+            if (parsed.audit) msg.audit = parsed.audit;
+            return parsed.html;
         }
+        var html;
         if (msg.html) {
             return toolCardHtml(msg.cardTitle || "Firewall Data", msg.html, null);
         }
-        if (msg.tool && TOOL_META[msg.tool]) {
+        if (msg.blocks && msg.blocks.length) {
+            var blockLead = msg.content && String(msg.content).trim()
+                ? '<div class="ws-msg-text">' + formatAgentReply(msg.content) + "</div>"
+                : "";
+            html = blockLead + renderInteractiveBlocks(msg.blocks);
+        } else if (msg.tool && TOOL_META[msg.tool]) {
             var meta = TOOL_META[msg.tool];
             var link = msg.link || meta.link;
-            return toolCardHtml(meta.name, formatAgentReply(msg.content), link, meta.icon);
+            html = toolCardHtml(meta.name, formatAgentReply(msg.content), link, meta.icon);
+        } else {
+            html = '<div class="ws-msg-text">' + formatAgentReply(msg.content || "") + "</div>";
         }
-        return '<div class="ws-msg-text">' + formatAgentReply(msg.content || "") + "</div>";
+        if (isFirewallAuditMessage(msg) && window.FirewallAuditCards && window.FirewallAuditCards.wrapAgentOutput) {
+            return window.FirewallAuditCards.wrapAgentOutput(html);
+        }
+        return html;
     }
 
     function uiMarkDone(container) {
@@ -1030,13 +1053,35 @@
         return meta ? meta.label : "Firewall operation";
     }
 
-    function fwPickerCardHtml(intent) {
-        return '<div class="ws-mcq-card fw-picker-card">' +
+    function fwInventoryOptionHtml(fw) {
+        var name = fw.device_name || fw.name || "unknown";
+        var vendor = fw.vendor || "Palo Alto";
+        var ip = fw.host_ip || fw.ip || "unknown";
+        var status = String(fw.status || "down").toLowerCase() === "live" ? "live" : "down";
+        return '<button type="button" class="ws-fw-select-option" data-fw-pick-name="' + escapeHtml(name) + '" data-fw-pick-all="' + (fw.all ? "1" : "0") + '">' +
+            '<span class="ws-fw-select-name">' + escapeHtml(name) + ' <span class="fw-status ' + (status === "live" ? "is-live" : "is-down") + '">' +
+            escapeHtml(status === "live" ? "Live" : "Down") + "</span></span>" +
+            '<span class="ws-fw-select-meta">' + escapeHtml(vendor) + " \u00b7 " + escapeHtml(ip) + " \u00b7 " + escapeHtml(status) + "</span>" +
+            (fw.description ? '<span class="ws-fw-select-desc">' + escapeHtml(fw.description) + "</span>" : "") +
+            "</button>";
+    }
+
+    function fwPickerCardHtml(intent, list) {
+        var options = [{
+            device_name: "ALL",
+            vendor: "All Vendors",
+            host_ip: "all",
+            status: "live",
+            all: true,
+            description: "Run audit/compliance on every live firewall."
+        }].concat(list || []);
+        return '<div class="ws-mcq-card fw-picker-card" data-fw-intent="' + escapeHtml(intent) + '">' +
             '<div class="ws-mcq-head"><strong>Select Firewall</strong>' +
-            "<span>" + escapeHtml(intentLabel(intent)) + " \u2014 type a device name or IP, or enter \u201cfull inventory\u201d to assess every managed firewall.</span></div>" +
+            "<span>" + escapeHtml(intentLabel(intent)) + " \u2014 choose one live firewall or ALL. Name, vendor, IP, and live/down status are shown for every option.</span></div>" +
+            '<div class="ws-fw-select-list">' + options.map(fwInventoryOptionHtml).join("") + "</div>" +
             '<form class="fw-search-box" data-fw-go="1">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>' +
-            '<input type="text" class="fw-search-input" placeholder="Search device name / IP, or type full inventory" autocomplete="off" aria-label="Search firewall inventory">' +
+            '<input type="text" class="fw-search-input" placeholder="Or type a device name / IP / ALL" autocomplete="off" aria-label="Search firewall inventory">' +
             '<button type="submit" class="fw-search-go" title="Run assessment for selection" aria-label="Go">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>' +
             "</button>" +
@@ -1047,6 +1092,10 @@
     }
 
     function startFirewallFlow(intent) {
+        if (intent === "assess") {
+            sendPrompt("Run a compliance assessment");
+            return;
+        }
         ensureActiveId();
         appendMessage({ role: "user", content: intentLabel(intent), ts: now() });
         renderConversationList();
@@ -1066,7 +1115,7 @@
                 renderConversationList();
                 return;
             }
-            appendMessage({ role: "assistant", content: "", html: fwPickerCardHtml(intent), cardTitle: "Select Firewall", agentName: "Firewall Audit Agent", ts: now() });
+            appendMessage({ role: "assistant", content: "", html: fwPickerCardHtml(intent, list), cardTitle: "Select Firewall", agentName: "Firewall Audit Agent", ts: now() });
             renderConversationList();
             scrollToBottom();
 
@@ -1149,10 +1198,27 @@
     function handleFwPick(intent, pick) {
         if (pick.all) { loadEstateCard(); return; }
         selectedFirewall = pick.name || selectedFirewall;
-        if (intent === "summary") { runSummaryForDevice(selectedFirewall); return; }
-        if (intent === "excel") { runReportForDevice(selectedFirewall); return; }
-        if (intent === "ha") { showSectionForDevice("ha", selectedFirewall); return; }
-        showMcqCard(selectedFirewall, true);
+        var down = false;
+        fetchFirewallInventory().then(function (list) {
+            (list || []).forEach(function (fw) {
+                if (fw.device_name === selectedFirewall && String(fw.status || "").toLowerCase() !== "live") {
+                    down = true;
+                }
+            });
+            if (down) {
+                appendMessage({
+                    role: "assistant",
+                    content: "firewall down or stopped",
+                    agentName: "Firewall Audit Agent",
+                    ts: now()
+                });
+                return;
+            }
+            if (intent === "summary") { runSummaryForDevice(selectedFirewall); return; }
+            if (intent === "excel") { runReportForDevice(selectedFirewall); return; }
+            if (intent === "ha") { showSectionForDevice("ha", selectedFirewall); return; }
+            showMcqCard(selectedFirewall, true);
+        });
     }
 
     function runSummaryForDevice(device) {
@@ -1853,7 +1919,8 @@
                 if (data.conversation_id) state.activeId = data.conversation_id;
                 var reply = (data && data.reply) || buildAssistantReply(text);
                 var blocks = (data && data.blocks && data.blocks.length) ? data.blocks : null;
-                appendMessage({ role: "assistant", content: reply, blocks: blocks, tool: opts.tool || null, usage: (data && data.usage) || null, agentName: (data && data.agent && data.agent.name) || null, ts: now() });
+                var audit = (data && data.audit) || null;
+                appendMessage({ role: "assistant", content: reply, blocks: blocks, audit: audit, tool: opts.tool || null, usage: (data && data.usage) || null, agentName: (data && data.agent && data.agent.name) || null, ts: now() });
                 loadConversations();
                 loadConversationInsights();
             })
@@ -2413,6 +2480,60 @@
             if (backBtn) {
                 var backRow = backBtn.closest(".ws-message[data-index]");
                 goBackFromCard(backRow);
+                return;
+            }
+            var fwSelect = e.target.closest("[data-fw-select]");
+            if (fwSelect) {
+                var selectedName = fwSelect.getAttribute("data-fw-select");
+                var selectedStatus = String(fwSelect.getAttribute("data-fw-status") || "").toLowerCase();
+                if (selectedStatus && selectedStatus !== "live") {
+                    appendMessage({
+                        role: "assistant",
+                        content: "firewall down or stopped",
+                        agentName: "Firewall Audit Agent",
+                        ts: now()
+                    });
+                    return;
+                }
+                if (selectedName) sendPrompt(selectedName);
+                return;
+            }
+            var fwPick = e.target.closest("[data-fw-pick-name]");
+            if (fwPick) {
+                var pickAll = fwPick.getAttribute("data-fw-pick-all") === "1";
+                var pickName = fwPick.getAttribute("data-fw-pick-name");
+                var pickerCard = fwPick.closest(".fw-picker-card");
+                var pickerIntent = pickerCard ? (pickerCard.getAttribute("data-fw-intent") || "assess") : "assess";
+                handleFwPick(pickerIntent, pickAll ? { all: true } : { name: pickName });
+                return;
+            }
+            var findingBack = e.target.closest("[data-finding-back]");
+            if (findingBack) {
+                var stack = findingBack.closest(".ws-audit-stack") || findingBack.closest(".ws-exec-card");
+                var list = stack ? stack.querySelector("[data-finding-host]") : null;
+                var host = stack ? stack.querySelector(".ws-finding-detail-host") : null;
+                if (list) list.hidden = false;
+                if (host) { host.hidden = true; host.innerHTML = ""; }
+                return;
+            }
+            var findingBtn = e.target.closest(".ws-finding-card");
+            if (findingBtn) {
+                var idx = parseInt(findingBtn.getAttribute("data-finding-index"), 10);
+                var listHost = findingBtn.closest("[data-finding-host]");
+                var detailHost = listHost && listHost.parentNode
+                    ? listHost.parentNode.querySelector(".ws-finding-detail-host")
+                    : null;
+                if (listHost && detailHost && window.FirewallAuditCards) {
+                    try {
+                        var findings = JSON.parse(listHost.getAttribute("data-findings") || "[]");
+                        var finding = findings[idx];
+                        if (finding) {
+                            listHost.hidden = true;
+                            detailHost.hidden = false;
+                            detailHost.innerHTML = window.FirewallAuditCards.FindingDetailCard(finding);
+                        }
+                    } catch (err) { /* ignore */ }
+                }
                 return;
             }
             var option = e.target.closest(".mcq-option");

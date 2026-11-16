@@ -25,16 +25,22 @@ def _key_usable(key):
     return bool(key) and not key.startswith("PLACEHOLDER")
 
 
-def _get(endpoint, key=None):
+def _get(endpoint, key=None, extra_params=None):
     key = key or settings.FUNCTION_KEY
     if not _key_usable(key):
         raise LiveFunctionUnavailable(
             "Live firewall function key is not configured."
         )
 
+    params = {"code": key}
+    if extra_params:
+        for name, value in extra_params.items():
+            if value is not None and value != "":
+                params[name] = value
+
     response = requests.get(
         f"{settings.BASE_URL}/{endpoint}",
-        params={"code": key},
+        params=params,
         timeout=TIMEOUT,
     )
 
@@ -73,35 +79,71 @@ def _local_excel_report():
     return a.get_excel_report(force=True)
 
 
-def run_compliance_assessment():
+def _firewall_params(kwargs):
+    firewall = (
+        kwargs.get("firewall")
+        or kwargs.get("firewall_id")
+        or kwargs.get("firewall_name")
+        or kwargs.get("selected_firewall")
+        or kwargs.get("hostname")
+        or kwargs.get("scope")
+    )
+    if not firewall:
+        return None
+    return {"firewall": firewall}
+
+
+def run_compliance_assessment(**kwargs):
+    extra = _firewall_params(kwargs)
     try:
-        data = _get("run_compliance_assessment")
+        data = _get("run_compliance_assessment", extra_params=extra)
     except LiveFunctionUnavailable:
         return _local_assessment()
-    if isinstance(data, dict) and "findings" in data:
+    if isinstance(data, dict) and data.get("findings") and data.get("status") not in (
+        "AWAITING_FIREWALL_SELECTION",
+        "FIREWALL_DOWN",
+    ):
         _refresh_cache(data)
     return data
 
 
-def run_full_assessment():
+def run_full_assessment(**kwargs):
+    extra = _firewall_params(kwargs)
     try:
-        data = _get("run_full_assessment", key=settings.FULL_ASSESSMENT_KEY)
+        data = _get(
+            "run_full_assessment",
+            key=settings.FULL_ASSESSMENT_KEY,
+            extra_params=extra,
+        )
     except LiveFunctionUnavailable:
         return _local_assessment()
-    if isinstance(data, dict) and "findings" in data:
+    if isinstance(data, dict) and data.get("findings") and data.get("status") not in (
+        "AWAITING_FIREWALL_SELECTION",
+        "FIREWALL_DOWN",
+    ):
         _refresh_cache(data)
     return data
 
 
-def executive_summary():
+def executive_summary(**kwargs):
+    extra = _firewall_params(kwargs)
     try:
-        return _get("executive_summary", key=settings.EXECUTIVE_SUMMARY_KEY)
+        return _get(
+            "executive_summary",
+            key=settings.EXECUTIVE_SUMMARY_KEY,
+            extra_params=extra,
+        )
     except LiveFunctionUnavailable:
         return _local_executive_summary()
 
 
-def generate_excel_report():
+def generate_excel_report(**kwargs):
+    extra = _firewall_params(kwargs)
     try:
-        return _get("generate_excel_report", key=settings.EXCEL_KEY)
+        return _get(
+            "generate_excel_report",
+            key=settings.EXCEL_KEY,
+            extra_params=extra,
+        )
     except LiveFunctionUnavailable:
         return _local_excel_report()

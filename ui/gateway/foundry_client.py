@@ -7,6 +7,7 @@ from urllib.parse import quote
 
 import requests
 
+from gateway import firewall_audit
 from gateway import interactive_blocks
 
 logger = logging.getLogger(__name__)
@@ -41,26 +42,72 @@ TOOL_SCHEMAS = [
     {
         "type": "function",
         "name": "run_compliance_assessment",
-        "description": "Run a compliance assessment against the firewall and return the compliance results summary.",
-        "parameters": {"type": "object", "properties": {}},
+        "description": (
+            "Run a compliance assessment. Always ask the user to select a "
+            "firewall first. Pass firewall=<name> or firewall=ALL after the "
+            "user chooses. Do not reuse a previous selection."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "firewall": {
+                    "type": "string",
+                    "description": (
+                        "Firewall name, id, or ALL. Omit to receive the "
+                        "inventory selection list."
+                    ),
+                }
+            },
+        },
     },
     {
         "type": "function",
         "name": "run_full_assessment",
-        "description": "Run the full firewall assessment and return detailed results.",
-        "parameters": {"type": "object", "properties": {}},
+        "description": (
+            "Run the full firewall assessment. Always ask the user to select "
+            "a firewall first. Pass firewall=<name> or firewall=ALL after "
+            "the user chooses. Do not reuse a previous selection."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "firewall": {
+                    "type": "string",
+                    "description": (
+                        "Firewall name, id, or ALL. Omit to receive the "
+                        "inventory selection list."
+                    ),
+                }
+            },
+        },
     },
     {
         "type": "function",
         "name": "executive_summary",
         "description": "Generate an executive summary of the latest firewall assessment.",
-        "parameters": {"type": "object", "properties": {}},
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "firewall": {
+                    "type": "string",
+                    "description": "Firewall name, id, or ALL.",
+                }
+            },
+        },
     },
     {
         "type": "function",
         "name": "generate_excel_report",
         "description": "Generate an Excel report of the firewall assessment results.",
-        "parameters": {"type": "object", "properties": {}},
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "firewall": {
+                    "type": "string",
+                    "description": "Firewall name, id, or ALL.",
+                }
+            },
+        },
     },
 ]
 
@@ -149,14 +196,15 @@ def _system_prompt(agent):
     elif "firewall" in agent_type or "firewall" in agent_name.lower():
         base = (
             "You are the Firewall Audit Agent, an AI security agent specialized in Palo Alto Networks firewall compliance. "
-            "You have live access to a Palo Alto firewall (vmpafw01, PAN-OS 10.2.10-h9) and perform assessments across "
-            "44 controls spanning inventory, health, HA, security policy, threat prevention, network segmentation, VPN, "
-            "logging, administration, and backup. "
-            "Use the `run_compliance_assessment` tool to get live assessment data, and `run_full_assessment` for detailed results. "
-            "Use `executive_summary` for management-ready summaries and `generate_excel_report` to produce downloadable workbooks. "
-            "When users ask about security posture, call the appropriate tool to get real data instead of guessing. "
-            "Format responses with clear headings, bullet points, and severity indicators. "
-            "Always reference the actual assessment data and offer to run a fresh assessment if needed."
+            "Every new audit or compliance request MUST start by calling run_compliance_assessment or run_full_assessment "
+            "without a firewall argument so inventory selection is shown. Never reuse a firewall chosen earlier. "
+            "Show each option as name, vendor, IP, and live/down, including ALL. "
+            "If the user selects a down firewall, reply exactly: firewall down or stopped. "
+            "After the user selects a live firewall or ALL, call the tool again with firewall=<name> or firewall=ALL. "
+            "Do not assess a down firewall. ALL assesses every live firewall and produces a combined executive summary and Excel report. "
+            "The workspace renders structured cards from response_type. Prefer returning the tool JSON unchanged; "
+            "if you add prose, keep Device Information, Overall Posture, Findings, Business Impact, and Recommendations "
+            "in that order. Use executive_summary and generate_excel_report after an assessment when asked."
         )
     elif "zero trust" in agent_key or "zero-trust" in agent_key:
         base = (
@@ -221,6 +269,11 @@ def _with_ui_blocks(result):
     text, blocks = interactive_blocks.finalize(result.get("reply") or "")
     result["reply"] = text
     result["blocks"] = blocks
+    audit = firewall_audit.extract_audit_payload(
+        text, result.get("audit") or result.get("tool_payload")
+    )
+    if audit:
+        result["audit"] = audit
     return result
 
 
@@ -231,7 +284,7 @@ def _merge_usage(total, usage):
             total[key] = total.get(key, 0) + value
 
 
-def _call_tool(tool_registry, function_call):
+def _call_tool(tool_registry, function_call, collected=None):
     name = function_call.get("name", "")
     arguments = function_call.get("arguments") or "{}"
     try:
@@ -240,6 +293,8 @@ def _call_tool(tool_registry, function_call):
         args = {}
     try:
         result = tool_registry.call_tool(name, **args)
+        if collected is not None and firewall_audit.is_audit_payload(result):
+            collected.append(result)
         return json.dumps(result, default=str)
     except Exception as error:
         return json.dumps({"error": str(error)})
@@ -329,6 +384,7 @@ def _run_responses(url, api_key, conversation, model, ephemeral, sys_prompt, sta
     data = _post(url, api_key, build_payload(conversation))
     content, function_calls = _extract_reply(data)
     total_usage = dict(data.get("usage") or {})
+    audit_payloads = []
 
     max_rounds = 3
     while function_calls and max_rounds > 0:
@@ -341,7 +397,7 @@ def _run_responses(url, api_key, conversation, model, ephemeral, sys_prompt, sta
             next_input.append({
                 "type": "function_call_output",
                 "call_id": function_call.get("call_id") or function_call.get("id"),
-                "output": _call_tool(tool_registry, function_call),
+                "output": _call_tool(tool_registry, function_call, audit_payloads),
             })
 
         data = _post(url, api_key, build_payload(next_input))
@@ -351,12 +407,15 @@ def _run_responses(url, api_key, conversation, model, ephemeral, sys_prompt, sta
     if content is None:
         content = "Assessment completed. Check the outputs above for detailed results."
 
-    return {
+    result = {
         "reply": content,
         "usage": total_usage,
         "latency_ms": int((time.monotonic() - started) * 1000),
         "model": data.get("model") or model,
     }
+    if audit_payloads:
+        result["audit"] = firewall_audit.normalize_audit_payload(audit_payloads[-1])
+    return result
 
 
 def chat(agent, messages):

@@ -1460,6 +1460,7 @@ def api_chat():
             {
                 "reply": result.get("reply"),
                 "blocks": result.get("blocks") or [],
+                "audit": result.get("audit") or None,
                 "usage": result.get("usage") or {},
                 "latency_ms": result.get("latency_ms"),
                 "model": result.get("model"),
@@ -2312,6 +2313,7 @@ def api_managed_firewall_inventory():
                 "device_name": entry["device_name"],
                 "host_name": entry.get("host_name"),
                 "host_ip": entry["host_ip"],
+                "vendor": entry.get("vendor") or "Palo Alto",
                 "status": entry["status"],
                 "clone_of": entry.get("clone_of"),
                 "is_clone": bool(entry.get("clone_of")),

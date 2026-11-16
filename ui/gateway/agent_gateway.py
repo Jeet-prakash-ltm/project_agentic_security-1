@@ -88,6 +88,7 @@ class AgentGateway:
                     "usage": result.get("usage") or {},
                     "agentName": agent.get("name", ""),
                     "blocks": result.get("blocks") or [],
+                    "audit": result.get("audit") or None,
                 },
             )
 

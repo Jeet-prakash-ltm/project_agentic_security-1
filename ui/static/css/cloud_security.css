@@ -1487,10 +1487,7 @@
 }
 
 .zt-pillar-tabs {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    margin: -6px 0 4px;
+    display: none;
 }
 
 .zt-pillar-tabs button {

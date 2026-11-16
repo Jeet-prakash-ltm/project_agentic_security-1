@@ -1238,12 +1238,8 @@
     }
 
     function pillarTabs(title) {
-        var overviewOn = state.pillarTab !== "assessment";
-        return '<div class="zt-page-head"><div><h1>' + esc(title) + "</h1></div></div>" +
-            '<div class="zt-pillar-tabs" role="tablist" aria-label="' + esc(title) + ' views">' +
-            '<button type="button" role="tab" data-pillar-tab="overview" class="' + (overviewOn ? "is-active" : "") + '" aria-selected="' + (overviewOn ? "true" : "false") + '">Overview metrics</button>' +
-            '<button type="button" role="tab" data-pillar-tab="assessment" class="' + (overviewOn ? "" : "is-active") + '" aria-selected="' + (overviewOn ? "false" : "true") + '">Assessment data</button>' +
-            "</div>";
+        state.pillarTab = "overview";
+        return '<div class="zt-page-head"><div><h1>' + esc(title) + "</h1></div></div>";
     }
 
     function metricValue(item) {
@@ -1836,12 +1832,7 @@
     function renderIdentity() {
         var a = state.assessment;
         if (!a) return emptyState("No assessment results are available.", "Run a Zero Trust assessment to populate this dashboard.");
-        var tests = (a.identity && a.identity.tests) || [];
         var html = pillarTabs("Identity");
-        if (state.pillarTab === "assessment") {
-            html += tableFor(sortTests(applyFilters(tests)), tests.length, "identity tests");
-            return html;
-        }
         html += pillarOverviewMetrics("identity");
         html += pillarOverviewVisuals("identity");
         return html;
@@ -1850,19 +1841,7 @@
     function renderDevices() {
         var a = state.assessment;
         if (!a) return emptyState("No assessment results are available.", "Run a Zero Trust assessment to populate this dashboard.");
-        var tests = (a.devices && a.devices.tests) || [];
         var html = pillarTabs("Endpoint Device");
-        if (state.pillarTab === "assessment") {
-            var platforms = ["All", "Windows", "macOS", "iOS/iPadOS", "Android", "Tenant-wide"];
-            html += '<div class="zt-platform-tabs" role="tablist">' + platforms.map(function (p) {
-                var subset = p === "All" ? tests : tests.filter(function (t) { return (t.platform || "Tenant-wide") === p; });
-                var failedHigh = subset.filter(function (t) { return t.status === "Failed" && t.risk === "High"; }).length;
-                var passed = subset.filter(function (t) { return t.status === "Passed"; }).length;
-                return '<button type="button" role="tab" data-platform="' + esc(p) + '" class="' + (state.filters.platform === p ? "is-active" : "") + '" aria-selected="' + (state.filters.platform === p ? "true" : "false") + '">' + esc(p) + " · " + subset.length + " / " + passed + " passed / " + failedHigh + " high-risk</button>";
-            }).join("") + "</div>";
-            html += tableFor(sortTests(applyFilters(tests)), tests.length, "device tests");
-            return html;
-        }
         html += pillarOverviewMetrics("devices");
         html += pillarOverviewVisuals("devices");
         return html;
@@ -1887,13 +1866,7 @@
         var a = state.assessment;
         if (!a) return emptyState("No assessment results are available.", "Run a Zero Trust assessment to populate this dashboard.");
         var meta = PILLAR_META[view] || { title: view, caption: "tests" };
-        var bucket = pillarBucket(a, view);
-        var tests = bucket.tests || [];
         var html = pillarTabs(meta.title);
-        if (state.pillarTab === "assessment") {
-            html += tableFor(sortTests(applyFilters(tests)), tests.length, meta.caption);
-            return html;
-        }
         html += pillarOverviewMetrics(view);
         html += pillarOverviewVisuals(view);
         return html;

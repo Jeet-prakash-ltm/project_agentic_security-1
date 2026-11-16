@@ -335,8 +335,11 @@
 {% if findings_view == 'zero_trust' %}
 <div class="fw-drawer-backdrop" id="ztIcDrawerBackdrop" hidden></div>
 <aside class="fw-drawer zt-drawer" id="ztIcDrawer" hidden aria-label="Assessment result details">
-    <div class="fw-drawer-head">
-        <h3 id="ztIcDrawerTitle">Control details</h3>
+    <div class="fw-drawer-head zt-dd-head">
+        <div class="zt-dd-head-text">
+            <h3 id="ztIcDrawerTitle">Control details</h3>
+            <div class="zt-dd-head-badges" id="ztIcDrawerBadges"></div>
+        </div>
         <div class="zt-dd-head-actions">
             <button type="button" class="fw-drawer-close" id="ztIcDrawerDownload" aria-label="Download control details">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
@@ -346,6 +349,13 @@
             </button>
         </div>
     </div>
+    <nav class="zt-dd-tabs" id="ztIcDrawerTabs" role="tablist" aria-label="Control details">
+        <button type="button" role="tab" data-drawer-tab="overview" class="is-active" aria-selected="true">Overview</button>
+        <button type="button" role="tab" data-drawer-tab="profile" aria-selected="false">Control profile</button>
+        <button type="button" role="tab" data-drawer-tab="assessment" aria-selected="false">Assessment</button>
+        <button type="button" role="tab" data-drawer-tab="evidence" aria-selected="false">Evidence</button>
+        <button type="button" role="tab" data-drawer-tab="remediation" aria-selected="false">Remediation</button>
+    </nav>
     <div class="fw-drawer-body" id="ztIcDrawerBody"></div>
 </aside>
 <div class="modal-backdrop" id="ztConfirmModal" hidden>
@@ -377,6 +387,6 @@
 {% block scripts %}
 {% if not assessment_blocked %}
 <script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=8"></script>
-<script src="{{ url_for('static', filename='js/findings.js') }}?v=24"></script>
+<script src="{{ url_for('static', filename='js/findings.js') }}?v=25"></script>
 {% endif %}
 {% endblock %}

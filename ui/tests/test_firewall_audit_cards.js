@@ -28,6 +28,7 @@ function testSelectionOptions() {
 function testComplianceScoreNotNaN() {
     var payload = cards.normalizeAuditPayload({
         response_type: "firewall_assessment",
+        device_information: { name: "vmpafw01", vendor: "Palo Alto" },
         summary: {
             total_controls: 44,
             compliant: 9,
@@ -43,8 +44,12 @@ function testComplianceScoreNotNaN() {
     var rendered = cards.renderAuditCards(payload);
     assert.ok(rendered.html.indexOf("NaN%") === -1);
     assert.ok(rendered.html.indexOf("20%") !== -1);
-    assert.ok(rendered.html.indexOf("audit-section-count\">2<") !== -1 || rendered.html.indexOf(">2</span>") !== -1);
-    assert.ok(rendered.html.indexOf("Enable threat prevention.") !== -1);
+    assert.ok(rendered.html.indexOf("ws-mcq-card") !== -1);
+    assert.ok(rendered.html.indexOf("Device Information") !== -1);
+    assert.ok(rendered.html.indexOf("Overall Posture") !== -1);
+    assert.ok(rendered.html.indexOf("Key Findings") !== -1);
+    assert.ok(rendered.html.indexOf("Priority Recommendations") === -1);
+    assert.ok(rendered.html.indexOf("PA-24") !== -1);
 }
 
 function testMarkdownAssessment() {
@@ -83,7 +88,32 @@ function testMarkdownAssessment() {
     assert.ok(parsed.html.indexOf("No key findings") === -1);
 }
 
+function testTopFiveFindingsOnly() {
+    var findings = [];
+    for (var i = 1; i <= 8; i++) {
+        findings.push({
+            control: "PA-0" + i,
+            metric: "Control " + i,
+            status: "NON_COMPLIANT",
+            risk: i <= 3 ? "CRITICAL" : "MEDIUM",
+            remediation: "Fix " + i
+        });
+    }
+    var rendered = cards.renderAuditCards({
+        response_type: "firewall_assessment",
+        device_information: { name: "vmpafw01", vendor: "Palo Alto" },
+        summary: { total_controls: 44, compliant: 9, non_compliant: 18, not_assessed: 17, compliance_score: 20 },
+        findings: findings
+    });
+    assert.ok(rendered.html.indexOf("fw-audit-card") !== -1);
+    assert.equal(rendered.findings.length, 5);
+    assert.ok(rendered.html.indexOf("PA-01") !== -1);
+    assert.ok(rendered.html.indexOf("PA-08") === -1);
+    assert.ok(rendered.html.indexOf("Assessment Notice") === -1);
+}
+
 testSelectionOptions();
 testComplianceScoreNotNaN();
 testMarkdownAssessment();
+testTopFiveFindingsOnly();
 console.log("ok");

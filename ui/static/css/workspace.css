@@ -3249,6 +3249,205 @@ select.ws-ui-input[multiple] {
     .ws-finding-meta { grid-column: 2; justify-self: start; }
 }
 
+.ws-message:has(.fw-audit-card),
+.ws-message:has(.fw-picker-card) {
+    max-width: 560px;
+}
+
+.fw-audit-card .fw-audit-section {
+    border-top: 1px solid var(--border);
+}
+
+.fw-audit-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px 0;
+}
+
+.fw-audit-section-head strong {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.fw-audit-count {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--glass-soft);
+    border: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fw-audit-section-body {
+    padding: 8px 12px 12px;
+}
+
+.fw-audit-kv {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 12px;
+}
+
+.fw-audit-kv-row {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.fw-audit-kv-row span {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.fw-audit-kv-row strong {
+    font-size: 12.5px;
+    color: var(--text);
+    font-weight: 700;
+}
+
+.fw-audit-posture {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.fw-audit-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+    background: var(--glass-soft);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.fw-audit-metric span {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.fw-audit-metric strong {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.fw-audit-metric.is-score strong { color: var(--text); }
+.fw-audit-metric.is-ok strong { color: var(--success); }
+.fw-audit-metric.is-bad strong { color: var(--danger); }
+.fw-audit-metric.is-muted strong { color: var(--text-muted); }
+.fw-audit-metric.is-risk.risk-critical strong { color: var(--danger); }
+.fw-audit-metric.is-risk.risk-high strong { color: #D97706; }
+.fw-audit-metric.is-risk.risk-medium strong { color: #B45309; }
+.fw-audit-metric.is-risk.risk-low strong { color: var(--success); }
+
+.fw-audit-finding {
+    margin: 0 0 8px;
+    background: var(--glass-soft);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+.fw-audit-finding:last-child { margin-bottom: 0; }
+
+.fw-audit-finding-summary {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 10px 12px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.fw-audit-finding-summary::-webkit-details-marker { display: none; }
+
+.fw-audit-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.fw-audit-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.fw-audit-badge.risk-critical,
+.fw-audit-badge.status-noncompliant {
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+.fw-audit-badge.risk-high {
+    background: rgba(217, 119, 6, 0.16);
+    color: #D97706;
+}
+
+.fw-audit-badge.risk-medium,
+.fw-audit-badge.status-gap {
+    background: var(--warning-soft);
+    color: #B45309;
+}
+
+.fw-audit-badge.risk-low,
+.fw-audit-badge.status-compliant {
+    background: var(--success-soft);
+    color: var(--success);
+}
+
+.fw-audit-badge.risk-insufficient,
+.fw-audit-badge.status-insufficient {
+    background: var(--glass-soft);
+    color: var(--text-muted);
+}
+
+.fw-audit-finding-body {
+    padding: 0 12px 10px;
+}
+
+.fw-audit-details {
+    display: grid;
+    gap: 8px;
+}
+
+.fw-audit-details .detail-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.fw-audit-details .detail-value {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.45;
+}
+
+@media (max-width: 640px) {
+    .fw-audit-kv,
+    .fw-audit-posture {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
 .ws-message:has(.audit-wrap) {
     max-width: 1100px;
 }

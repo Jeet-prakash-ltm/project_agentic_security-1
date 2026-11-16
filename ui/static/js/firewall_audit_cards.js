@@ -598,33 +598,38 @@
         return "UNKNOWN";
     }
 
-    function agentHeader() {
-        return '<div class="audit-card audit-hero"><div class="audit-header"><div>' +
-            "<h2>Firewall Auditor Agent</h2>" +
-            '<div class="muted">Security, Compliance &amp; Operational Assessment</div>' +
-            '</div><span class="badge readonly">READ ONLY</span></div></div>';
+    function findingRank(finding) {
+        if (isInsufficientFinding(finding)) return 50;
+        var key = riskKey(finding && finding.risk);
+        if (key === "critical") return 0;
+        if (key === "high") return 1;
+        if (key === "medium") return 2;
+        if (key === "low") return 3;
+        return 40;
     }
 
-    function wrap(inner) {
-        return '<div class="audit-wrap">' + agentHeader() + (inner || "") + "</div>";
+    function topFindings(findings, limit) {
+        return (findings || []).slice().sort(function (a, b) {
+            return findingRank(a) - findingRank(b);
+        }).slice(0, limit || 5);
     }
 
     function wrapAgentOutput(innerHtml) {
         var html = innerHtml || "";
-        if (html.indexOf('class="audit-wrap"') !== -1) return html;
         if (html.indexOf("ws-mcq-card") !== -1 || html.indexOf("ws-tool-card") !== -1 || html.indexOf("fw-picker-card") !== -1) return html;
+        if (html.indexOf('class="audit-wrap"') !== -1) return html;
         if (typeof document !== "undefined") {
             var scratch = document.createElement("div");
             scratch.innerHTML = html;
             var parsed = parseBeforeDisplay(scratch.innerText || scratch.textContent || "", null);
             if (parsed && parsed.html) return parsed.html;
         }
-        return wrap('<div class="audit-card audit-fallback">' + html + "</div>");
+        return '<div class="ws-mcq-card ns-card fw-audit-card"><div class="ws-mcq-head"><strong>Firewall Auditor Agent</strong><span>Read-only assessment</span></div><div class="ns-block">' + html + "</div></div>";
     }
 
     function badge(label, className) {
         if (!label) return "";
-        return '<span class="badge ' + className + '">' + escapeHtml(label) + "</span>";
+        return '<span class="fw-audit-badge ' + className + '">' + escapeHtml(label) + "</span>";
     }
 
     function detailCell(label, value) {
@@ -636,12 +641,10 @@
     function sectionCard(title, inner, options) {
         options = options || {};
         if (!inner) return "";
-        var open = options.open ? " open" : "";
-        var count = options.count != null ? '<span class="audit-section-count">' + escapeHtml(String(options.count)) + "</span>" : "";
-        return '<details class="audit-section"' + open + ">" +
-            '<summary class="audit-section-head"><span class="audit-section-title">' + escapeHtml(title) +
-            "</span>" + count + '<span class="audit-section-chevron" aria-hidden="true"></span></summary>' +
-            '<div class="audit-section-body">' + inner + "</div></details>";
+        var count = options.count != null ? '<span class="fw-audit-count">' + escapeHtml(String(options.count)) + "</span>" : "";
+        return '<div class="fw-audit-section">' +
+            '<div class="fw-audit-section-head"><strong>' + escapeHtml(title) + "</strong>" + count + "</div>" +
+            '<div class="fw-audit-section-body">' + inner + "</div></div>";
     }
 
     function FindingCard(finding) {
@@ -650,28 +653,33 @@
         var status = textOf(finding.status);
         var title = textOf(finding.metric || finding.control);
         var control = textOf(finding.control);
+        var summary = textOf(finding.finding || finding.observed || finding.remediation);
         var evidence = textOf(finding.evidence);
         if (!evidence && (finding.observed || finding.expected)) {
             evidence = [finding.observed ? "Observed: " + finding.observed : "", finding.expected ? "Expected: " + finding.expected : ""]
                 .filter(Boolean)
                 .join(" | ");
         }
-        var html = '<details class="audit-finding ' + riskClass(risk) + (isInsufficientFinding(finding) ? " risk-insufficient" : "") + '">';
-        html += '<summary class="audit-finding-summary">';
-        html += '<div class="audit-finding-lead">';
-        if (control) html += '<span class="finding-id">' + escapeHtml(control) + "</span>";
-        if (title) html += '<span class="finding-title">' + escapeHtml(title) + "</span>";
-        html += '</div><div class="badge-group">';
+        var html = '<details class="fw-audit-finding ' + riskClass(risk) + (isInsufficientFinding(finding) ? " risk-insufficient" : "") + '">';
+        html += '<summary class="fw-audit-finding-summary">';
+        html += '<span class="ws-fw-select-name">';
+        if (control) html += escapeHtml(control);
+        if (control && title && title !== control) html += " | ";
+        if (title && title !== control) html += escapeHtml(title);
+        html += "</span>";
+        html += '<span class="fw-audit-badges">';
         html += badge(status, statusClass(status));
         html += badge(risk, riskClass(risk) || (isInsufficientFinding(finding) ? "risk-insufficient" : ""));
-        html += "</div></summary>";
+        html += "</span>";
+        if (summary) html += '<span class="ws-fw-select-meta">' + escapeHtml(summary.length > 140 ? summary.slice(0, 137) + "..." : summary) + "</span>";
+        html += "</summary>";
         var details = detailCell("Evidence", evidence) +
             detailCell("Observed Finding", finding.observed) +
             detailCell("Identified Gap", finding.finding) +
             detailCell("Business Impact", finding.business_impact || finding.impact) +
             detailCell("Recommendation", finding.remediation);
-        html += '<div class="audit-finding-body">';
-        html += details ? '<div class="details-grid">' + details + "</div>" : '<div class="muted">No additional evidence in this finding.</div>';
+        html += '<div class="fw-audit-finding-body">';
+        html += details ? '<div class="fw-audit-details">' + details + "</div>" : '<div class="ws-fw-select-meta">No additional evidence in this finding.</div>';
         html += "</div></details>";
         return html;
     }
@@ -681,9 +689,9 @@
     }
 
     function metricCard(label, value, extraClass) {
-        return '<div class="audit-metric ' + (extraClass || "") + '"><div class="audit-metric-label">' +
-            escapeHtml(label) + '</div><div class="audit-metric-value">' + escapeHtml(value == null ? "—" : String(value)) +
-            "</div></div>";
+        return '<div class="fw-audit-metric ' + (extraClass || "") + '"><span>' +
+            escapeHtml(label) + "</span><strong>" + escapeHtml(value == null ? "—" : String(value)) +
+            "</strong></div>";
     }
 
     function deviceRows(device) {
@@ -699,34 +707,26 @@
             ["Uptime", device.uptime],
             ["Scope", device.scope]
         ];
-        var html = '<div class="audit-kv">';
+        var html = '<div class="fw-audit-kv">';
         var count = 0;
         rows.forEach(function (row) {
             if (!textOf(row[1])) return;
             count += 1;
-            html += '<div class="audit-kv-row"><span>' + escapeHtml(row[0]) + "</span><strong>" + escapeHtml(row[1]) + "</strong></div>";
+            html += '<div class="fw-audit-kv-row"><span>' + escapeHtml(row[0]) + "</span><strong>" + escapeHtml(row[1]) + "</strong></div>";
         });
         return count ? html + "</div>" : "";
     }
 
     function AssessmentSummaryCard(payload) {
-        var device = deviceFrom(payload);
         var posture = postureFrom(payload);
         var risk = overallRisk(posture);
-        var html = "";
-        if (device.name) {
-            html += '<div class="audit-fw-banner"><span class="audit-fw-banner-name">' + escapeHtml(device.name) + "</span>";
-            var meta = [device.vendor, device.model, device.version].filter(Boolean).join(" · ");
-            if (meta) html += '<span class="muted">' + escapeHtml(meta) + "</span>";
-            html += "</div>";
-        }
-        html += '<div class="posture-grid">';
-        html += metricCard("Compliance Score", formatScore(posture.compliance_score != null ? posture.compliance_score : posture.compliance_pct), "is-score");
-        html += metricCard("Overall Risk", risk, "is-risk " + riskClass(risk));
+        var html = '<div class="fw-audit-posture">';
+        html += metricCard("Score", formatScore(posture.compliance_score != null ? posture.compliance_score : posture.compliance_pct), "is-score");
+        html += metricCard("Risk", risk, "is-risk " + riskClass(risk));
         html += metricCard("Controls", posture.total_controls, "is-controls");
         html += metricCard("Compliant", posture.compliant, "is-ok");
         html += metricCard("Non-Compliant", posture.non_compliant, "is-bad");
-        html += metricCard("Insufficient Data", posture.not_assessed, "is-muted");
+        html += metricCard("Insufficient", posture.not_assessed, "is-muted");
         html += "</div>";
         return html;
     }
@@ -735,65 +735,21 @@
         return assessmentCard(payload).html;
     }
 
-    function recommendationList(recs) {
-        if (!recs.length) return "";
-        var html = '<ol class="recommendations">';
-        recs.forEach(function (rec) { html += "<li>" + escapeHtml(rec) + "</li>"; });
-        return html + "</ol>";
-    }
-
-    function groupFindingsByRisk(findings) {
-        var groups = { critical: [], high: [], medium: [], low: [], insufficient: [], other: [] };
-        findings.forEach(function (finding) {
-            if (isInsufficientFinding(finding)) {
-                groups.insufficient.push(finding);
-                return;
-            }
-            var key = riskKey(finding && finding.risk);
-            if (key && groups[key]) groups[key].push(finding);
-            else groups.other.push(finding);
-        });
-        return groups;
-    }
-
-    function findingsGroupHtml(title, items, open) {
-        if (!items.length) return "";
-        var inner = "";
-        items.forEach(function (finding) { inner += FindingCard(finding); });
-        return sectionCard(title, inner, { open: !!open, count: items.length });
-    }
-
     function assessmentCard(payload) {
         var findings = findingsFrom(payload);
-        var recs = recommendationsFrom(payload);
         var device = deviceFrom(payload);
-        var groups = groupFindingsByRisk(findings);
-        var keyCount = groups.critical.length + groups.high.length + groups.medium.length + groups.low.length + groups.other.length;
-        var html = "";
-        html += sectionCard("Device Information", deviceRows(device), { open: false });
-        html += sectionCard("Overall Posture", AssessmentSummaryCard(payload), { open: true });
+        var shown = topFindings(findings, 5);
+        var title = device.name ? device.name + " Assessment" : "Firewall Assessment";
+        var html = '<div class="ws-mcq-card ns-card fw-audit-card">';
+        html += '<div class="ws-mcq-head"><strong>' + escapeHtml(title) + "</strong><span>Read-only security and compliance assessment</span></div>";
+        html += sectionCard("Device Information", deviceRows(device));
+        html += sectionCard("Overall Posture", AssessmentSummaryCard(payload));
         var findingHtml = "";
-        findingHtml += findingsGroupHtml("Critical", groups.critical, true);
-        findingHtml += findingsGroupHtml("High", groups.high, true);
-        findingHtml += findingsGroupHtml("Medium", groups.medium, false);
-        findingHtml += findingsGroupHtml("Low", groups.low, false);
-        findingHtml += findingsGroupHtml("Other findings", groups.other, false);
-        if (!findingHtml) {
-            findingHtml = '<div class="muted">No key findings in this assessment.</div>';
-        }
-        html += sectionCard("Key Findings", findingHtml, { open: true, count: keyCount });
-        if (groups.insufficient.length) {
-            html += findingsGroupHtml("Insufficient Data", groups.insufficient, false);
-        }
-        var priorityRecs = recs.slice(0, 5);
-        var extraRecs = recs.slice(5);
-        html += sectionCard("Priority Recommendations", recommendationList(priorityRecs), { open: true, count: priorityRecs.length || undefined });
-        if (extraRecs.length) {
-            html += sectionCard("Technical recommendations", recommendationList(extraRecs), { open: false, count: extraRecs.length });
-        }
-        var notice = textOf(payload.notice || payload.assessment_notice || payload.business_impact);
-        if (notice) html += sectionCard("Assessment Notice", '<div class="notice">' + escapeHtml(notice) + "</div>", { open: false });
-        return { html: wrap(html), findings: findings };
+        shown.forEach(function (finding) { findingHtml += FindingCard(finding); });
+        if (!findingHtml) findingHtml = '<div class="ws-fw-select-meta">No key findings in this assessment.</div>';
+        html += sectionCard("Key Findings", findingHtml, { count: shown.length });
+        html += "</div>";
+        return { html: html, findings: shown };
     }
 
     function selectionOptionHtml(fw) {

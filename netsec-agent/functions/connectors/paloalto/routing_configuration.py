@@ -18,7 +18,7 @@ class RoutingConfigurationCollector:
             "static_routes": [],
             "bgp_enabled": False,
             "ospf_enabled": False,
-            "route_leaks": []
+            "route_leaks": 0
         }
 
         try:

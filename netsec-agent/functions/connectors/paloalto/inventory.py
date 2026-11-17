@@ -63,5 +63,47 @@ class InventoryCollector:
                 ),
 
             "vendor":
-                "PaloAlto"
+                "PaloAlto",
+
+            "app_version":
+                XMLParser.get_text(
+                    system,
+                    "app-version"
+                ),
+
+            "threat_version":
+                XMLParser.get_text(
+                    system,
+                    "threat-version"
+                ),
+
+            "av_version":
+                XMLParser.get_text(
+                    system,
+                    "av-version"
+                ),
+
+            "wildfire_version":
+                XMLParser.get_text(
+                    system,
+                    "wildfire-version"
+                ),
+
+            "threat_release_date":
+                XMLParser.get_text(
+                    system,
+                    "threat-release-date"
+                ),
+
+            "wildfire_release_date":
+                XMLParser.get_text(
+                    system,
+                    "wildfire-release-date"
+                ),
+
+            "app_release_date":
+                XMLParser.get_text(
+                    system,
+                    "app-release-date"
+                ),
         }

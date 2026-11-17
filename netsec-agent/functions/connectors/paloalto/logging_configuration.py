@@ -91,6 +91,16 @@ class LoggingConfigurationCollector:
                         profile_name
                     )
 
+            result["traffic_logging_enabled"] = bool(
+                result["log_forwarding_profiles"] or result["syslog_servers"]
+            )
+            result["retention_days"] = None
+            if result["snmp_enabled"]:
+                version = XMLParser.get_text(root, ".//snmp-setting/version")
+                result["snmp_version"] = version or "unknown"
+            else:
+                result["snmp_version"] = None
+
         except Exception as e:
 
             result["error"] = str(e)

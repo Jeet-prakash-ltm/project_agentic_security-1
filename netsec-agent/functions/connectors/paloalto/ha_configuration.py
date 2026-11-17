@@ -63,14 +63,14 @@ class HAConfigurationCollector:
             )
 
             result["link_monitoring"] = (
-                self._find_text(
+                self._enabled_flag(
                     root,
                     ".//link-monitoring"
                 )
             )
 
             result["path_monitoring"] = (
-                self._find_text(
+                self._enabled_flag(
                     root,
                     ".//path-monitoring"
                 )
@@ -103,3 +103,22 @@ class HAConfigurationCollector:
             return node.text.strip()
 
         return None
+
+    def _enabled_flag(self, root, xpath):
+        if root is None:
+            return False
+        node = root.find(xpath)
+        if node is None:
+            return False
+        text = (node.text or "").strip().lower()
+        if text in ("yes", "enabled", "true", "on"):
+            return True
+        enabled = node.find(".//enabled")
+        if enabled is not None and (enabled.text or "").strip().lower() in (
+            "yes",
+            "enabled",
+            "true",
+            "on",
+        ):
+            return True
+        return bool(list(node))

@@ -172,6 +172,57 @@ function testInvalidStructuredFallsBack() {
     assert.equal(cards.parseBeforeDisplay("Hello, I can assess firewalls.", null), null);
 }
 
+function testLiveFoundrySelectionMarkdown() {
+    var markdown = [
+        "To start the assessment, choose which firewall to assess:",
+        "",
+        "1. vmpafw01 — Palo Alto — 20.44.53.215 — status: live",
+        "2. vmpafw03 — Palo Alto — 20.44.53.215 — status: live",
+        "3. vmpafw04 — Palo Alto — 20.44.53.215 — status: live"
+    ].join("\n");
+    var parsed = cards.parseBeforeDisplay(markdown, null);
+    assert.ok(parsed);
+    assert.equal(parsed.response_type, "firewall_selection");
+    assert.ok(parsed.html.indexOf("data-fw-select=\"vmpafw01\"") !== -1);
+    assert.ok(parsed.html.indexOf("data-fw-select=\"vmpafw03\"") !== -1);
+    assert.ok(parsed.html.indexOf("data-fw-select=\"vmpafw04\"") !== -1);
+    assert.ok(parsed.html.indexOf("ws-fw-select-option") !== -1);
+}
+
+function testLiveFoundryAssessmentMarkdown() {
+    var markdown = [
+        "Here's the compliance audit result for firewall **vmpafw01** (Palo Alto PA-VM, PAN-OS 10.2.10-h9, IP 20.44.53.215):",
+        "",
+        "**Overall posture**",
+        "- Assessment ID: **NS-vmpafw01-1794879675302**",
+        "- Total controls: **44**",
+        "- COMPLIANT: **12**",
+        "- NON_COMPLIANT: **32**",
+        "- Compliance score: **27.3%**",
+        "- Overall risk: **CRITICAL**",
+        "",
+        "**Major risk drivers (examples)**",
+        "- PAN-OS version not on supported baseline (PA-01).",
+        "- Threat Prevention, WildFire, URL Filtering all disabled (PA-24)."
+    ].join("\n");
+    var parsed = cards.parseBeforeDisplay(markdown, null);
+    assert.ok(parsed);
+    assert.equal(parsed.response_type, "firewall_assessment");
+    assert.equal(parsed.audit.summary.compliant, 12);
+    assert.equal(parsed.audit.summary.non_compliant, 32);
+    assert.equal(parsed.audit.summary.compliance_score, 27.3);
+    assert.equal(parsed.audit.device_information.name, "vmpafw01");
+    assert.ok(parsed.html.indexOf("Device Information") !== -1);
+    assert.ok(parsed.html.indexOf("Overall Posture") !== -1);
+    assert.ok(parsed.html.indexOf("Key Findings") !== -1);
+    assert.ok(parsed.html.indexOf("27.3%") !== -1);
+    assert.ok(parsed.html.indexOf("vmpafw01") !== -1);
+    assert.ok(parsed.html.indexOf("NaN") === -1);
+    assert.ok(parsed.audit.findings.length >= 2);
+    assert.equal(parsed.audit.findings[0].control, "PA-01");
+    assert.equal(parsed.audit.findings[1].control, "PA-24");
+}
+
 testSelectionOptions();
 testComplianceScoreNotNaN();
 testMarkdownAssessment();
@@ -180,4 +231,6 @@ testStructuredSelectionCards();
 testStructuredFindingsExpand();
 testStructuredReportDownloadOnlyWhenUrlExists();
 testInvalidStructuredFallsBack();
+testLiveFoundrySelectionMarkdown();
+testLiveFoundryAssessmentMarkdown();
 console.log("ok");

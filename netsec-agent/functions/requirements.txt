@@ -1,4 +1,5 @@
 azure-functions==1.*
+azure-storage-blob
 requests
 pan-os-python
 openpyxl

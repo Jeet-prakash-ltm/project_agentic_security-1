@@ -180,7 +180,61 @@ def log_activity(agent_id, run_id, activity, function_name, status="Completed", 
     return _with_connection(_run)
 
 
-def persist_assessment(firewall_name, data, function_name="run_full_assessment"):
+def start_assessment(firewall_name, function_name="run_compliance_assessment"):
+    """Insert a RUNNING assessment row and return its assessment_id."""
+    firewall_name = str(firewall_name or "vmpafw01").strip() or "vmpafw01"
+    now = datetime.now(timezone.utc)
+    run_id = "NS-{0}-{1}".format(firewall_name, int(time.time() * 1000))
+    summary_payload = {
+        "function_name": function_name,
+        "firewall_name": firewall_name,
+        "source": "network-security-firewall-agent",
+        "status": "RUNNING",
+    }
+
+    def _run(conn):
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO assessments (
+                    id, assessment_id, assessment_type, security_domain,
+                    agent_id, asset_id, firewall_id, user_id, status,
+                    overall_score, compliance_score, security_score, risk_level,
+                    total_checks, passed_checks, failed_checks, error_checks,
+                    critical_findings, high_findings, medium_findings, low_findings,
+                    total_findings, summary, started_at, created_at, updated_at
+                )
+                VALUES (
+                    gen_random_uuid(), %s, 'firewall_audit', 'network_security',
+                    'firewall-audit-agent', %s, %s, 'anonymous', 'running',
+                    NULL, NULL, NULL, NULL,
+                    0, 0, 0, 0,
+                    0, 0, 0, 0,
+                    0, %s, %s, %s, %s
+                )
+                """,
+                (
+                    run_id,
+                    firewall_name,
+                    firewall_name,
+                    _jsonb(summary_payload),
+                    now,
+                    now,
+                    now,
+                ),
+            )
+        return run_id
+
+    return _with_connection(_run)
+
+
+def persist_assessment(
+    firewall_name,
+    data,
+    function_name="run_full_assessment",
+    assessment_id=None,
+    status=None,
+):
     """Persist one assessment run into canonical PostgreSQL tables."""
     if not isinstance(data, dict):
         return None
@@ -193,7 +247,11 @@ def persist_assessment(firewall_name, data, function_name="run_full_assessment")
     total_checks = int(summary.get("total_controls") or len(data.get("assessment") or []) or 0)
     passed_checks = int(summary.get("compliant") or 0)
     failed_checks = int(summary.get("non_compliant") or 0)
-    error_checks = int(summary.get("not_assessed") or 0)
+    error_checks = int(
+        summary.get("not_assessed")
+        or summary.get("insufficient_data")
+        or 0
+    )
     if total_checks and passed_checks == 0 and failed_checks == 0 and data.get("assessment"):
         results = data.get("assessment") or []
         passed_checks = len([r for r in results if (r.get("status") or "").upper() == "COMPLIANT"])
@@ -201,74 +259,165 @@ def persist_assessment(firewall_name, data, function_name="run_full_assessment")
         error_checks = len([r for r in results if (r.get("status") or "").upper() == "NOT_ASSESSED"])
         total_checks = len(results)
 
-    compliance_score = summary.get("compliance_pct")
+    collection_status = str(data.get("collection_status") or "").upper()
+    if status:
+        persist_status = str(status).strip().lower()
+    elif collection_status == "FAILED" or total_checks <= 0:
+        persist_status = "failed"
+    else:
+        persist_status = "completed"
+    if persist_status in ("failed", "fail", "error"):
+        persist_status = "failed"
+    elif persist_status in ("partial",):
+        persist_status = "partial"
+    elif persist_status in ("running", "in_progress"):
+        persist_status = "running"
+    else:
+        persist_status = "completed"
+    data["persist_status"] = persist_status.upper()
+
+    compliance_score = summary.get("compliance_score")
+    if compliance_score is None:
+        compliance_score = summary.get("compliance_pct")
     if compliance_score is None and total_checks:
         compliance_score = round(passed_checks / total_checks * 100, 1)
     security_score = data.get("security_score")
     overall_score = security_score if security_score is not None else compliance_score
 
     now = datetime.now(timezone.utc)
-    run_id = "NS-{0}-{1}".format(firewall_name, int(time.time() * 1000))
+    run_id = assessment_id or data.get("assessment_id") or (
+        "NS-{0}-{1}".format(firewall_name, int(time.time() * 1000))
+    )
     summary_payload = {
         "function_name": function_name,
         "firewall_name": firewall_name,
         "source": "network-security-firewall-agent",
+        "status": persist_status,
+        "collection_status": collection_status or None,
         "total_controls": total_checks,
         "compliant": passed_checks,
         "non_compliant": failed_checks,
         "not_assessed": error_checks,
+        "insufficient_data": error_checks,
+        "gap_identified": int(summary.get("gap_identified") or 0),
+        "compliance_score": compliance_score,
+        "overall_risk": summary.get("overall_risk") or _risk_level(severity).upper(),
         "inventory": data.get("inventory") or {},
+        "collection_errors": data.get("collection_errors") or {},
+        "error": data.get("error") or data.get("message"),
     }
+
+    completed_at = now if persist_status in ("completed", "failed", "partial") else None
 
     def _run(conn):
         from psycopg2.extras import execute_values
 
         with conn.cursor() as cur:
             cur.execute(
-                """
-                INSERT INTO assessments (
-                    id, assessment_id, assessment_type, security_domain,
-                    agent_id, asset_id, firewall_id, user_id, status,
-                    overall_score, compliance_score, security_score, risk_level,
-                    total_checks, passed_checks, failed_checks, error_checks,
-                    critical_findings, high_findings, medium_findings, low_findings,
-                    total_findings, summary, started_at, completed_at,
-                    created_at, updated_at
-                )
-                VALUES (
-                    gen_random_uuid(), %s, 'firewall_audit', 'network_security',
-                    'firewall-audit-agent', %s, %s, 'anonymous', 'completed',
-                    %s, %s, %s, %s,
-                    %s, %s, %s, %s,
-                    %s, %s, %s, %s,
-                    %s, %s, %s, %s,
-                    %s, %s
-                )
-                """,
-                (
-                    run_id,
-                    firewall_name,
-                    firewall_name,
-                    overall_score,
-                    compliance_score,
-                    security_score,
-                    _risk_level(severity),
-                    total_checks,
-                    passed_checks,
-                    failed_checks,
-                    error_checks,
-                    severity["critical"],
-                    severity["high"],
-                    severity["medium"],
-                    severity["low"],
-                    len(findings),
-                    _jsonb(summary_payload),
-                    now,
-                    now,
-                    now,
-                    now,
-                ),
+                "SELECT 1 FROM assessments WHERE assessment_id = %s",
+                (run_id,),
             )
+            exists = cur.fetchone() is not None
+            values = (
+                persist_status,
+                overall_score,
+                compliance_score,
+                security_score,
+                _risk_level(severity),
+                total_checks,
+                passed_checks,
+                failed_checks,
+                error_checks,
+                severity["critical"],
+                severity["high"],
+                severity["medium"],
+                severity["low"],
+                len(findings),
+                _jsonb(summary_payload),
+                completed_at,
+                now,
+                run_id,
+            )
+            if exists:
+                cur.execute(
+                    "DELETE FROM assessment_findings WHERE assessment_id = %s",
+                    (run_id,),
+                )
+                cur.execute(
+                    "DELETE FROM assessment_evidence WHERE assessment_id = %s",
+                    (run_id,),
+                )
+                cur.execute(
+                    """
+                    UPDATE assessments
+                    SET status = %s,
+                        overall_score = %s,
+                        compliance_score = %s,
+                        security_score = %s,
+                        risk_level = %s,
+                        total_checks = %s,
+                        passed_checks = %s,
+                        failed_checks = %s,
+                        error_checks = %s,
+                        critical_findings = %s,
+                        high_findings = %s,
+                        medium_findings = %s,
+                        low_findings = %s,
+                        total_findings = %s,
+                        summary = %s,
+                        completed_at = %s,
+                        updated_at = %s
+                    WHERE assessment_id = %s
+                    """,
+                    values,
+                )
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO assessments (
+                        id, assessment_id, assessment_type, security_domain,
+                        agent_id, asset_id, firewall_id, user_id, status,
+                        overall_score, compliance_score, security_score, risk_level,
+                        total_checks, passed_checks, failed_checks, error_checks,
+                        critical_findings, high_findings, medium_findings, low_findings,
+                        total_findings, summary, started_at, completed_at,
+                        created_at, updated_at
+                    )
+                    VALUES (
+                        gen_random_uuid(), %s, 'firewall_audit', 'network_security',
+                        'firewall-audit-agent', %s, %s, 'anonymous', %s,
+                        %s, %s, %s, %s,
+                        %s, %s, %s, %s,
+                        %s, %s, %s, %s,
+                        %s, %s, %s, %s,
+                        %s, %s
+                    )
+                    """,
+                    (
+                        run_id,
+                        firewall_name,
+                        firewall_name,
+                        persist_status,
+                        overall_score,
+                        compliance_score,
+                        security_score,
+                        _risk_level(severity),
+                        total_checks,
+                        passed_checks,
+                        failed_checks,
+                        error_checks,
+                        severity["critical"],
+                        severity["high"],
+                        severity["medium"],
+                        severity["low"],
+                        len(findings),
+                        _jsonb(summary_payload),
+                        now,
+                        completed_at,
+                        now,
+                        now,
+                    ),
+                )
 
             finding_rows = []
             for item in findings:
@@ -381,6 +530,33 @@ def persist_assessment(firewall_name, data, function_name="run_full_assessment")
     return assessment_id
 
 
+def load_assessment_by_id(assessment_id):
+    """Rebuild a Function App payload from an exact assessments row."""
+    selected = str(assessment_id or "").strip()
+    if not selected:
+        return None
+
+    def _run(conn):
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT assessment_id, firewall_id, overall_score, compliance_score,
+                       security_score, total_checks, passed_checks, failed_checks,
+                       error_checks, summary, completed_at, status
+                FROM assessments
+                WHERE assessment_id = %s
+                LIMIT 1
+                """,
+                (selected,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            return _payload_from_assessment_row(cur, row)
+
+    return _with_connection(_run)
+
+
 def load_latest_assessment(firewall_name=None):
     """Rebuild a Function App assessment payload from the latest canonical row."""
 
@@ -391,10 +567,11 @@ def load_latest_assessment(firewall_name=None):
                     """
                     SELECT assessment_id, firewall_id, overall_score, compliance_score,
                            security_score, total_checks, passed_checks, failed_checks,
-                           error_checks, summary, completed_at
+                           error_checks, summary, completed_at, status
                     FROM assessments
                     WHERE security_domain = 'network_security'
-                      AND lower(coalesce(status, '')) = 'completed'
+                      AND lower(coalesce(status, '')) IN ('completed', 'partial')
+                      AND COALESCE(total_checks, 0) > 0
                       AND firewall_id = %s
                     ORDER BY completed_at DESC NULLS LAST, created_at DESC
                     LIMIT 1
@@ -406,10 +583,11 @@ def load_latest_assessment(firewall_name=None):
                     """
                     SELECT assessment_id, firewall_id, overall_score, compliance_score,
                            security_score, total_checks, passed_checks, failed_checks,
-                           error_checks, summary, completed_at
+                           error_checks, summary, completed_at, status
                     FROM assessments
                     WHERE security_domain = 'network_security'
-                      AND lower(coalesce(status, '')) = 'completed'
+                      AND lower(coalesce(status, '')) IN ('completed', 'partial')
+                      AND COALESCE(total_checks, 0) > 0
                     ORDER BY completed_at DESC NULLS LAST, created_at DESC
                     LIMIT 1
                     """
@@ -417,128 +595,264 @@ def load_latest_assessment(firewall_name=None):
             row = cur.fetchone()
             if not row:
                 return None
-            (
-                assessment_id,
-                firewall_id,
-                overall_score,
-                compliance_score,
-                security_score,
-                total_checks,
-                passed_checks,
-                failed_checks,
-                error_checks,
-                summary_blob,
-                completed_at,
-            ) = row
-
-            cur.execute(
-                """
-                SELECT collector, evidence_type, payload
-                FROM assessment_evidence
-                WHERE assessment_id = %s
-                """,
-                (assessment_id,),
-            )
-            evidence = cur.fetchall()
-            cur.execute(
-                """
-                SELECT control_id, category, status, severity, risk_score,
-                       finding, observed_value, expected_value, remediation
-                FROM assessment_findings
-                WHERE assessment_id = %s
-                ORDER BY created_at
-                """,
-                (assessment_id,),
-            )
-            finding_rows = cur.fetchall()
-
-        def _as_json(value):
-            if isinstance(value, (bytes, bytearray)):
-                value = value.decode("utf-8")
-            if isinstance(value, str):
-                try:
-                    import json as json_lib
-
-                    return json_lib.loads(value)
-                except Exception:
-                    return value
-            return value
-
-        payload = {
-            "assessment_id": assessment_id,
-            "_firewall_id": firewall_id,
-            "security_score": security_score or overall_score,
-        }
-        assessment = []
-        summary = {}
-        summary_blob = _as_json(summary_blob)
-        for collector, evidence_type, body in evidence:
-            body = _as_json(body)
-            if evidence_type == "compliance_results" or collector == "assessment":
-                if isinstance(body, list):
-                    assessment = body
-            elif evidence_type == "assessment_summary" or collector == "summary":
-                if isinstance(body, dict):
-                    summary = dict(body)
-            elif collector in EVIDENCE_KEYS:
-                payload[collector] = body
-
-        if not summary:
-            summary = {
-                "total_controls": int(total_checks or 0),
-                "compliant": int(passed_checks or 0),
-                "non_compliant": int(failed_checks or 0),
-                "not_assessed": int(error_checks or 0),
-            }
-        if isinstance(summary_blob, dict) and not payload.get("inventory"):
-            inventory = summary_blob.get("inventory")
-            if isinstance(inventory, dict):
-                payload["inventory"] = inventory
-
-        status_reverse = {
-            "passed": "COMPLIANT",
-            "failed": "NON_COMPLIANT",
-            "not_assessed": "NOT_ASSESSED",
-            "error": "NOT_ASSESSED",
-        }
-        findings = []
-        for item in finding_rows:
-            raw_status = (item[2] or "").lower()
-            findings.append(
-                {
-                    "control": item[0],
-                    "metric": item[1],
-                    "status": status_reverse.get(raw_status, (item[2] or "").upper() or "NOT_ASSESSED"),
-                    "risk": (item[3] or "MEDIUM").upper(),
-                    "risk_score": item[4],
-                    "finding": item[5],
-                    "observed": item[6],
-                    "expected": item[7],
-                    "remediation": item[8],
-                }
-            )
-        if not assessment:
-            assessment = [
-                {
-                    "control": f["control"],
-                    "status": f["status"],
-                    "risk": f["risk"],
-                    "metric": f.get("metric"),
-                    "observed": f.get("observed"),
-                    "expected": f.get("expected"),
-                    "operator": None,
-                }
-                for f in findings
-            ]
-        payload["summary"] = summary
-        payload["findings"] = findings
-        payload["assessment"] = assessment
-        if completed_at is not None:
-            payload["_collected_at"] = str(completed_at)
-        payload["_source"] = "stored"
-        return payload
+            return _payload_from_assessment_row(cur, row)
 
     return _with_connection(_run)
+
+
+def _payload_from_assessment_row(cur, row):
+    (
+        assessment_id,
+        firewall_id,
+        overall_score,
+        compliance_score,
+        security_score,
+        total_checks,
+        passed_checks,
+        failed_checks,
+        error_checks,
+        summary_blob,
+        completed_at,
+        persist_status,
+    ) = row
+
+    cur.execute(
+        """
+        SELECT collector, evidence_type, payload
+        FROM assessment_evidence
+        WHERE assessment_id = %s
+        """,
+        (assessment_id,),
+    )
+    evidence = cur.fetchall()
+    cur.execute(
+        """
+        SELECT control_id, category, status, severity, risk_score,
+               finding, observed_value, expected_value, remediation
+        FROM assessment_findings
+        WHERE assessment_id = %s
+        ORDER BY created_at
+        """,
+        (assessment_id,),
+    )
+    finding_rows = cur.fetchall()
+
+    def _as_json(value):
+        if isinstance(value, (bytes, bytearray)):
+            value = value.decode("utf-8")
+        if isinstance(value, str):
+            try:
+                import json as json_lib
+
+                return json_lib.loads(value)
+            except Exception:
+                return value
+        return value
+
+    payload = {
+        "assessment_id": assessment_id,
+        "_firewall_id": firewall_id,
+        "firewall": firewall_id,
+        "security_score": security_score or overall_score,
+        "persist_status": persist_status,
+    }
+    assessment = []
+    summary = {}
+    summary_blob = _as_json(summary_blob)
+    for collector, evidence_type, body in evidence:
+        body = _as_json(body)
+        if evidence_type == "compliance_results" or collector == "assessment":
+            if isinstance(body, list):
+                assessment = body
+        elif evidence_type == "assessment_summary" or collector == "summary":
+            if isinstance(body, dict):
+                summary = dict(body)
+        elif collector in EVIDENCE_KEYS:
+            payload[collector] = body
+
+    if not summary:
+        summary = {
+            "total_controls": int(total_checks or 0),
+            "compliant": int(passed_checks or 0),
+            "non_compliant": int(failed_checks or 0),
+            "not_assessed": int(error_checks or 0),
+            "insufficient_data": int(error_checks or 0),
+            "compliance_score": compliance_score,
+        }
+    if isinstance(summary_blob, dict) and not payload.get("inventory"):
+        inventory = summary_blob.get("inventory")
+        if isinstance(inventory, dict):
+            payload["inventory"] = inventory
+
+    status_reverse = {
+        "passed": "COMPLIANT",
+        "failed": "NON_COMPLIANT",
+        "not_assessed": "NOT_ASSESSED",
+        "error": "NOT_ASSESSED",
+    }
+    findings = []
+    for item in finding_rows:
+        raw_status = (item[2] or "").lower()
+        findings.append(
+            {
+                "control": item[0],
+                "metric": item[1],
+                "status": status_reverse.get(raw_status, (item[2] or "").upper() or "NOT_ASSESSED"),
+                "risk": (item[3] or "MEDIUM").upper(),
+                "risk_score": item[4],
+                "finding": item[5],
+                "observed": item[6],
+                "expected": item[7],
+                "remediation": item[8],
+            }
+        )
+    if not assessment:
+        assessment = [
+            {
+                "control": f["control"],
+                "status": f["status"],
+                "risk": f["risk"],
+                "metric": f.get("metric"),
+                "observed": f.get("observed"),
+                "expected": f.get("expected"),
+                "operator": None,
+            }
+            for f in findings
+        ]
+    payload["summary"] = summary
+    payload["findings"] = findings
+    payload["assessment"] = assessment
+    if completed_at is not None:
+        payload["_collected_at"] = str(completed_at)
+    payload["_source"] = "stored"
+    return payload
+
+
+def list_firewall_inventory():
+    """Return firewalls from inventory tables for user selection."""
+
+    def _run(conn):
+        rows = []
+        seen = set()
+        with conn.cursor() as cur:
+            try:
+                cur.execute(
+                    """
+                    SELECT id, hostname, serial_number, model, pan_os_version,
+                           management_ip, collected_at
+                    FROM firewall_inventory
+                    ORDER BY hostname NULLS LAST, collected_at DESC NULLS LAST
+                    """
+                )
+                for item in cur.fetchall():
+                    name = (item[1] or "").strip()
+                    management_ip = (item[5] or "").strip()
+                    if not name and not management_ip:
+                        continue
+                    key = (name.lower(), management_ip)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    rows.append(
+                        {
+                            "id": str(item[0]) if item[0] is not None else None,
+                            "name": name or management_ip,
+                            "hostname": name or management_ip,
+                            "serial_number": item[2],
+                            "model": item[3],
+                            "pan_os_version": item[4],
+                            "management_ip": management_ip or None,
+                            "ip": management_ip or None,
+                            "status": "down",
+                            "vendor": "Palo Alto",
+                            "port": None,
+                            "username": None,
+                            "device_type": None,
+                            "source": "firewall_inventory",
+                        }
+                    )
+            except Exception as exc:
+                log.warning("firewall_inventory query failed: %s", exc)
+
+            try:
+                cur.execute(
+                    """
+                    SELECT id, device_name, host_name, host_ip, status, vendor,
+                           port, username, device_type, clone_of
+                    FROM managed_firewalls
+                    ORDER BY device_name
+                    """
+                )
+                for item in cur.fetchall():
+                    name = (item[1] or "").strip()
+                    hostname = (item[2] or "").strip()
+                    host_ip = (item[3] or "").strip()
+                    display = name or hostname or host_ip
+                    if not display:
+                        continue
+                    key = (display.lower(), host_ip)
+                    existing_names = {
+                        row["name"].lower()
+                        for row in rows
+                        if row.get("name")
+                    }
+                    if display.lower() in existing_names:
+                        continue
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    raw_status = (item[4] or "").strip().lower()
+                    if raw_status in ("live", "up", "online", "active", "reachable"):
+                        status = "live"
+                    else:
+                        status = "down"
+                    vendor = (item[5] or "").strip() or "Palo Alto"
+                    ip_addr = host_ip or hostname or None
+                    rows.append(
+                        {
+                            "id": str(item[0]) if item[0] is not None else None,
+                            "name": name or hostname or host_ip,
+                            "hostname": hostname or name or host_ip,
+                            "serial_number": None,
+                            "model": None,
+                            "pan_os_version": None,
+                            "management_ip": ip_addr,
+                            "ip": ip_addr,
+                            "status": status,
+                            "vendor": vendor,
+                            "port": item[6],
+                            "username": item[7],
+                            "device_type": item[8],
+                            "clone_of": item[9],
+                            "source": "managed_firewalls",
+                        }
+                    )
+            except Exception as exc:
+                log.warning("managed_firewalls query failed: %s", exc)
+        return rows
+
+    return _with_connection(_run) or []
+
+
+def get_firewall_by_selector(selector, firewalls=None):
+    """Resolve a user-selected firewall from inventory rows."""
+    selected = (selector or "").strip()
+    if not selected:
+        return None
+    rows = firewalls if firewalls is not None else list_firewall_inventory()
+    needle = selected.lower()
+    for row in rows or []:
+        candidates = [
+            row.get("id"),
+            row.get("name"),
+            row.get("hostname"),
+            row.get("management_ip"),
+            row.get("serial_number"),
+        ]
+        for value in candidates:
+            if value is not None and str(value).strip().lower() == needle:
+                return row
+    return None
 
 
 def persist_report(data):

@@ -92,6 +92,8 @@ class PolicyConfigurationCollector:
                 )
             )
 
+            result["stale_nat_rules"] = 0
+
         except Exception as e:
 
             result["error"] = str(e)

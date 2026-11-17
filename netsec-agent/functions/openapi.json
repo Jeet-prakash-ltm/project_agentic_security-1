@@ -1,0 +1,810 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "USC Firewall Auditor API",
+    "version": "1.3.0",
+    "description": "Enterprise Palo Alto Firewall Security Assessment and Reporting API.\n\nCRITICAL agent workflow for every NEW audit or compliance request:\n1. Call GET /list_firewalls. Never reuse a firewall from earlier in the conversation.\n2. Show name, vendor, IP, and live/down status. Include ALL as an option.\n3. After the user selects a live firewall for THIS request, call POST /run_compliance_assessment or POST /run_full_assessment with {\"firewall\":\"vmpafw01\"} or {\"firewall\":\"ALL\"}.\n4. Assessment endpoints never prompt for selection. Empty body returns MISSING_FIREWALL. Unknown name returns INVALID_FIREWALL. Down device returns FIREWALL_DOWN with message: firewall down or stopped.\n5. Persist completed assessments only when collectors return valid results. Timeout or empty results are FAILED, never empty completed.\n6. After a successful assessment, use the returned assessment_id. Call POST /executive_summary and POST /generate_excel_report with {\"assessment_id\":\"NS-...\"}. Unknown id returns ASSESSMENT_NOT_FOUND. Never fall back to the latest assessment.\n7. compliance_score is compliant/total_controls*100 from this API. Do not recalculate in the UI.\n8. Excel returns download_available and a blob SAS download_url. Never show an internal /tmp path."
+  },
+  "servers": [
+    {
+      "url": "https://network-security-firewall-agent-frcrcqg0ejaddte2.southindia-01.azurewebsites.net/api"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "FunctionKey": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "code"
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ERROR",
+              "MISSING_FIREWALL",
+              "INVALID_FIREWALL",
+              "NO_FIREWALLS",
+              "FIREWALL_DOWN",
+              "MISSING_ASSESSMENT_ID",
+              "ASSESSMENT_NOT_FOUND",
+              "ASSESSMENT_FAILED"
+            ],
+            "example": "ERROR"
+          },
+          "message": {
+            "type": "string",
+            "example": "Firewall authentication failed"
+          },
+          "assessment_id": {
+            "type": "string"
+          },
+          "invalid_selection": {
+            "type": "string"
+          },
+          "firewalls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FirewallOption"
+            }
+          }
+        }
+      },
+      "FirewallOption": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "2"
+          },
+          "name": {
+            "type": "string",
+            "example": "vmpafw01"
+          },
+          "vendor": {
+            "type": "string",
+            "example": "Palo Alto"
+          },
+          "ip": {
+            "type": "string",
+            "example": "20.44.53.215"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["live", "down"],
+            "example": "live"
+          },
+          "display": {
+            "type": "string",
+            "example": "Name: vmpafw01 | Vendor: Palo Alto | IP: 20.44.53.215 | Status: live"
+          },
+          "label": {
+            "type": "string",
+            "example": "vmpafw01 | Palo Alto | 20.44.53.215 | live"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "FirewallListResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "SUCCESS"
+          },
+          "firewalls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FirewallOption"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "example": 3
+          },
+          "inventory_count": {
+            "type": "integer",
+            "example": 3
+          }
+        }
+      },
+      "FirewallSelectionRequest": {
+        "type": "object",
+        "required": ["firewall"],
+        "properties": {
+          "firewall": {
+            "type": "string",
+            "description": "Selected firewall name, id, hostname, IP, or ALL. Required. Do not omit.",
+            "example": "vmpafw01"
+          },
+          "firewall_id": {
+            "type": "string"
+          },
+          "firewall_name": {
+            "type": "string"
+          },
+          "selected_firewall": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "example": "ALL"
+          }
+        }
+      },
+      "AssessmentIdRequest": {
+        "type": "object",
+        "required": ["assessment_id"],
+        "properties": {
+          "assessment_id": {
+            "type": "string",
+            "description": "Exact assessment id returned by run_compliance_assessment or run_full_assessment. Never omit. Never use a previous conversation id unless the user asked for that run.",
+            "example": "NS-vmpafw01-1794878586247"
+          }
+        }
+      },
+      "FirewallDownResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "FIREWALL_DOWN"
+          },
+          "action_required": {
+            "type": "string",
+            "example": "select_live_firewall"
+          },
+          "message": {
+            "type": "string",
+            "example": "firewall down or stopped"
+          },
+          "prompt": {
+            "type": "string",
+            "example": "Firewall vmpafw04 is down or stopped. Assessment cannot be run. Select a live firewall from inventory."
+          },
+          "selected_firewall": {
+            "$ref": "#/components/schemas/FirewallOption"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FirewallOption"
+            }
+          },
+          "firewalls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FirewallOption"
+            }
+          },
+          "response_type": {
+            "type": "string",
+            "example": "firewall_down"
+          }
+        }
+      },
+      "ComplianceSummary": {
+        "type": "object",
+        "properties": {
+          "total_controls": {
+            "type": "integer",
+            "example": 44
+          },
+          "compliant": {
+            "type": "integer",
+            "example": 12
+          },
+          "non_compliant": {
+            "type": "integer",
+            "example": 32
+          },
+          "not_assessed": {
+            "type": "integer",
+            "example": 0
+          },
+          "insufficient_data": {
+            "type": "integer",
+            "example": 0
+          },
+          "gap_identified": {
+            "type": "integer",
+            "example": 0
+          },
+          "compliance_score": {
+            "type": "number",
+            "description": "compliant / total_controls * 100. Use this value; do not recompute.",
+            "example": 27.3
+          },
+          "compliance_pct": {
+            "type": "number",
+            "example": 27.3
+          },
+          "overall_risk": {
+            "type": "string",
+            "example": "CRITICAL"
+          }
+        }
+      },
+      "DeviceInformation": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "vmpafw01"
+          },
+          "hostname": {
+            "type": "string",
+            "example": "vmpafw01"
+          },
+          "vendor": {
+            "type": "string",
+            "example": "PaloAlto"
+          },
+          "model": {
+            "type": "string",
+            "example": "PA-VM"
+          },
+          "version": {
+            "type": "string",
+            "example": "10.2.10-h9"
+          },
+          "ip": {
+            "type": "string",
+            "example": "20.44.53.215"
+          },
+          "status": {
+            "type": "string",
+            "example": "live"
+          },
+          "serial": {
+            "type": "string"
+          },
+          "uptime": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "example": "single"
+          }
+        }
+      },
+      "Finding": {
+        "type": "object",
+        "properties": {
+          "control": {
+            "type": "string",
+            "example": "PA-01"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["COMPLIANT", "NON_COMPLIANT", "NOT_ASSESSED", "INSUFFICIENT_DATA"],
+            "example": "NON_COMPLIANT"
+          },
+          "risk": {
+            "type": "string",
+            "example": "HIGH"
+          },
+          "metric": {
+            "type": "string",
+            "example": "version"
+          },
+          "observed": {},
+          "expected": {},
+          "operator": {
+            "type": "string"
+          },
+          "finding": {
+            "type": "string"
+          },
+          "remediation": {
+            "type": "string"
+          }
+        }
+      },
+      "AssessmentResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["SUCCESS", "PARTIAL", "FAILED"],
+            "example": "SUCCESS"
+          },
+          "assessment_id": {
+            "type": "string",
+            "example": "NS-vmpafw01-1794878586247"
+          },
+          "firewall": {
+            "type": "string",
+            "example": "vmpafw01"
+          },
+          "assessment_kind": {
+            "type": "string",
+            "example": "compliance"
+          },
+          "collection_status": {
+            "type": "string",
+            "enum": ["SUCCESS", "PARTIAL", "FAILED"],
+            "example": "SUCCESS"
+          },
+          "collection_errors": {
+            "type": "object"
+          },
+          "collectors_ok": {
+            "type": "integer",
+            "example": 11
+          },
+          "collectors_failed": {
+            "type": "integer",
+            "example": 0
+          },
+          "collectors_total": {
+            "type": "integer",
+            "example": 11
+          },
+          "collection_seconds": {
+            "type": "number",
+            "example": 2.4
+          },
+          "persist_status": {
+            "type": "string",
+            "example": "COMPLETED"
+          },
+          "response_type": {
+            "type": "string",
+            "example": "firewall_assessment"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ComplianceSummary"
+          },
+          "device": {
+            "$ref": "#/components/schemas/DeviceInformation"
+          },
+          "device_information": {
+            "$ref": "#/components/schemas/DeviceInformation"
+          },
+          "overall_posture": {
+            "type": "object"
+          },
+          "business_impact": {
+            "type": "string"
+          },
+          "recommendations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            }
+          },
+          "assessment": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            }
+          },
+          "inventory": {
+            "type": "object"
+          },
+          "health_status": {
+            "type": "object"
+          },
+          "ha_configuration": {
+            "type": "object"
+          },
+          "policy_configuration": {
+            "type": "object"
+          },
+          "security_services": {
+            "type": "object"
+          },
+          "routing_configuration": {
+            "type": "object"
+          },
+          "vpn_configuration": {
+            "type": "object"
+          },
+          "logging_configuration": {
+            "type": "object"
+          },
+          "administration_configuration": {
+            "type": "object"
+          },
+          "zone_protection_configuration": {
+            "type": "object"
+          },
+          "backup_configuration": {
+            "type": "object"
+          }
+        }
+      },
+      "ExecutiveSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "SUCCESS"
+          },
+          "assessment_id": {
+            "type": "string",
+            "example": "NS-vmpafw01-1794878586247"
+          },
+          "firewall": {
+            "type": "string",
+            "example": "vmpafw01"
+          },
+          "message": {
+            "type": "string",
+            "example": "Executive summary generated, check Report Centre."
+          },
+          "response_type": {
+            "type": "string",
+            "example": "executive_summary"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ComplianceSummary"
+          },
+          "device": {
+            "$ref": "#/components/schemas/DeviceInformation"
+          },
+          "overall_posture": {
+            "type": "object"
+          },
+          "business_impact": {
+            "type": "string"
+          },
+          "top_findings": {
+            "type": "array"
+          },
+          "recommendations": {
+            "type": "array"
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            }
+          }
+        }
+      },
+      "ExcelReportResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "SUCCESS"
+          },
+          "assessment_id": {
+            "type": "string",
+            "example": "NS-vmpafw01-1794878586247"
+          },
+          "firewall": {
+            "type": "string",
+            "example": "vmpafw01"
+          },
+          "file_name": {
+            "type": "string",
+            "example": "vmpafw01_Assessment_Workbook.xlsx"
+          },
+          "download_available": {
+            "type": "boolean",
+            "example": true
+          },
+          "download_url": {
+            "type": "string",
+            "description": "Public blob SAS URL. Never an internal /tmp path.",
+            "example": "https://ltimnetsecagenticrg8abc.blob.core.windows.net/assessment-reports/vmpafw01_Assessment_Workbook.xlsx"
+          },
+          "message": {
+            "type": "string",
+            "example": "Report generated, check Report Centre."
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ComplianceSummary"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "FunctionKey": []
+    }
+  ],
+  "paths": {
+    "/list_firewalls": {
+      "get": {
+        "operationId": "ListFirewalls",
+        "summary": "List firewalls for user selection",
+        "description": "Call this first for every new audit or compliance request. Inventory only. Returns {status:SUCCESS, firewalls:[...]}. Show name, vendor, IP, and live/down status. Include ALL as an option. Do not reuse a previous selection. Do not run an assessment from this endpoint.",
+        "responses": {
+          "200": {
+            "description": "Firewall inventory options",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirewallListResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to load firewall inventory",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/run_full_assessment": {
+      "post": {
+        "operationId": "RunFullAssessmentPost",
+        "summary": "Collect complete firewall evidence",
+        "description": "Requires JSON body {\"firewall\":\"vmpafw01\"} or {\"firewall\":\"ALL\"}. Never call this without firewall. Never prompt for selection from this endpoint. Missing firewall returns MISSING_FIREWALL. Invalid name returns INVALID_FIREWALL. Down device returns FIREWALL_DOWN. Collection timeout/error returns FAILED and is persisted as failed, not completed. Returns assessment_id for later reports.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirewallSelectionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Assessment data collected successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessmentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "MISSING_FIREWALL or INVALID_FIREWALL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "FIREWALL_DOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirewallDownResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Assessment collection failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/run_compliance_assessment": {
+      "post": {
+        "operationId": "RunComplianceAssessmentPost",
+        "summary": "Run firewall compliance assessment",
+        "description": "Requires JSON body {\"firewall\":\"vmpafw01\"} or {\"firewall\":\"ALL\"}. Never call this without firewall. Never prompt for selection from this endpoint. Missing firewall returns MISSING_FIREWALL. Invalid name returns INVALID_FIREWALL. Down device returns FIREWALL_DOWN. Collection timeout/error returns FAILED and is persisted as failed, not completed. Returns assessment_id. Use that id for executive summary and Excel. compliance_score is computed here as compliant/total_controls*100.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirewallSelectionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Compliance assessment completed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessmentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "MISSING_FIREWALL or INVALID_FIREWALL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "FIREWALL_DOWN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirewallDownResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Compliance assessment failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/executive_summary": {
+      "post": {
+        "operationId": "GetExecutiveSummary",
+        "summary": "Generate executive summary",
+        "description": "Requires {\"assessment_id\":\"NS-vmpafw01-...\"}. Loads that exact assessments row plus findings and evidence. Unknown id returns ASSESSMENT_NOT_FOUND. Failed/empty run returns ASSESSMENT_FAILED. Never falls back to the latest assessment. Never call without assessment_id.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssessmentIdRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Executive summary generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutiveSummaryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "MISSING_ASSESSMENT_ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ASSESSMENT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ASSESSMENT_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Executive summary generation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/generate_excel_report": {
+      "post": {
+        "operationId": "GenerateExcelReport",
+        "summary": "Generate firewall assessment workbook",
+        "description": "Requires {\"assessment_id\":\"NS-vmpafw01-...\"}. Loads that exact assessment. Returns file_name, download_available, and download_url only after the workbook is published to blob storage. Never returns an internal /tmp path as a user URL. Unknown id returns ASSESSMENT_NOT_FOUND. Never falls back to the latest assessment. Never call without assessment_id.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssessmentIdRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Excel report generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExcelReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "MISSING_ASSESSMENT_ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ASSESSMENT_NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ASSESSMENT_FAILED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Excel report generation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

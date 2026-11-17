@@ -61,14 +61,18 @@ class ZoneProtectionConfigurationCollector:
                         profile_name
                     )
 
-            if result[
-                "zone_protection_profiles"
-            ]:
-
-                result[
-                    "packet_attack_protection"
-                ] = True
+            result["zone_protection_enabled"] = bool(
+                result["zone_protection_profiles"]
+            )
+            result["dos_protection_enabled"] = bool(
+                result["dos_profiles"]
+            )
+            result["packet_attack_protection"] = bool(
+                result["zone_protection_profiles"]
+            )
 
         except Exception as e:
 
-            result
+            result["error"] = str(e)
+
+        return result

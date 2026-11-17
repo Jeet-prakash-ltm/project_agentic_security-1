@@ -19,7 +19,13 @@ class BackupConfigurationCollector:
                 xml=False
             )
 
-            result["job_output"] = str(jobs)
+            output = str(jobs)
+            result["job_output"] = output[:2000]
+            lowered = output.lower()
+            if "commit" in lowered or "save" in lowered or "export" in lowered:
+                result["versioned_configs"] = True
+            if "scheduled" in lowered or "export configuration" in lowered:
+                result["scheduled_backups"] = True
 
         except Exception as e:
 

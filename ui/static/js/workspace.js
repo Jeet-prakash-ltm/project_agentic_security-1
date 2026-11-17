@@ -731,15 +731,14 @@
     }
 
     function parseFirewallAudit(msg) {
+        if (!isFirewallAuditMessage(msg)) return null;
         if (!window.FirewallAuditCards || !window.FirewallAuditCards.parseBeforeDisplay) return null;
         if (msg && msg.html && msg.audit && msg.cardTitle) return null;
         return window.FirewallAuditCards.parseBeforeDisplay(msg && msg.content, msg && msg.audit);
     }
 
     function isFirewallAuditMessage(msg) {
-        if (isFirewallAgent(state.activeAgent)) return true;
-        var name = String((msg && msg.agentName) || "").toLowerCase();
-        return name.indexOf("firewall audit") !== -1 || name.indexOf("firewall auditor") !== -1;
+        return isFirewallAgent(state.activeAgent);
     }
 
     function assistantBodyHtml(msg) {
@@ -748,7 +747,6 @@
             if (parsed.audit) msg.audit = parsed.audit;
             return parsed.html;
         }
-        var html;
         if (msg.html) {
             return toolCardHtml(msg.cardTitle || "Firewall Data", msg.html, null);
         }
@@ -756,23 +754,14 @@
             var blockLead = msg.content && String(msg.content).trim()
                 ? '<div class="ws-msg-text">' + formatAgentReply(msg.content) + "</div>"
                 : "";
-            html = blockLead + renderInteractiveBlocks(msg.blocks);
-        } else if (msg.tool && TOOL_META[msg.tool]) {
+            return blockLead + renderInteractiveBlocks(msg.blocks);
+        }
+        if (msg.tool && TOOL_META[msg.tool]) {
             var meta = TOOL_META[msg.tool];
             var link = msg.link || meta.link;
-            html = toolCardHtml(meta.name, formatAgentReply(msg.content), link, meta.icon);
-        } else {
-            html = '<div class="ws-msg-text">' + formatAgentReply(msg.content || "") + "</div>";
+            return toolCardHtml(meta.name, formatAgentReply(msg.content), link, meta.icon);
         }
-        if (isFirewallAuditMessage(msg) && window.FirewallAuditCards && window.FirewallAuditCards.parseBeforeDisplay) {
-            var wrapped = window.FirewallAuditCards.parseBeforeDisplay(msg && msg.content, msg && msg.audit);
-            if (wrapped && wrapped.html) {
-                if (wrapped.audit) msg.audit = wrapped.audit;
-                return wrapped.html;
-            }
-            return html;
-        }
-        return html;
+        return '<div class="ws-msg-text">' + formatAgentReply(msg.content || "") + "</div>";
     }
 
     function uiMarkDone(container) {
@@ -1921,7 +1910,7 @@
                 if (data.conversation_id) state.activeId = data.conversation_id;
                 var reply = (data && data.reply) || buildAssistantReply(text);
                 var blocks = (data && data.blocks && data.blocks.length) ? data.blocks : null;
-                var audit = (data && data.audit) || null;
+                var audit = isFirewallAgent(state.activeAgent) ? ((data && data.audit) || null) : null;
                 appendMessage({ role: "assistant", content: reply, blocks: blocks, audit: audit, tool: opts.tool || null, usage: (data && data.usage) || null, agentName: (data && data.agent && data.agent.name) || null, ts: now() });
                 loadConversations();
                 loadConversationInsights();
@@ -2019,12 +2008,14 @@
 
     function isFirewallAgent(agent) {
         if (!agent) return false;
-        if (isOrchestratorAgent(agent) || isNetsecAgent(agent) || isCloudAgent(agent)) return false;
-        var type = String(agent.type || "").toLowerCase();
+        if (isOrchestratorAgent(agent) || isNetsecAgent(agent) || isCloudAgent(agent) || isZeroTrustAgent(agent) || isNamedCloudSecurityAgent(agent)) return false;
         var name = String(agent.name || "").toLowerCase();
         var id = String(agent.id || "").toLowerCase();
+        var agentId = String(agent.agent_id || "").toLowerCase();
         return id.indexOf("firewall-audit") !== -1 ||
-            type.indexOf("firewall") !== -1 || name.indexOf("firewall") !== -1;
+            agentId.indexOf("firewall-audit") !== -1 ||
+            name.indexOf("firewall audit") !== -1 ||
+            name.indexOf("firewall auditor") !== -1;
     }
 
     function isCloudAgent(agent) {

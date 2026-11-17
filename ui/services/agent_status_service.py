@@ -123,8 +123,9 @@ def _probe_agent(agent):
     payload = {
         "model": agent.get("model", "gpt-5.1"),
         "input": conversation,
-        "tools": foundry_client.TOOL_SCHEMAS,
     }
+    if foundry_client.is_firewall_audit_agent(agent):
+        payload["tools"] = foundry_client.TOOL_SCHEMAS
     sys_prompt = foundry_client._system_prompt(agent)
     if sys_prompt:
         payload["instructions"] = sys_prompt

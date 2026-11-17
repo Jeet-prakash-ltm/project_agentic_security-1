@@ -256,6 +256,35 @@ def is_cloud_agent(agent):
     )
 
 
+def is_firewall_audit_agent(agent):
+    if not agent:
+        return False
+    text = " ".join([
+        str(agent.get("type") or ""),
+        str(agent.get("name") or ""),
+        str(agent.get("id") or ""),
+        str(agent.get("agent_id") or ""),
+    ]).lower()
+    if any(
+        token in text
+        for token in (
+            "orchestrat",
+            "maestro",
+            "execution",
+            "zero trust",
+            "zero-trust",
+            "cloud security ops",
+            "incident-response",
+        )
+    ):
+        return False
+    return (
+        "firewall-audit" in text
+        or "firewall audit" in text
+        or "firewall auditor" in text
+    )
+
+
 def _normalize_messages(messages):
     return [
         {"role": m.get("role", "user"), "content": m.get("content", "")}
@@ -264,15 +293,17 @@ def _normalize_messages(messages):
     ]
 
 
-def _with_ui_blocks(result):
+def _with_ui_blocks(result, agent=None):
     """Strip any fenced ui block from the reply and expose it as blocks.
 
-    Runs on both the Foundry prompt-agent and the ephemeral model routes, so
-    every agent answer is eligible for native card/form rendering.
+    Audit/selection cards are only attached for the Firewall Audit Agent.
     """
     text, blocks = interactive_blocks.finalize(result.get("reply") or "")
     result["reply"] = text
     result["blocks"] = blocks
+    if not is_firewall_audit_agent(agent):
+        result.pop("audit", None)
+        return result
     audit = firewall_audit.extract_audit_payload(
         text, result.get("audit") or result.get("tool_payload")
     )
@@ -366,7 +397,7 @@ def _error_suggests_missing_agent(exc):
     )
 
 
-def _run_responses(url, api_key, conversation, model, ephemeral, sys_prompt, started):
+def _run_responses(url, api_key, conversation, model, ephemeral, sys_prompt, started, attach_audit_tools=False):
     """Run one chat over the Foundry Responses API.
 
     ``ephemeral`` agents (the historical behaviour) are defined per call with
@@ -380,7 +411,8 @@ def _run_responses(url, api_key, conversation, model, ephemeral, sys_prompt, sta
         payload = {"input": next_input}
         if ephemeral:
             payload["model"] = model
-            payload["tools"] = TOOL_SCHEMAS
+            if attach_audit_tools:
+                payload["tools"] = TOOL_SCHEMAS
             if sys_prompt:
                 payload["instructions"] = sys_prompt
         return payload
@@ -448,11 +480,12 @@ def chat(agent, messages):
             result = _run_responses(
                 url, api_key, conversation, model,
                 ephemeral=False, sys_prompt=None, started=started,
+                attach_audit_tools=False,
             )
             result["routed_via"] = "foundry_agent"
             result["agent_route"] = url
             result["fallback_status"] = None
-            return _with_ui_blocks(result)
+            return _with_ui_blocks(result, agent)
         except FoundryHTTPError as exc:
             if (
                 exc.status_code in (404, 403)
@@ -479,8 +512,9 @@ def chat(agent, messages):
     result = _run_responses(
         url, api_key, conversation, model,
         ephemeral=True, sys_prompt=sys_prompt, started=started,
+        attach_audit_tools=is_firewall_audit_agent(agent),
     )
     result["routed_via"] = "ephemeral_model"
     result["agent_route"] = None
     result["fallback_status"] = fallback_status
-    return _with_ui_blocks(result)
+    return _with_ui_blocks(result, agent)

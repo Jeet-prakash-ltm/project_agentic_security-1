@@ -295,7 +295,7 @@
                 status: stripMd(labeled[4]).toLowerCase()
             };
         }
-        var named = /([A-Za-z0-9._-]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*(live|down|up|online|active|reachable)/i.exec(text);
+        var named = /^(ALL|[A-Za-z][A-Za-z0-9._-]*)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*(?:status\s*[:=]\s*)?(live|down|up|online|active|reachable)\s*$/i.exec(text);
         if (named) {
             return {
                 name: stripMd(named[1]),
@@ -304,7 +304,7 @@
                 status: stripMd(named[4]).toLowerCase()
             };
         }
-        var dashed = /^(ALL|vmpafw\d+)\s*[-–—]\s*(.+?)\s*[-–—,]\s*([0-9.]+|all)\s*[-–—,]\s*(?:status\s*[:=]\s*)?(live|down|up|online|active|reachable)\s*$/i.exec(text);
+        var dashed = /^(ALL|[A-Za-z][A-Za-z0-9._-]*)\s*[-–—]\s*(.+?)\s*[-–—,]\s*([0-9.]+|all)\s*[-–—,]\s*(?:status\s*[:=]\s*)?(live|down|up|online|active|reachable)\s*$/i.exec(text);
         if (dashed) {
             return {
                 name: stripMd(dashed[1]),
@@ -313,24 +313,49 @@
                 status: stripMd(dashed[4]).toLowerCase()
             };
         }
-        var simple = /^(ALL|vmpafw\d+)$/i.exec(text);
+        var simple = /^(ALL|[A-Za-z][A-Za-z0-9._-]*)$/i.exec(text);
         if (simple) return { name: simple[1], status: "live" };
         return null;
     }
 
+    function withAllFirewallOption(firewalls) {
+        var list = (firewalls || []).slice();
+        var hasAll = list.some(function (fw) {
+            return String((fw && fw.name) || "").toUpperCase() === "ALL";
+        });
+        if (!hasAll) {
+            list.unshift({
+                name: "ALL",
+                vendor: "All Vendors",
+                ip: "all",
+                status: "live",
+                description: "Run assessment for all live firewalls"
+            });
+        }
+        return list;
+    }
+
     function parseMarkdownSelection(text) {
         var lines = String(text || "").split(/\r?\n/);
-        var firewalls = [];
+        var detailed = [];
+        var simple = [];
         var seen = {};
-        lines.forEach(function (line) {
-            var fw = parseFirewallLine(line);
+        function add(list, fw) {
             if (!fw || !fw.name || seen[fw.name]) return;
             seen[fw.name] = true;
-            firewalls.push(fw);
+            list.push(fw);
+        }
+        lines.forEach(function (line) {
+            var fw = parseFirewallLine(line);
+            if (!fw) return;
+            if (fw.vendor || fw.ip) add(detailed, fw);
+            else add(simple, fw);
         });
-        var looksLikeSelect = /which firewall|choose which firewall|select (a |the )?firewall|awaiting_firewall_selection|options:/i.test(text);
+        var firewalls = detailed.length ? detailed : simple;
+        var looksLikeSelect = /which firewall|choose which firewall|select which firewall|select (a |the )?firewall|please select|from the current inventory|awaiting_firewall_selection|options:/i.test(text);
         if (!looksLikeSelect && firewalls.length < 2) return null;
         if (!firewalls.length) return null;
+        firewalls = withAllFirewallOption(firewalls);
         return {
             response_type: "firewall_selection",
             status: "AWAITING_FIREWALL_SELECTION",
@@ -413,19 +438,27 @@
     }
 
     function parseDeviceFromLead(text) {
-        var first = stripMd(String(text || "").split(/\r?\n/)[0] || "");
-        var match = /firewall\s+([A-Za-z0-9._-]+)\s*\(([^)]*)\)/i.exec(first);
-        if (!match) return {};
-        var device = { name: match[1] };
-        var inside = match[2] || "";
+        var raw = String(text || "");
+        var first = stripMd(raw.split(/\r?\n/)[0] || "");
+        var device = {};
+        var named = /firewall\s+\*{0,2}([A-Za-z0-9._-]+)/i.exec(first) || /for\s+\*{0,2}([A-Za-z0-9._-]+)\s+assessment/i.exec(first);
+        if (named) device.name = stripMd(named[1]);
+        var paren = /firewall\s+\*{0,2}[A-Za-z0-9._-]+\*{0,2}\s*\(([^)]*)\)/i.exec(first);
+        var inside = paren ? paren[1] : first;
         var model = /\b(PA-[A-Za-z0-9-]+)\b/i.exec(inside);
         if (model) device.model = model[1];
-        var vendor = stripMd(inside.split(",")[0].replace(/\bPA-[A-Za-z0-9-]+\b/ig, ""));
-        if (vendor) device.vendor = vendor;
-        var version = /PAN-OS\s+([0-9A-Za-z._-]+)/i.exec(inside);
+        var vendor = /\bPalo Alto(?:\s+Networks)?\b/i.exec(inside);
+        if (vendor) device.vendor = vendor[0];
+        var version = /PAN-OS\s+([0-9][0-9A-Za-z._-]*)/i.exec(raw);
         if (version) device.version = version[1];
-        var ip = /\bIP\s+([0-9.]+)/i.exec(inside);
+        var ip = /\bIP(?:\s*[:=])?\s*([0-9.]+)/i.exec(raw);
         if (ip) device.ip = ip[1];
+        var status = /\bStatus:\s*(live|down|up|online|active|reachable)\b/i.exec(raw);
+        if (status) device.status = status[1].toLowerCase();
+        if (!device.name) {
+            var later = /\b(vmpafw\d+|ALL)\b/i.exec(raw);
+            if (later) device.name = later[1];
+        }
         return device;
     }
 
@@ -452,35 +485,113 @@
         return "";
     }
 
+    function parseInlineFinding(plain) {
+        var idMatch = /(PA-\d+)/i.exec(plain);
+        if (!idMatch) return null;
+        var control = idMatch[1].toUpperCase();
+        var statusMatch = /\b(NON[_\s-]?COMPLIANT|COMPLIANT|INSUFFICIENT[_\s-]?DATA|NOT[_\s-]?ASSESSED|GAP[_\s-]?IDENTIFIED)\b/i.exec(plain);
+        var riskMatch = /\b(CRITICAL|HIGH|MEDIUM|LOW)\b/i.exec(plain);
+        var metric = stripMd(plain
+            .replace(/\(PA-\d+[^\)]*\)/ig, "")
+            .replace(/\b(NON[_\s-]?COMPLIANT|COMPLIANT|INSUFFICIENT[_\s-]?DATA|NOT[_\s-]?ASSESSED)\b/ig, "")
+            .replace(/\b(CRITICAL|HIGH|MEDIUM|LOW)\b/ig, "")
+            .replace(/^[0-9.)\s-]+/, "")
+            .replace(/[,;:.\s-]+$/, ""));
+        return {
+            control: control,
+            metric: metric || control,
+            status: statusMatch ? statusMatch[1].replace(/[\s-]+/g, "_").toUpperCase() : "NON_COMPLIANT",
+            risk: riskMatch ? riskMatch[1].toUpperCase() : "HIGH",
+            finding: metric
+        };
+    }
+
     function parseProseFindings(text) {
         var findings = [];
         var seen = {};
         String(text || "").split(/\r?\n/).forEach(function (line) {
             var plain = stripMd(line);
-            var idMatch = /(PA-\d+)/i.exec(plain);
-            if (!idMatch) return;
-            if (!/\(PA-\d+/i.test(plain)) return;
-            var control = idMatch[1].toUpperCase();
-            if (seen[control]) return;
-            seen[control] = true;
-            var metric = plain.replace(/\(PA-\d+[^\)]*\)\.?$/i, "").replace(/^[0-9.)\s-]+/, "").trim();
-            findings.push({
-                control: control,
-                metric: metric || control,
-                status: "NON_COMPLIANT",
-                risk: "HIGH",
-                finding: metric
-            });
+            var finding = parseInlineFinding(plain);
+            if (!finding || seen[finding.control]) return;
+            seen[finding.control] = true;
+            findings.push(finding);
         });
         return findings;
     }
 
+    function parseKeyFindingItems(text) {
+        var findings = [];
+        var current = null;
+        String(text || "").split(/\r?\n/).forEach(function (line) {
+            var plain = stripMd(line);
+            if (!plain || /^-+$/.test(plain) || plain.length < 8) return;
+            if (/^#{1,6}\s/.test(line) || /^[A-Z]\.\s+/.test(plain)) return;
+            var kv = parseKvLine(line);
+            var indent = /^(?:\s{2,}|\t)/.test(line);
+            var numbered = /^\s*\d+[.)]\s+/.test(line);
+            if (kv && current && /status|risk|impact|recommend/.test(kv.key)) {
+                applyFindingField(current, kv.key, kv.value);
+                return;
+            }
+            if (numbered) {
+                current = null;
+                return;
+            }
+            if (!indent && !/^\s*[-*]/.test(line)) return;
+            if (kv) return;
+            if (/^(status|risk|impact|recommendation)\b/i.test(plain)) return;
+            current = {
+                control: "FINDING-" + (findings.length + 1),
+                metric: plain,
+                status: "NON_COMPLIANT",
+                risk: "HIGH",
+                finding: plain
+            };
+            findings.push(current);
+        });
+        return findings;
+    }
+
+    function applyDeviceKv(device, kv) {
+        if (!kv) return;
+        if (/name|hostname|firewall|device/.test(kv.key)) {
+            var nameMatch = /\b(vmpafw\d+|ALL)\b/i.exec(kv.value);
+            if (nameMatch) device.name = nameMatch[1];
+            var model = /\b(PA-[A-Za-z0-9-]+)\b/i.exec(kv.value);
+            if (model) device.model = model[1];
+            var vendor = /\bPalo Alto(?:\s+Networks)?\b/i.exec(kv.value);
+            if (vendor) device.vendor = vendor[0];
+            if (!device.name && !/vendor|model|version/.test(kv.key)) device.name = kv.value.replace(/\s*\(.*$/, "");
+        } else if (kv.key === "vendor") device.vendor = kv.value;
+        else if (kv.key === "model" || /model|platform/.test(kv.key)) {
+            var vendorFromModel = /\bPalo Alto(?:\s+Networks)?\b/i.exec(kv.value);
+            if (vendorFromModel) device.vendor = vendorFromModel[0];
+            var modelMatch = /\b(PA-[A-Za-z0-9-]+)\b/i.exec(kv.value);
+            device.model = modelMatch ? modelMatch[1] : kv.value.replace(/^Palo Alto(?:\s+Networks)?\s+/i, "");
+        } else if (/version|pan-os/.test(kv.key)) {
+            var version = /(?:PAN-OS\s+)?([0-9][0-9A-Za-z._-]*)/i.exec(kv.value);
+            if (version) device.version = version[1];
+        } else if (kv.key === "ip" || /management ip|\bip\b/.test(kv.key)) device.ip = kv.value.replace(/^.*?\b(\d+\.\d+\.\d+\.\d+).*$/, "$1");
+        else if (kv.key === "status") device.status = kv.value;
+        else if (kv.key === "serial") device.serial = kv.value;
+        else if (kv.key === "uptime") device.uptime = kv.value;
+        else if (kv.key === "scope") device.scope = kv.value;
+    }
+
+    function looksLikeExecutiveSummary(text) {
+        return /executive summary/i.test(String(text || "").slice(0, 400));
+    }
+
+    function looksLikeKeyFindingsReply(text) {
+        return /here are the key findings|key findings from/i.test(text);
+    }
+
     function parseMarkdownAssessment(text) {
         var raw = String(text || "");
-        if (!/(overall posture|device information|key findings|priority recommendations|major risk drivers|PA-\d+)/i.test(raw)) return null;
+        if (!/(overall posture|device information|device & scope|key findings|key risk themes|priority recommendations|major risk|executive summary|PA-\d+)/i.test(raw)) return null;
         var chunks = raw.split(/\n(?=#{1,3}\s+)/);
         if (chunks.length < 2) {
-            chunks = raw.split(/\n(?=(?:#{1,3}\s+|\*{0,2})?(?:\d+\.\s+)?(?:Device Information|Overall Posture|Key Findings|Major risk drivers|Insufficient Data|Priority Recommendations|Assessment Notice|PA-\d+)\b)/i);
+            chunks = raw.split(/\n(?=(?:#{1,3}\s+|\*{0,2})?(?:\d+\.\s+)?(?:Device Information|Device & Scope|Overall Posture|Key Findings|Key Risk Themes|Major risk(?: drivers| areas)?|Insufficient Data|Priority Recommendations|Assessment Notice|PA-\d+)\b)/i);
         }
         var device = parseDeviceFromLead(raw);
         var summary = {};
@@ -493,19 +604,9 @@
             var title = headingText(lines[0] || "");
             var body = lines.slice(1).join("\n");
             var lower = title.toLowerCase();
-            if (/device information|inventory|firewall identity/.test(lower)) {
+            if (/device information|device & scope|inventory|firewall identity/.test(lower)) {
                 body.split(/\r?\n/).forEach(function (line) {
-                    var kv = parseKvLine(line);
-                    if (!kv) return;
-                    if (/name|hostname|firewall/.test(kv.key)) device.name = kv.value.replace(/\s*\(.*$/, "");
-                    else if (kv.key === "vendor") device.vendor = kv.value;
-                    else if (kv.key === "model" || /model|platform/.test(kv.key)) device.model = kv.value;
-                    else if (/version|pan-os/.test(kv.key)) device.version = kv.value;
-                    else if (kv.key === "ip" || /management ip|\bip\b/.test(kv.key)) device.ip = kv.value;
-                    else if (kv.key === "status") device.status = kv.value;
-                    else if (kv.key === "serial") device.serial = kv.value;
-                    else if (kv.key === "uptime") device.uptime = kv.value;
-                    else if (kv.key === "scope") device.scope = kv.value;
+                    applyDeviceKv(device, parseKvLine(line));
                 });
             } else if (/overall posture|compliance status|assessment overview/.test(lower)) {
                 body.split(/\r?\n/).forEach(function (line) {
@@ -513,12 +614,14 @@
                     var plain = stripMd(line);
                     var fromKv = applyPostureKv(summary, kv);
                     if (fromKv) postureLabel = fromKv;
+                    applyDeviceKv(device, kv);
                     var riskWord = /\b(CRITICAL|HIGH|MEDIUM|LOW)\b/i.exec(plain);
                     if (/overall risk|overall posture|risk rating/i.test(plain) && riskWord) postureLabel = riskWord[1];
                 });
-            } else if (/major risk drivers|key findings|findings/.test(lower) && !/PA-\d+/i.test(title)) {
+            } else if (/major risk|key findings|key risk|findings/.test(lower) && !/PA-\d+/i.test(title)) {
                 var parsedFindings = parseFindingsFromText(body);
                 if (!parsedFindings.length) parsedFindings = parseProseFindings(body);
+                if (!parsedFindings.length) parsedFindings = parseKeyFindingItems(body);
                 parsedFindings.forEach(function (item) { findings.push(item); });
             } else if (/insufficient/.test(lower)) {
                 var nestedInsuff = parseFindingsFromText(title + "\n" + body);
@@ -550,9 +653,24 @@
         if (!findings.length) {
             parseFindingsFromText(raw).forEach(function (item) { findings.push(item); });
         }
+        if (!findings.length) {
+            parseProseFindings(raw).forEach(function (item) { findings.push(item); });
+        }
+        if (!findings.length) {
+            parseKeyFindingItems(raw).forEach(function (item) { findings.push(item); });
+        }
+        if (!summary.compliance_score && !summary.total_controls) {
+            String(raw).split(/\r?\n/).forEach(function (line) {
+                var kv = parseKvLine(line);
+                var fromKv = applyPostureKv(summary, kv);
+                if (fromKv) postureLabel = fromKv;
+            });
+        }
         if (!findings.length && !summary.total_controls && !device.name) return null;
+        var type = "firewall_assessment";
+        if (looksLikeExecutiveSummary(raw)) type = "executive_summary";
         return {
-            response_type: "firewall_assessment",
+            response_type: type,
             device_information: device,
             overall_posture: {
                 label: postureLabel,
@@ -576,6 +694,9 @@
         if (!trimmed) return null;
         if (/firewall down or stopped/i.test(trimmed) && trimmed.length < 80) {
             return { response_type: "firewall_down", message: "firewall down or stopped" };
+        }
+        if (looksLikeKeyFindingsReply(trimmed) || looksLikeExecutiveSummary(trimmed)) {
+            return parseMarkdownAssessment(trimmed);
         }
         return parseMarkdownSelection(trimmed) || parseMarkdownAssessment(trimmed);
     }
@@ -610,13 +731,15 @@
         var compliant = asNumber(posture.compliant != null ? posture.compliant : summary.compliant);
         var nonCompliant = asNumber(posture.non_compliant != null ? posture.non_compliant : summary.non_compliant);
         var notAssessed = asNumber(posture.not_assessed != null ? posture.not_assessed : summary.not_assessed);
-        if (total == null) total = findings.length;
-        if (compliant == null) {
+        if (total == null && (asNumber(summary.total_controls) != null || asNumber(posture.total_controls) != null || asNumber(summary.compliance_score) != null || asNumber(posture.compliance_score) != null)) {
+            total = findings.length;
+        }
+        if (compliant == null && total != null) {
             compliant = findings.filter(function (item) {
                 return String(item.status || "").toUpperCase() === "COMPLIANT";
             }).length;
         }
-        if (nonCompliant == null) {
+        if (nonCompliant == null && total != null) {
             nonCompliant = findings.filter(function (item) {
                 return String(item.status || "").toUpperCase() === "NON_COMPLIANT";
             }).length;
@@ -827,15 +950,29 @@
         return assessmentCard(payload).html;
     }
 
+    function hasExplicitPosture(payload) {
+        var summary = (payload && payload.summary) || {};
+        var posture = (payload && payload.overall_posture) || {};
+        return asNumber(summary.compliance_score) != null ||
+            asNumber(summary.compliance_pct) != null ||
+            asNumber(summary.total_controls) != null ||
+            asNumber(posture.compliance_score) != null ||
+            asNumber(posture.compliance_pct) != null ||
+            asNumber(posture.total_controls) != null;
+    }
+
     function assessmentCard(payload) {
         var findings = findingsFrom(payload);
         var device = deviceFrom(payload);
         var shown = topFindings(findings, 5);
-        var title = device.name ? device.name + " Assessment" : "Firewall Assessment";
+        var isExec = String(payload.response_type || "") === "executive_summary";
+        var title = isExec ? "Executive Summary" : (device.name ? device.name + " Assessment" : "Firewall Assessment");
         var html = '<div class="ws-mcq-card ns-card fw-audit-card">';
-        html += '<div class="ws-mcq-head"><strong>' + escapeHtml(title) + "</strong><span>Read-only security and compliance assessment</span></div>";
+        html += '<div class="ws-mcq-head"><strong>' + escapeHtml(title) + "</strong><span>" +
+            escapeHtml(isExec ? "Management view of this assessment" : "Read-only security and compliance assessment") +
+            "</span></div>";
         html += sectionCard("Device Information", deviceRows(device));
-        html += sectionCard("Overall Posture", AssessmentSummaryCard(payload));
+        if (hasExplicitPosture(payload)) html += sectionCard("Overall Posture", AssessmentSummaryCard(payload));
         var findingHtml = "";
         shown.forEach(function (finding) { findingHtml += FindingCard(finding); });
         if (!findingHtml) findingHtml = '<div class="ws-fw-select-meta">No key findings in this assessment.</div>';

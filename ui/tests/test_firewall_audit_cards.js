@@ -186,7 +186,24 @@ function testLiveFoundrySelectionMarkdown() {
     assert.ok(parsed.html.indexOf("data-fw-select=\"vmpafw01\"") !== -1);
     assert.ok(parsed.html.indexOf("data-fw-select=\"vmpafw03\"") !== -1);
     assert.ok(parsed.html.indexOf("data-fw-select=\"vmpafw04\"") !== -1);
+    assert.ok(parsed.html.indexOf("data-fw-select=\"ALL\"") !== -1);
     assert.ok(parsed.html.indexOf("ws-fw-select-option") !== -1);
+}
+
+function testLivePipeSelectionIncludesAll() {
+    var markdown = [
+        "To start the firewall audit assessment, please select which firewall to assess from the current inventory:",
+        "",
+        "1. vmpafw01 | Palo Alto | 20.44.53.215 | Status: live",
+        "2. vmpafw03 | Palo Alto | 20.44.53.215 | Status: live",
+        "3. vmpafw04 | Palo Alto | 20.44.53.215 | Status: live"
+    ].join("\n");
+    var parsed = cards.parseBeforeDisplay(markdown, null);
+    assert.ok(parsed);
+    assert.equal(parsed.response_type, "firewall_selection");
+    ["ALL", "vmpafw01", "vmpafw03", "vmpafw04"].forEach(function (name) {
+        assert.ok(parsed.html.indexOf("data-fw-select=\"" + name + "\"") !== -1, name);
+    });
 }
 
 function testLiveFoundryAssessmentMarkdown() {
@@ -223,6 +240,85 @@ function testLiveFoundryAssessmentMarkdown() {
     assert.equal(parsed.audit.findings[1].control, "PA-24");
 }
 
+function testLiveAssessmentHasFindingsAndDevice() {
+    var markdown = [
+        "Here's the compliance audit summary for firewall **vmpafw01**:",
+        "",
+        "**Device & Scope**",
+        "- Vendor/Model: Palo Alto PA-VM",
+        "- Version: PAN-OS 10.2.10-h9",
+        "- IP: 20.44.53.215",
+        "- Status: live",
+        "- Assessment ID: **NS-vmpafw01-1794881225793**",
+        "",
+        "**Overall Posture**",
+        "- Total controls: **44**",
+        "- COMPLIANT: **12**",
+        "- NON_COMPLIANT: **32**",
+        "- Compliance score: **27.3%**",
+        "- Overall risk: **CRITICAL**",
+        "",
+        "**Major Risk Areas (evidence-based)**",
+        "1. **Platform & Updates**",
+        "   - PAN-OS version not on supported baseline (PA-01, NON_COMPLIANT, HIGH).",
+        "   - Threat Prevention: **disabled** (PA-24, NON_COMPLIANT, CRITICAL)."
+    ].join("\n");
+    var parsed = cards.parseBeforeDisplay(markdown, null);
+    assert.ok(parsed);
+    assert.equal(parsed.response_type, "firewall_assessment");
+    assert.equal(parsed.audit.device_information.name, "vmpafw01");
+    assert.equal(parsed.audit.summary.compliance_score, 27.3);
+    assert.ok(parsed.audit.findings.length >= 2);
+    assert.ok(parsed.html.indexOf("No key findings") === -1);
+    assert.ok(parsed.html.indexOf("PA-01") !== -1);
+    assert.ok(parsed.html.indexOf("Device Information") !== -1);
+}
+
+function testLiveKeyFindingsReply() {
+    var markdown = [
+        "Here are the key findings from the vmpafw01 assessment, focused on the most material risks:",
+        "",
+        "1. **Core Security Services Disabled**",
+        "   - **Threat Prevention profiles not enabled or not attached to rules**",
+        "     - Status: **NON_COMPLIANT**",
+        "     - Risk: **CRITICAL**",
+        "     - Impact: Malware can pass through.",
+        "   - **SSL/TLS decryption disabled**",
+        "     - Status: **NON_COMPLIANT**",
+        "     - Risk: **CRITICAL**",
+        "     - Impact: Encrypted threats are invisible."
+    ].join("\n");
+    var parsed = cards.parseBeforeDisplay(markdown, null);
+    assert.ok(parsed);
+    assert.ok(parsed.audit.findings.length >= 2);
+    assert.ok(parsed.html.indexOf("Key Findings") !== -1);
+    assert.ok(parsed.html.indexOf("No key findings") === -1);
+    assert.ok(parsed.html.indexOf("Threat Prevention") !== -1);
+}
+
+function testLiveExecutiveSummaryReply() {
+    var markdown = [
+        "Here's the executive summary for the firewall **vmpafw01** assessment (Assessment ID: **NS-vmpafw01-1794881225793**).",
+        "",
+        "## 1. Overall Posture",
+        "- **Device:** Palo Alto Networks PA-VM (vmpafw01), IP: 20.44.53.215",
+        "- **Compliance Score:** **27.3%**",
+        "- **Overall Risk Rating:** **CRITICAL**",
+        "",
+        "## 2. Key Risk Themes",
+        "### A. Core Threat Protection Not Effectively Enforced",
+        "- Threat Prevention, Anti-Spyware, WildFire analysis are not enabled (PA-24)."
+    ].join("\n");
+    var parsed = cards.parseBeforeDisplay(markdown, null);
+    assert.ok(parsed);
+    assert.equal(parsed.response_type, "executive_summary");
+    assert.equal(parsed.audit.device_information.name, "vmpafw01");
+    assert.equal(parsed.audit.summary.compliance_score, 27.3);
+    assert.ok(parsed.html.indexOf("27.3%") !== -1);
+    assert.ok(parsed.html.indexOf("vmpafw01") !== -1);
+    assert.ok(parsed.html.indexOf("No key findings") === -1);
+}
+
 testSelectionOptions();
 testComplianceScoreNotNaN();
 testMarkdownAssessment();
@@ -233,4 +329,8 @@ testStructuredReportDownloadOnlyWhenUrlExists();
 testInvalidStructuredFallsBack();
 testLiveFoundrySelectionMarkdown();
 testLiveFoundryAssessmentMarkdown();
+testLivePipeSelectionIncludesAll();
+testLiveAssessmentHasFindingsAndDevice();
+testLiveKeyFindingsReply();
+testLiveExecutiveSummaryReply();
 console.log("ok");

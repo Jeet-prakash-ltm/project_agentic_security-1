@@ -361,6 +361,8 @@ def prepare_workbook_job(
     source_name="",
     firewall_id=None,
     firewall_host=None,
+    playbook_id=None,
+    execute_all=False,
 ):
     """Prepare one bulk job from the user's stored workbook."""
     client = _client()
@@ -389,6 +391,19 @@ def prepare_workbook_job(
         )
     if not preview.get("changes"):
         raise ValueError("The uploaded workbook has no executable change rows.")
+    changes = preview.get("changes") or []
+    wanted = (playbook_id or "").strip()
+    if wanted and not execute_all and wanted.lower() not in ("all", "execute_all", "execute-all"):
+        changes = [
+            item for item in changes
+            if (item.get("playbook_id") or "") == wanted
+        ]
+        if not changes:
+            raise ValueError(
+                "The uploaded workbook has no executable rows for {0}.".format(
+                    wanted
+                )
+            )
     target = resolve_target(firewall_id=firewall_id, firewall_host=firewall_host)
     host = target.get("host") or client.host or ""
     preflight = _require_live(user_id, firewall_host=host)
@@ -411,7 +426,7 @@ def prepare_workbook_job(
                 "source_sheet": item.get("source_sheet"),
                 "source_row": item.get("source_row"),
             }
-            for item in preview.get("changes") or []
+            for item in changes
         ],
     }
     job = firewall_jobs_service.create_and_dispatch_job(user_id, body)
@@ -423,7 +438,7 @@ def prepare_workbook_job(
     result = _job_preview(job)
     result["target"] = target
     if not result.get("changes"):
-        result["changes"] = preview.get("changes") or []
+        result["changes"] = changes
     return result
 
 
@@ -435,21 +450,31 @@ def run_playbook(
     source_name="",
     firewall_id=None,
     firewall_host=None,
+    execute_all=False,
 ):
     """Prepare a bulk job. ``playbook_id`` is accepted for Hub compatibility."""
-    playbook = catalog.find_playbook(playbook_id) if playbook_id else None
-    label = source_name or ((playbook.get("title") if playbook else "") or playbook_id)
+    wanted = (playbook_id or "").strip()
+    run_all = bool(execute_all) or wanted.lower() in ("", "all", "execute_all", "execute-all")
+    playbook = None if run_all else catalog.find_playbook(wanted)
+    if wanted and not run_all and playbook is None:
+        raise ValueError("Unknown object type: {0}.".format(wanted))
+    if run_all:
+        label = source_name or "Entire workbook"
+    else:
+        label = source_name or ((playbook.get("title") if playbook else "") or wanted)
     return prepare_workbook_job(
         user_id,
         source_type=source_type,
         source_name=label or "Automation Hub",
         firewall_id=firewall_id,
         firewall_host=firewall_host,
+        playbook_id=None if run_all else wanted,
+        execute_all=run_all,
     )
 
 
-def run_row(user_id, playbook_id, row, commit=None):
-    """Prepare a single manual change as an AI Workspace job."""
+def run_row(user_id, playbook_id, row, commit=None, firewall_id=None, firewall_host=None):
+    """Prepare a single change as an AI Workspace job."""
     playbook = catalog.find_playbook(playbook_id)
     if playbook is None:
         raise ValueError("Unknown object type: {0}.".format(playbook_id or "none"))
@@ -468,7 +493,9 @@ def run_row(user_id, playbook_id, row, commit=None):
                 ", ".join(client.missing_config())
             )
         )
-    preflight = _require_live(user_id)
+    target = resolve_target(firewall_id=firewall_id, firewall_host=firewall_host)
+    host = target.get("host") or client.host or ""
+    preflight = _require_live(user_id, firewall_host=host)
     category = PLAYBOOK_CATEGORIES.get(playbook_id)
     if not category:
         raise ValueError("Unsupported object type: {0}.".format(playbook_id))
@@ -490,7 +517,8 @@ def run_row(user_id, playbook_id, row, commit=None):
         "source_type": "ai_workspace",
         "source_name": "AI Workspace",
         "device_group": "vsys1",
-        "firewall_host": preflight.get("host") or client.host or "",
+        "firewall_host": host or preflight.get("host") or client.host or "",
+        "target_asset_id": str(target.get("id") or "") or None,
         "changes": [
             {
                 "category": category,
@@ -510,4 +538,5 @@ def run_row(user_id, playbook_id, row, commit=None):
     preview["playbook_id"] = playbook_id
     preview["playbook_title"] = playbook.get("title") or playbook_id
     preview["sheet"] = playbook.get("sheet") or ""
+    preview["target"] = target
     return preview

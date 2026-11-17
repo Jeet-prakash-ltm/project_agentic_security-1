@@ -1658,6 +1658,7 @@ def api_netsec_playbooks_run():
     source_name = (payload.get("source_name") or "").strip()
     firewall_id = (payload.get("firewall_id") or "").strip()
     firewall_host = (payload.get("firewall_host") or "").strip()
+    execute_all = bool(payload.get("execute_all")) or source_type == "automation_hub"
     try:
         result = netsec_service.run_playbook(
             current_user_id(),
@@ -1666,6 +1667,7 @@ def api_netsec_playbooks_run():
             source_name=source_name,
             firewall_id=firewall_id,
             firewall_host=firewall_host,
+            execute_all=execute_all,
         )
         return jsonify(result)
     except ValueError as e:
@@ -1706,11 +1708,17 @@ def api_netsec_manual():
     payload = request.get_json(silent=True) or {}
     playbook_id = (payload.get("playbook_id") or "").strip()
     row = payload.get("row")
+    firewall_id = (payload.get("firewall_id") or "").strip()
+    firewall_host = (payload.get("firewall_host") or "").strip()
     if not playbook_id:
         return jsonify({"error": "playbook_id is required."}), 400
     try:
         result = netsec_service.run_row(
-            current_user_id(), playbook_id, row or {}
+            current_user_id(),
+            playbook_id,
+            row or {},
+            firewall_id=firewall_id,
+            firewall_host=firewall_host,
         )
         return jsonify(result)
     except ValueError as e:

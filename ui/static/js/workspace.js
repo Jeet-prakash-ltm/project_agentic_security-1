@@ -73,16 +73,13 @@
         { label: "Virtual Machine", action: "vm" }
     ];
 
-    // NetSec Execution Agent entries: one Action chip that opens the manual /
-    // bulk operation chooser inside the chat.
+    // NetSec Execution Agent entries: one Action chip that opens firewall
+    // selection, then Single operation / Bulk ops inside the chat.
     var NETSEC_CHIPS = [
         { id: "ns-action", label: "Action", icon: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>' }
     ];
 
-    var NETSEC_SUGGESTIONS = [
-        { label: "Manual operation", action: "ns-manual" },
-        { label: "Bulk operation", action: "ns-bulk" }
-    ];
+    var NETSEC_SUGGESTIONS = [];
 
     var CLOUD_KPI_PERIODS = [
         { id: "daily", label: "Daily", sub: "Today" },

@@ -1,24 +1,25 @@
-/* Firewall Execution Agent - chat-first manual & bulk firewall operations.
+/* Firewall Execution Agent - chat-first single & bulk firewall operations.
  *
  * Loaded before workspace.js. It exposes window.NetsecPanel, the namespace
  * workspace.js calls for agent detection, activation and chat action runs
- * ("Action" chip -> manual / bulk operation chooser).
+ * ("Action" chip -> firewall selection -> Single operation / Bulk ops).
  *
  * All in-chat UI is appended through the window.WsChat bridge that workspace.js
  * registers, so flows live on the Firewall Execution Agent conversation itself.
  *
  * Backend contract (app.py / services/netsec_service.py):
- *   GET  /api/netsec/info                -> config + playbook catalogue
+ *   GET  /api/netsec/info                -> config + playbook catalogue + firewalls
  *   GET  /api/netsec/workbook/template   -> .xlsx template (blob download)
  *   POST /api/netsec/workbook            -> save uploaded workbook -> summary
- *   POST /api/netsec/playbooks/run       -> run a playbook -> per-row results
+ *   POST /api/netsec/playbooks/run       -> run a playbook or entire workbook
  *   POST /api/netsec/manual              -> run a single chat row -> results
  */
 (function () {
     "use strict";
 
     var NETSEC_AGENT_ID = "netsec-execution-agent";
-    var state = { info: null, uploading: false, workbookName: "" };
+    var ALL_PLAYBOOKS = "all";
+    var state = { info: null, uploading: false, workbookName: "", target: null };
 
     /* Enum picker options keyed by workbook column header. */
     var ENUM_FIELDS = {
@@ -180,6 +181,122 @@
         return (IDENTITY[playbookId] || IDENTITY.default).slice();
     }
 
+    function isLiveStatus(status) {
+        var value = String(status || "").toLowerCase();
+        return value === "live" || value === "up" || value === "online" || value === "active" || value === "reachable";
+    }
+
+    function firewallsFrom(info) {
+        return ((info && info.firewalls) || []).filter(function (fw) {
+            return fw && (fw.device_name || fw.host || fw.host_ip || fw.label);
+        });
+    }
+
+    function firewallKey(fw) {
+        if (!fw) return "";
+        return String(fw.device_name || fw.id || fw.host || fw.host_ip || fw.label || "");
+    }
+
+    function firewallLabel(fw) {
+        if (!fw) return "";
+        var name = fw.device_name || fw.label || fw.host || "";
+        var host = fw.host || fw.host_ip || fw.host_name || "";
+        if (host && name && host !== name) return name + " (" + host + ")";
+        return name || host;
+    }
+
+    function findFirewall(info, key) {
+        var wanted = String(key || "").trim();
+        if (!wanted) return null;
+        var list = firewallsFrom(info);
+        for (var i = 0; i < list.length; i++) {
+            var fw = list[i];
+            if (firewallKey(fw) === wanted) return fw;
+            if (String(fw.id || "") === wanted) return fw;
+            if (String(fw.device_name || "") === wanted) return fw;
+            if (String(fw.host || "") === wanted) return fw;
+            if (String(fw.host_ip || "") === wanted) return fw;
+        }
+        return null;
+    }
+
+    function selectedTarget(info) {
+        if (state.target && state.target.host) return state.target;
+        return findFirewall(info || state.info, state.target && firewallKey(state.target));
+    }
+
+    function setTarget(fw) {
+        if (!fw) {
+            state.target = null;
+            return null;
+        }
+        var host = fw.host || fw.host_ip || fw.host_name || "";
+        state.target = {
+            id: fw.id || "",
+            device_name: fw.device_name || fw.label || host,
+            host: host,
+            host_ip: fw.host_ip || host,
+            status: fw.status || "",
+            label: firewallLabel(fw)
+        };
+        return state.target;
+    }
+
+    function requireLiveTarget(card) {
+        var target = targetFromCard(card) || selectedTarget(state.info);
+        if (target && target.host) setTarget(target);
+        if (!target || !target.host) {
+            toast("Select a firewall first.");
+            return null;
+        }
+        if (!isLiveStatus(target.status) && target.status && String(target.status).toLowerCase() !== "unknown") {
+            toast("cannot proceed firewall is down");
+            return null;
+        }
+        return target;
+    }
+
+    function targetFromCard(card) {
+        if (!card) return null;
+        var id = card.getAttribute("data-ns-fw-id") || "";
+        var host = card.getAttribute("data-ns-fw-host") || "";
+        var name = card.getAttribute("data-ns-fw-name") || "";
+        var status = card.getAttribute("data-ns-fw-status") || "";
+        if (!id && !host && !name) return null;
+        return {
+            id: id,
+            device_name: name || id,
+            host: host,
+            host_ip: host,
+            status: status,
+            label: name || host
+        };
+    }
+
+    function targetAttrs(target) {
+        target = target || selectedTarget(state.info);
+        if (!target) return "";
+        return ' data-ns-fw-id="' + esc(target.device_name || target.id || "") + '"' +
+            ' data-ns-fw-host="' + esc(target.host || "") + '"' +
+            ' data-ns-fw-name="' + esc(target.label || target.device_name || "") + '"' +
+            ' data-ns-fw-status="' + esc(target.status || "") + '"';
+    }
+
+    function targetPayload(card) {
+        var target = targetFromCard(card) || selectedTarget(state.info);
+        if (target && target.host) setTarget(target);
+        if (!target) return {};
+        return {
+            firewall_id: target.device_name || target.id || "",
+            firewall_host: target.host || ""
+        };
+    }
+
+    function targetNoteHtml(target) {
+        if (!target) return "";
+        return '<div class="ns-block"><p class="ns-note-text">Target: <strong>' + esc(target.label || target.device_name || target.host) + "</strong></p></div>";
+    }
+
     /* ------------------------------------------------------------ shared helpers */
 
     function persist(pair) {
@@ -326,40 +443,77 @@
     }
 
     /* ================================================================
-     * ACTION CHOOSER (Action chip)
+     * FIREWALL PICKER then ACTION CHOOSER (Action chip)
      * ================================================================ */
 
-    function chooserCardHtml(info) {
+    function firewallOptionHtml(fw) {
+        var key = firewallKey(fw);
+        var live = isLiveStatus(fw.status);
+        var status = live ? "Live" : "Down";
+        var meta = [fw.host || fw.host_ip || "", live ? "live" : "down"].filter(Boolean).join(" \u00b7 ");
+        return '<button type="button" class="ws-fw-select-option' + (live ? "" : " is-down") + '" data-ns-fw="' +
+            esc(key) + '" data-fw-status="' + esc(fw.status || "") + '">' +
+            '<span class="ws-fw-select-name">' + esc(fw.device_name || fw.label || key) +
+            ' <span class="fw-status ' + (live ? "is-live" : "is-down") + '">' + esc(status) + "</span></span>" +
+            (meta ? '<span class="ws-fw-select-meta">' + esc(meta) + "</span>" : "") +
+            "</button>";
+    }
+
+    function firewallPickerCardHtml(info) {
+        var configured = !!(info && info.configured);
+        var list = firewallsFrom(info);
+        var html = '<div class="ws-mcq-card ns-card fw-picker-card">' +
+            cardHead("Select Firewall", "Choose a live firewall before Single operation or Bulk ops.") +
+            '<div class="ns-block"><div class="ns-mode-row">' + (configured
+                ? modeNote(info)
+                : '<span class="ns-pill ns-pill-off">OFFLINE</span><span class="ns-note-text">Firewall Execution Agent is not connected - operations are unavailable until NETSEC_FUNCTION_KEY is set.</span>') + "</div></div>";
+        if (!configured) {
+            html += backControlHtml() + "</div>";
+            return html;
+        }
+        if (!list.length) {
+            html += '<div class="ns-block">' + noteHtml("No firewalls are registered in inventory yet.") + "</div>" +
+                backControlHtml() + "</div>";
+            return html;
+        }
+        html += '<div class="ws-fw-select-list">';
+        list.forEach(function (fw) { html += firewallOptionHtml(fw); });
+        html += "</div>" + backControlHtml() + "</div>";
+        return html;
+    }
+
+    function chooserCardHtml(info, target) {
         var configured = !!(info && info.configured);
         var html = '<div class="ws-mcq-card ns-card">' +
             cardHead("Firewall Execution Agent", "How do you want to make firewall changes?") +
             '<div class="ns-block"><div class="ns-mode-row">' + (configured
                 ? modeNote(info)
-                : '<span class="ns-pill ns-pill-off">OFFLINE</span><span class="ns-note-text">Firewall Execution Agent is not connected - manual and bulk operations are unavailable until NETSEC_FUNCTION_KEY is set.</span>') + "</div></div>";
+                : '<span class="ns-pill ns-pill-off">OFFLINE</span><span class="ns-note-text">Firewall Execution Agent is not connected - Single operation and Bulk ops are unavailable until NETSEC_FUNCTION_KEY is set.</span>') + "</div></div>";
+        html += targetNoteHtml(target);
         if (!configured) {
             html += backControlHtml() + "</div>";
             return html;
         }
         html += '<div class="ws-mcq-options">' +
             '<button type="button" class="mcq-option fw-select-btn" data-ns-flow="manual">' +
-            '<span class="mcq-option-label">Manual operation</span>' +
+            '<span class="mcq-option-label">Single operation</span>' +
             '<span class="mcq-option-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg></span>' +
             "</button>" +
             '<button type="button" class="mcq-option fw-select-btn" data-ns-flow="bulk">' +
-            '<span class="mcq-option-label">Bulk operation</span>' +
+            '<span class="mcq-option-label">Bulk ops</span>' +
             '<span class="mcq-option-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg></span>' +
             "</button>" +
             "</div>" + backControlHtml() + "</div>";
         return html;
     }
 
-    function openChooser() {
+    function openFirewallPicker() {
         if (!nsSession()) return;
         var bridge = chat();
         if (!bridge) { toast("Chat is still loading."); return; }
         var userMsg = bridge.user("Action");
         loadInfo().then(function (info) {
-            var asstMsg = bridge.assistantHtml(chooserCardHtml(info), "Firewall Execution");
+            var asstMsg = bridge.assistantHtml(firewallPickerCardHtml(info), "Select Firewall");
             persist([userMsg, asstMsg]);
         }).catch(function (err) {
             var asstMsg = bridge.assistantHtml(connErrorHtml(null), "Firewall Execution");
@@ -368,8 +522,47 @@
         });
     }
 
+    function openChooser(target) {
+        if (!nsSession()) return;
+        var bridge = chat();
+        if (!bridge) { toast("Chat is still loading."); return; }
+        var chosen = target || selectedTarget(state.info);
+        var userMsg = bridge.user(chosen ? ("Target " + (chosen.label || chosen.device_name || chosen.host)) : "Action");
+        loadInfo().then(function (info) {
+            var asstMsg = bridge.assistantHtml(chooserCardHtml(info, chosen), "Firewall Execution");
+            persist([userMsg, asstMsg]);
+        }).catch(function (err) {
+            var asstMsg = bridge.assistantHtml(connErrorHtml(null), "Firewall Execution");
+            persist([userMsg, asstMsg]);
+            toast(err.message, "error");
+        });
+    }
+
+    function pickFirewall(key, status) {
+        loadInfo().then(function (info) {
+            var fw = findFirewall(info, key);
+            if (!fw) {
+                toast("Firewall was not found in inventory.");
+                return;
+            }
+            if (!isLiveStatus(status || fw.status)) {
+                var bridge = chat();
+                if (bridge) {
+                    persist([bridge.assistantText("cannot proceed firewall is down")]);
+                } else {
+                    toast("cannot proceed firewall is down");
+                }
+                return;
+            }
+            setTarget(fw);
+            openChooser(state.target);
+        }).catch(function (err) {
+            toast((err && err.message) || "Could not load firewall inventory.");
+        });
+    }
+
     /* ================================================================
-     * MANUAL OPERATION
+     * SINGLE OPERATION
      * ================================================================ */
 
     function manualTypesCardHtml(info) {
@@ -379,8 +572,9 @@
         });
 
         var html = '<div class="ws-mcq-card ns-card">' +
-            cardHead("Manual operation", "Choose an object type, then fill in the fields for one firewall change.") +
-            '<div class="ns-block"><div class="ns-mode-row">' + modeNote(info) + "</div></div>";
+            cardHead("Single operation", "Choose an object type, then fill in the fields for one firewall change.") +
+            '<div class="ns-block"><div class="ns-mode-row">' + modeNote(info) + "</div></div>" +
+            targetNoteHtml(selectedTarget(info));
         Object.keys(groups).forEach(function (category) {
             html += '<div class="ns-opts-list ns-opts-cat">' +
                 '<div class="ns-opts-cat-label">' + esc(category) + "</div>";
@@ -400,18 +594,22 @@
         if (!nsSession()) return;
         var bridge = chat();
         if (!bridge) { toast("Chat is still loading."); return; }
-        var userMsg = bridge.user("Manual operation");
         loadInfo().then(function (info) {
             if (!info.configured) {
-                var errMsg = bridge.assistantHtml(connErrorHtml(info), "Firewall Execution");
-                persist([userMsg, errMsg]);
+                var errUser = bridge.user("Single operation");
+                persist([errUser, bridge.assistantHtml(connErrorHtml(info), "Firewall Execution")]);
                 return;
             }
-            var asstMsg = bridge.assistantHtml(manualTypesCardHtml(info), "Manual operation");
-            persist([userMsg, asstMsg]);
+            if (!selectedTarget(info)) {
+                openFirewallPicker();
+                return;
+            }
+            if (!requireLiveTarget()) return;
+            var userMsg = bridge.user("Single operation");
+            persist([userMsg, bridge.assistantHtml(manualTypesCardHtml(info), "Single operation")]);
         }).catch(function (err) {
-            var errMsg = bridge.assistantHtml(connErrorHtml(null), "Firewall Execution");
-            persist([userMsg, errMsg]);
+            var errUser = bridge.user("Single operation");
+            persist([errUser, bridge.assistantHtml(connErrorHtml(null), "Firewall Execution")]);
             toast(err.message, "error");
         });
     }
@@ -444,9 +642,10 @@
         var cols = (pb.columns || []).filter(function (c) { return c !== "Action"; });
         var fields = cols.map(function (col) { return fieldControlHtml(pb, col); }).join("");
 
-        var html = '<div class="ws-mcq-card ns-card ns-form-card" data-ns-playbook="' + esc(pb.id) + '" data-ns-op="create">' +
-            cardHead(pb.title, pb.summary || "Manual operation") +
+        var html = '<div class="ws-mcq-card ns-card ns-form-card" data-ns-playbook="' + esc(pb.id) + '" data-ns-op="create"' + targetAttrs() + '>' +
+            cardHead(pb.title, pb.summary || "Single operation") +
             '<div class="ns-block"><div class="ns-mode-row">' + modeNote(state.info) + "</div></div>" +
+            targetNoteHtml(selectedTarget(state.info)) +
             '<div class="ns-block">' +
             '<div class="ns-ops" role="group" aria-label="Action">' +
             '<button type="button" class="ws-cloud-run ns-op-btn is-active" data-ns-formop="create">Create</button>' +
@@ -473,7 +672,7 @@
                 return;
             }
             var bridge = chat();
-            var userMsg = bridge.user(pb.title + " \u2014 manual operation");
+            var userMsg = bridge.user(pb.title + " \u2014 single operation");
             var asstMsg = bridge.assistantHtml(manualFormHtml(pb), pb.title);
             persist([userMsg, asstMsg]);
             bridge.scrollBottom();
@@ -527,6 +726,7 @@
             toast("Enter " + missing.join(", ") + (op === "delete" ? " to identify the object." : " first."), "error");
             return;
         }
+        if (!requireLiveTarget(card)) return;
 
         btn.disabled = true;
         withInfo(function () {
@@ -537,7 +737,7 @@
             fetch(URLS.manual, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ playbook_id: pbId, row: row })
+                body: JSON.stringify(Object.assign({ playbook_id: pbId, row: row }, targetPayload(card)))
             })
                 .then(function (r) {
                     return r.json().then(function (d) { return { ok: r.ok, data: d }; });
@@ -567,26 +767,28 @@
     }
 
     /* ================================================================
-     * BULK OPERATION
+     * BULK OPS
      * ================================================================ */
 
     function bulkFileCardHtml(info) {
         var configured = !!(info && info.configured);
         if (!configured) {
             return '<div class="ws-mcq-card ns-card">' +
-                cardHead("Bulk operation", "Download the template and upload a filled workbook to run a sheet against the firewall.") +
+                cardHead("Bulk ops", "Download the template and upload a filled workbook to run against the firewall.") +
                 '<div class="ns-block"><div class="ns-mode-row">' +
                 '<span class="ns-pill ns-pill-off">OFFLINE</span><span class="ns-note-text">Firewall Execution Agent is not connected - the workbook template can still be downloaded, but playbooks can only be run once NETSEC_FUNCTION_KEY or NETSEC_FW_* is set.</span>' +
                 "</div></div>" +
+                targetNoteHtml(selectedTarget(info)) +
                 '<div class="ns-file-grid">' +
                 '<button type="button" class="ns-file-card" data-ns-action="bulk-download">' +
                 ICON_DOWNLOAD + "<strong>Bulk Ops File</strong><span>.xlsx template with every sheet</span></button>" +
                 "</div>" + backControlHtml() + "</div>";
         }
         var html = '<div class="ws-mcq-card ns-card">' +
-            cardHead("Bulk operation",
-                "Download the Excel workbook template, fill in one row per firewall change, then upload it to run a sheet against the firewall.") +
+            cardHead("Bulk ops",
+                "Download the Excel workbook template, fill in one row per firewall change, then upload it to run the whole workbook or one sheet against the firewall.") +
             '<div class="ns-block"><div class="ns-mode-row">' + modeNote(info) + "</div></div>" +
+            targetNoteHtml(selectedTarget(info)) +
             '<div class="ns-file-grid">' +
             '<button type="button" class="ns-file-card" data-ns-action="bulk-download">' +
             ICON_DOWNLOAD + "<strong>Bulk Ops File</strong><span>.xlsx template with every sheet</span></button>" +
@@ -602,13 +804,22 @@
         if (!nsSession()) return;
         var bridge = chat();
         if (!bridge) { toast("Chat is still loading."); return; }
-        var userMsg = bridge.user("Bulk operation");
         loadInfo().then(function (info) {
-            var asstMsg = bridge.assistantHtml(bulkFileCardHtml(info), "Bulk operation");
-            persist([userMsg, asstMsg]);
+            if (!info.configured) {
+                var errUser = bridge.user("Bulk ops");
+                persist([errUser, bridge.assistantHtml(bulkFileCardHtml(info), "Bulk ops")]);
+                return;
+            }
+            if (!selectedTarget(info)) {
+                openFirewallPicker();
+                return;
+            }
+            if (!requireLiveTarget()) return;
+            var userMsg = bridge.user("Bulk ops");
+            persist([userMsg, bridge.assistantHtml(bulkFileCardHtml(info), "Bulk ops")]);
         }).catch(function (err) {
-            var errMsg = bridge.assistantHtml(connErrorHtml(null), "Firewall Execution");
-            persist([userMsg, errMsg]);
+            var errUser = bridge.user("Bulk ops");
+            persist([errUser, bridge.assistantHtml(connErrorHtml(null), "Firewall Execution")]);
             toast(err.message, "error");
         });
     }
@@ -653,23 +864,32 @@
 
         var options = "";
         var matched = 0;
+        var totalRows = 0;
         (info.playbooks || []).forEach(function (pb) {
             var key = String(pb.sheet || "").toLowerCase().replace(/\s+/g, "");
             var sheet = sheets[key];
             if (!sheet) return;
             matched++;
+            totalRows += Number(sheet.rows) || 0;
             options += '<option value="' + esc(pb.id) + '">' + esc(pb.title) + " (" + esc(pb.sheet) + ", " + sheet.rows + " row" + (sheet.rows === 1 ? "" : "s") + ")</option>";
         });
+        if (matched) {
+            options = '<option value="' + ALL_PLAYBOOKS + '">Execute all (' +
+                (summary && summary.total_rows != null ? summary.total_rows : totalRows) +
+                " row" + ((summary && summary.total_rows === 1) ? "" : "s") +
+                " across " + matched + " sheet" + (matched === 1 ? "" : "s") + ")</option>" + options;
+        }
 
         var sheetChips = (summary && summary.sheets || []).map(function (s) {
             return '<span class="ns-wb-chip">' + esc(s.sheet) + " \u00b7 " + esc(s.rows) + " row" + (s.rows === 1 ? "" : "s") + "</span>";
         }).join("");
 
-        var html = '<div class="ws-mcq-card ns-card ns-summary-card">' +
+        var html = '<div class="ws-mcq-card ns-card ns-summary-card"' + targetAttrs() + '>' +
             cardHead("Workbook uploaded",
                 (summary && summary.total_rows != null
                     ? summary.total_rows + " data row" + (summary.total_rows === 1 ? "" : "s") + " across " + (summary.sheets || []).length + " sheet" + ((summary.sheets || []).length === 1 ? "" : "s")
-                    : "Choose the object type to execute.")) +
+                    : "Choose execute all or one object type.")) +
+            targetNoteHtml(selectedTarget(info)) +
             (sheetChips ? '<div class="ns-block"><div class="ns-wb-chips">' + sheetChips + "</div></div>" : "");
 
         if (!matched) {
@@ -696,22 +916,27 @@
         if (!card) return;
         var select = card.querySelector("[data-ns-pb]");
         var pbId = select && select.value;
-        if (!pbId) { toast("Choose an object type to run."); return; }
+        if (!pbId) { toast("Choose execute all or an object type."); return; }
+        if (!requireLiveTarget(card)) return;
 
         btn.disabled = true;
         withInfo(function () {
-            var pb = playbookById(pbId);
-            var userMsg = bridge.user("Run playbook \u2014 " + (pb ? pb.title : pbId));
+            var executeAll = pbId === ALL_PLAYBOOKS;
+            var pb = executeAll ? { id: ALL_PLAYBOOKS, title: "Execute all" } : playbookById(pbId);
+            var userMsg = bridge.user(executeAll
+                ? "Run entire workbook"
+                : ("Run playbook \u2014 " + (pb ? pb.title : pbId)));
             var typing = bridge.typingStart();
 
             fetch(URLS.run, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    playbook_id: pbId,
+                body: JSON.stringify(Object.assign({
+                    playbook_id: executeAll ? "" : pbId,
+                    execute_all: executeAll,
                     source_type: "ai_workspace",
                     source_name: state.workbookName || "AI Workspace"
-                })
+                }, targetPayload(card)))
             })
                 .then(function (r) {
                     return r.json().then(function (d) { return { ok: r.ok, data: d }; });
@@ -760,7 +985,7 @@
             .then(function (res) {
                 if (!res.ok) throw new Error(res.data && res.data.error ? res.data.error : "Upload failed");
                 state.workbookName = file.name;
-                var asstMsg = bridge.assistantHtml(bulkRunCardHtml(res.data.summary), "Bulk operation");
+                var asstMsg = bridge.assistantHtml(bulkRunCardHtml(res.data.summary), "Bulk ops");
                 persist([userMsg, asstMsg]);
             })
             .catch(function (err) {
@@ -782,6 +1007,12 @@
         if (!e.target || !e.target.closest) return;
         var chatWindowEl = document.getElementById("chatWindow");
         if (chatWindowEl && !chatWindowEl.contains(e.target)) return;
+
+        var fwPick = e.target.closest("[data-ns-fw]");
+        if (fwPick) {
+            pickFirewall(fwPick.getAttribute("data-ns-fw"), fwPick.getAttribute("data-fw-status"));
+            return;
+        }
 
         var flow = e.target.closest("[data-ns-flow]");
         if (flow) {
@@ -841,7 +1072,7 @@
         startChat: function (action) {
             if (action === "ns-manual") { openManualTypes(); return; }
             if (action === "ns-bulk") { openBulkFile(); return; }
-            openChooser(); /* ns-action */
+            openFirewallPicker();
         },
         activate: onActivated
     };

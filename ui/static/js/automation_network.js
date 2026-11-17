@@ -435,6 +435,7 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 playbook_id: (state.matches[0] && state.matches[0].playbook && state.matches[0].playbook.id) || "",
+                execute_all: true,
                 source_type: "automation_hub",
                 source_name: state.workbookName || "Automation Hub",
                 firewall_id: target.id || "",

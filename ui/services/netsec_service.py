@@ -181,49 +181,94 @@ def list_target_firewalls():
     return [_public_firewall(entry) for entry in entries if _public_firewall(entry)]
 
 
-def resolve_target(firewall_id=None, firewall_host=None):
-    """Resolve a managed firewall for Hub bulk jobs."""
+def _matches_id(entry, wanted_id):
+    if not wanted_id:
+        return False
+    return str(entry.get("id") or "") == wanted_id
+
+
+def _matches_name(entry, wanted_name):
+    if not wanted_name:
+        return False
+    name = (entry.get("device_name") or "").strip()
+    return name.lower() == wanted_name.lower()
+
+
+def _matches_host(entry, wanted_host):
+    if not wanted_host:
+        return False
+    return wanted_host in (
+        entry.get("host"),
+        entry.get("host_ip"),
+        entry.get("host_name"),
+        entry.get("device_name"),
+    )
+
+
+def _unique_or_ambiguous(matches, wanted):
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        raise ValueError(
+            "Multiple firewalls match that selection. "
+            "Choose one by firewall_id or firewall_name."
+        )
+    raise ValueError(
+        "Selected firewall is not in inventory. Choose one by "
+        "firewall_id or firewall_name ({0}).".format(wanted)
+    )
+
+
+def job_target_fields(target):
+    """Unique identity for the live Function App selection gate."""
+    if not target:
+        raise ValueError("Select a managed firewall before preparing the job.")
+    firewall_id = str(target.get("id") or "").strip()
+    firewall_name = str(target.get("device_name") or "").strip()
+    host = str(target.get("host") or target.get("host_ip") or "").strip()
+    if not firewall_id and not firewall_name:
+        raise ValueError(
+            "Select a firewall by firewall_id or firewall_name before running this job."
+        )
+    body = {
+        "firewall_host": host,
+        "target_asset_id": firewall_id or None,
+    }
+    if firewall_id:
+        body["firewall_id"] = firewall_id
+    if firewall_name:
+        body["firewall_name"] = firewall_name
+        body["device_name"] = firewall_name
+    return body
+
+
+def resolve_target(firewall_id=None, firewall_host=None, firewall_name=None):
+    """Resolve one managed firewall. Host IP alone is not unique for clones."""
     wanted_id = str(firewall_id or "").strip()
+    wanted_name = str(firewall_name or "").strip()
     wanted_host = str(firewall_host or "").strip()
+    if not wanted_id and not wanted_name and not wanted_host:
+        raise ValueError(
+            "Select a firewall by firewall_id or firewall_name before preparing the job."
+        )
     entries = list_target_firewalls()
-    for entry in entries:
-        if wanted_id and str(entry.get("id") or "") == wanted_id:
-            return entry
-        if wanted_id and (entry.get("device_name") or "") == wanted_id:
-            return entry
-        if wanted_host and wanted_host in (
-            entry.get("host"),
-            entry.get("host_ip"),
-            entry.get("host_name"),
-            entry.get("device_name"),
-        ):
-            return entry
+    if wanted_id:
+        matches = [entry for entry in entries if _matches_id(entry, wanted_id)]
+        if not matches:
+            matches = [entry for entry in entries if _matches_name(entry, wanted_id)]
+        if matches:
+            return _unique_or_ambiguous(matches, wanted_id)
+    if wanted_name:
+        matches = [entry for entry in entries if _matches_name(entry, wanted_name)]
+        if matches:
+            return _unique_or_ambiguous(matches, wanted_name)
     if wanted_host:
-        return {
-            "id": None,
-            "device_name": wanted_host,
-            "host_name": wanted_host,
-            "host_ip": wanted_host,
-            "host": wanted_host,
-            "status": "unknown",
-            "label": wanted_host,
-        }
-    live = [entry for entry in entries if (entry.get("status") or "").lower() == "live"]
-    chosen = (live[0] if live else None) or (entries[0] if entries else None)
-    if chosen and chosen.get("host"):
-        return chosen
-    fallback = (_client().host or "").strip()
-    if fallback:
-        return {
-            "id": None,
-            "device_name": fallback,
-            "host_name": fallback,
-            "host_ip": fallback,
-            "host": fallback,
-            "status": "unknown",
-            "label": fallback,
-        }
-    raise ValueError("Select a managed firewall before preparing the job.")
+        matches = [entry for entry in entries if _matches_host(entry, wanted_host)]
+        if matches:
+            return _unique_or_ambiguous(matches, wanted_host)
+    raise ValueError(
+        "Select a firewall by firewall_id or firewall_name before preparing the job."
+    )
 
 
 def info():
@@ -345,8 +390,15 @@ def _job_preview(job):
     }
 
 
-def _require_live(user_id, firewall_host=None):
-    preflight = firewall_jobs_service.preflight(user_id, firewall_host=firewall_host)
+def _require_live(user_id, firewall_host=None, firewall_id=None, firewall_name=None):
+    params = {}
+    if firewall_id:
+        params["firewall_id"] = firewall_id
+    if firewall_name:
+        params["firewall_name"] = firewall_name
+    if firewall_host:
+        params["firewall_host"] = firewall_host
+    preflight = firewall_jobs_service.preflight(user_id, **params) if params else firewall_jobs_service.preflight(user_id)
     if not preflight.get("live"):
         raise firewall_jobs_service.FirewallJobsError(
             preflight.get("message") or "cannot proceed firewall is down",
@@ -361,6 +413,7 @@ def prepare_workbook_job(
     source_name="",
     firewall_id=None,
     firewall_host=None,
+    firewall_name=None,
     playbook_id=None,
     execute_all=False,
 ):
@@ -404,9 +457,18 @@ def prepare_workbook_job(
                     wanted
                 )
             )
-    target = resolve_target(firewall_id=firewall_id, firewall_host=firewall_host)
-    host = target.get("host") or client.host or ""
-    preflight = _require_live(user_id, firewall_host=host)
+    target = resolve_target(
+        firewall_id=firewall_id,
+        firewall_host=firewall_host,
+        firewall_name=firewall_name,
+    )
+    identity = job_target_fields(target)
+    preflight = _require_live(
+        user_id,
+        firewall_host=identity.get("firewall_host"),
+        firewall_id=identity.get("firewall_id"),
+        firewall_name=identity.get("firewall_name"),
+    )
     body = {
         "operation": "apply_bulk",
         "source_type": source_type,
@@ -414,8 +476,7 @@ def prepare_workbook_job(
             "Automation Hub" if source_type == "automation_hub" else "AI Workspace"
         ),
         "device_group": "vsys1",
-        "firewall_host": host or preflight.get("host") or "",
-        "target_asset_id": str(target.get("id") or "") or None,
+        "source_file_id": os.path.basename(path),
         "row_limit": MAX_ROWS,
         "changes": [
             {
@@ -429,6 +490,9 @@ def prepare_workbook_job(
             for item in changes
         ],
     }
+    body.update(identity)
+    if not body.get("firewall_host"):
+        body["firewall_host"] = preflight.get("host") or ""
     job = firewall_jobs_service.create_and_dispatch_job(user_id, body)
     if not job:
         raise firewall_jobs_service.FirewallJobsError(
@@ -450,6 +514,7 @@ def run_playbook(
     source_name="",
     firewall_id=None,
     firewall_host=None,
+    firewall_name=None,
     execute_all=False,
 ):
     """Prepare a bulk job. ``playbook_id`` is accepted for Hub compatibility."""
@@ -468,12 +533,21 @@ def run_playbook(
         source_name=label or "Automation Hub",
         firewall_id=firewall_id,
         firewall_host=firewall_host,
+        firewall_name=firewall_name,
         playbook_id=None if run_all else wanted,
         execute_all=run_all,
     )
 
 
-def run_row(user_id, playbook_id, row, commit=None, firewall_id=None, firewall_host=None):
+def run_row(
+    user_id,
+    playbook_id,
+    row,
+    commit=None,
+    firewall_id=None,
+    firewall_host=None,
+    firewall_name=None,
+):
     """Prepare a single change as an AI Workspace job."""
     playbook = catalog.find_playbook(playbook_id)
     if playbook is None:
@@ -493,9 +567,18 @@ def run_row(user_id, playbook_id, row, commit=None, firewall_id=None, firewall_h
                 ", ".join(client.missing_config())
             )
         )
-    target = resolve_target(firewall_id=firewall_id, firewall_host=firewall_host)
-    host = target.get("host") or client.host or ""
-    preflight = _require_live(user_id, firewall_host=host)
+    target = resolve_target(
+        firewall_id=firewall_id,
+        firewall_host=firewall_host,
+        firewall_name=firewall_name,
+    )
+    identity = job_target_fields(target)
+    preflight = _require_live(
+        user_id,
+        firewall_host=identity.get("firewall_host"),
+        firewall_id=identity.get("firewall_id"),
+        firewall_name=identity.get("firewall_name"),
+    )
     category = PLAYBOOK_CATEGORIES.get(playbook_id)
     if not category:
         raise ValueError("Unsupported object type: {0}.".format(playbook_id))
@@ -517,8 +600,6 @@ def run_row(user_id, playbook_id, row, commit=None, firewall_id=None, firewall_h
         "source_type": "ai_workspace",
         "source_name": "AI Workspace",
         "device_group": "vsys1",
-        "firewall_host": host or preflight.get("host") or client.host or "",
-        "target_asset_id": str(target.get("id") or "") or None,
         "changes": [
             {
                 "category": category,
@@ -528,6 +609,9 @@ def run_row(user_id, playbook_id, row, commit=None, firewall_id=None, firewall_h
             }
         ],
     }
+    body.update(identity)
+    if not body.get("firewall_host"):
+        body["firewall_host"] = preflight.get("host") or client.host or ""
     job = firewall_jobs_service.create_and_dispatch_job(user_id, body)
     if not job:
         raise firewall_jobs_service.FirewallJobsError(

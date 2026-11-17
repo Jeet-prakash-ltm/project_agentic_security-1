@@ -1961,6 +1961,13 @@
         opts = opts || {};
         var text = (prompt || "").trim();
         if (!text) return;
+        if (window.NetsecPanel && window.NetsecPanel.interceptTypedBulk && window.NetsecPanel.interceptTypedBulk(text)) {
+            if (promptInput) {
+                promptInput.value = "";
+                autoResize();
+            }
+            return;
+        }
 
         ensureActiveId();
         appendMessage({ role: "user", content: text, ts: now() });

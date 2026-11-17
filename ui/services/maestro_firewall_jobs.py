@@ -11,6 +11,7 @@ import time
 
 from gateway import interactive_blocks
 from services import firewall_jobs_service
+from services import netsec_service
 
 logger = logging.getLogger("maestro.firewall.jobs")
 
@@ -258,6 +259,22 @@ _RULE_ACTION_RE = re.compile(
     r"\b(allow|deny|drop|reset-client|reset-server|reset-both)\b",
     re.IGNORECASE,
 )
+_FIREWALL_ID_RE = re.compile(
+    r"\bfirewall_id\s*[:=]\s*([A-Za-z0-9._-]+)\b",
+    re.IGNORECASE,
+)
+_FIREWALL_NAME_RE = re.compile(
+    r"\bfirewall(?:_name)?\s*[:=]\s*([A-Za-z0-9._-]+)\b",
+    re.IGNORECASE,
+)
+_TARGET_LINE_RE = re.compile(
+    r"^target\s+([A-Za-z0-9._-]+)",
+    re.IGNORECASE,
+)
+_ON_FIREWALL_RE = re.compile(
+    r"\bon\s+(?:firewall\s+)?([A-Za-z0-9._-]+)\b",
+    re.IGNORECASE,
+)
 
 
 def _norm_key(value):
@@ -320,17 +337,72 @@ def is_bulk_upload_request(text):
     return False
 
 
-def _bulk_upload_result(started=None):
+def extract_firewall_selection(text, messages=None):
+    """Pull firewall_id / firewall_name from the turn or recent history."""
+    blobs = [text or ""]
+    for item in reversed(messages or []):
+        content = (item.get("content") or "").strip()
+        if content:
+            blobs.append(content)
+    firewall_id = ""
+    firewall_name = ""
+    for blob in blobs:
+        if not firewall_id:
+            match = _FIREWALL_ID_RE.search(blob)
+            if match:
+                firewall_id = match.group(1)
+        if not firewall_name:
+            match = _FIREWALL_NAME_RE.search(blob) or _TARGET_LINE_RE.search(blob)
+            if match:
+                firewall_name = match.group(1)
+        if not firewall_name:
+            match = _ON_FIREWALL_RE.search(blob)
+            if match:
+                token = match.group(1)
+                if token.lower() not in ("the", "a", "an", "this", "that"):
+                    firewall_name = token
+        if firewall_id or firewall_name:
+            break
+    return {
+        "firewall_id": firewall_id,
+        "firewall_name": firewall_name,
+    }
+
+
+def _resolve_write_target(text, messages=None):
+    selection = extract_firewall_selection(text, messages)
+    return netsec_service.resolve_target(
+        firewall_id=selection.get("firewall_id"),
+        firewall_name=selection.get("firewall_name"),
+    )
+
+
+def _need_firewall_result(started=None):
     return _result(
-        "I can apply this as a bulk firewall change. "
-        "Download the Excel template, fill one row per change, then upload the workbook here.",
+        "Select a live firewall by firewall_id or firewall_name before this write.",
         [
             {
-                "type": "bulk_upload",
-                "title": "Bulk operation",
-                "description": (
-                    "Download the Excel workbook template, fill in one row per "
-                    "firewall change, then upload it to run a sheet against the firewall."
+                "type": "callout",
+                "tone": "warn",
+                "text": "Choose one live firewall first, then retry the change.",
+            }
+        ],
+        started=started,
+    )
+
+
+def _bulk_upload_result(started=None):
+    return _result(
+        "Select a live firewall first. After that I can apply this as a bulk "
+        "firewall change from the stored Excel workbook.",
+        [
+            {
+                "type": "callout",
+                "tone": "info",
+                "text": (
+                    "Choose a live firewall, then download the Excel template, "
+                    "fill one row per change, and upload the workbook. Only a "
+                    "file reference is sent to the execution agent."
                 ),
             }
         ],
@@ -752,8 +824,19 @@ def _confirm_blocks(change):
     ]
 
 
-def _submit_change(user_id, change):
-    preflight = firewall_jobs_service.preflight(user_id)
+def _submit_change(user_id, change, target=None):
+    target = target or change.get("target")
+    if not target:
+        raise ValueError(
+            "Select a firewall by firewall_id or firewall_name before this write."
+        )
+    identity = netsec_service.job_target_fields(target)
+    preflight = firewall_jobs_service.preflight(
+        user_id,
+        firewall_host=identity.get("firewall_host"),
+        firewall_id=identity.get("firewall_id"),
+        firewall_name=identity.get("firewall_name"),
+    )
     if not preflight.get("live"):
         raise firewall_jobs_service.FirewallJobsError(
             preflight.get("message") or FIREWALL_DOWN_MESSAGE,
@@ -767,7 +850,6 @@ def _submit_change(user_id, change):
         "source_type": "ai_workspace",
         "source_name": "AI Workspace",
         "device_group": "vsys1",
-        "firewall_host": preflight.get("host") or "",
         "changes": [
             {
                 "category": change["category"],
@@ -784,6 +866,9 @@ def _submit_change(user_id, change):
             "summary": change.get("summary") or "",
         },
     }
+    body.update(identity)
+    if not body.get("firewall_host"):
+        body["firewall_host"] = preflight.get("host") or ""
     job = firewall_jobs_service.create_and_dispatch_job(user_id, body)
     if not job or not (job.get("job_id") or job.get("task_id")):
         raise firewall_jobs_service.FirewallJobsError(
@@ -829,7 +914,11 @@ def try_handle(agent, user_id, message, messages=None):
                 started=started,
             )
         try:
-            job = _submit_change(user_id, change)
+            target = change.get("target") or _resolve_write_target(text, history)
+        except ValueError:
+            return _need_firewall_result(started=started)
+        try:
+            job = _submit_change(user_id, change, target=target)
         except ValueError as exc:
             return _result(str(exc), [
                 {"type": "callout", "tone": "danger", "text": str(exc)[:400]},
@@ -882,7 +971,19 @@ def try_handle(agent, user_id, message, messages=None):
         return None
 
     try:
-        preflight = firewall_jobs_service.preflight(user_id)
+        target = _resolve_write_target(text, history)
+    except ValueError:
+        return _need_firewall_result(started=started)
+    change["target"] = target
+    identity = netsec_service.job_target_fields(target)
+
+    try:
+        preflight = firewall_jobs_service.preflight(
+            user_id,
+            firewall_host=identity.get("firewall_host"),
+            firewall_id=identity.get("firewall_id"),
+            firewall_name=identity.get("firewall_name"),
+        )
     except firewall_jobs_service.FirewallJobsError as exc:
         if exc.status_code == 409:
             return _result(FIREWALL_DOWN_MESSAGE, [
@@ -899,9 +1000,12 @@ def try_handle(agent, user_id, message, messages=None):
         ], started=started)
 
     lead = (
-        "I can {0}. Confirming queues the change; "
+        "I can {0} on {1}. Confirming queues the change; "
         "watch status on the Jobs page."
-    ).format(change["summary"].lower())
+    ).format(
+        change["summary"].lower(),
+        target.get("device_name") or target.get("label") or "the selected firewall",
+    )
     return _result(lead, _confirm_blocks(change), started=started)
 
 

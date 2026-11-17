@@ -19,7 +19,8 @@
 
     var NETSEC_AGENT_ID = "netsec-execution-agent";
     var ALL_PLAYBOOKS = "all";
-    var state = { info: null, uploading: false, workbookName: "", target: null };
+    var BULK_REQUEST_RE = /\b(bulk\s+(change|changes|operation|operations|ops|update|updates|create|delete|upload)|upload(ing)?\s+(an?\s+)?(excel|xlsx|workbook|spreadsheet|file)|(excel|xlsx)\s+(file|workbook|template|upload)|upload\s+details|filled\s+workbook)\b/i;
+    var state = { info: null, uploading: false, workbookName: "", target: null, pendingFlow: null };
 
     /* Enum picker options keyed by workbook column header. */
     var ENUM_FIELDS = {
@@ -194,7 +195,9 @@
 
     function firewallKey(fw) {
         if (!fw) return "";
-        return String(fw.device_name || fw.id || fw.host || fw.host_ip || fw.label || "");
+        if (fw.id != null && String(fw.id) !== "") return "id:" + String(fw.id);
+        if (fw.device_name) return "name:" + String(fw.device_name);
+        return String(fw.host || fw.host_ip || fw.label || "");
     }
 
     function firewallLabel(fw) {
@@ -221,7 +224,9 @@
     }
 
     function selectedTarget(info) {
-        if (state.target && state.target.host) return state.target;
+        if (state.target && (state.target.id || state.target.device_name || state.target.host)) {
+            return state.target;
+        }
         return findFirewall(info || state.info, state.target && firewallKey(state.target));
     }
 
@@ -244,8 +249,8 @@
 
     function requireLiveTarget(card) {
         var target = targetFromCard(card) || selectedTarget(state.info);
-        if (target && target.host) setTarget(target);
-        if (!target || !target.host) {
+        if (target && (target.id || target.device_name || target.host)) setTarget(target);
+        if (!target || (!target.id && !target.device_name)) {
             toast("Select a firewall first.");
             return null;
         }
@@ -276,20 +281,24 @@
     function targetAttrs(target) {
         target = target || selectedTarget(state.info);
         if (!target) return "";
-        return ' data-ns-fw-id="' + esc(target.device_name || target.id || "") + '"' +
+        return ' data-ns-fw-id="' + esc(target.id || "") + '"' +
             ' data-ns-fw-host="' + esc(target.host || "") + '"' +
-            ' data-ns-fw-name="' + esc(target.label || target.device_name || "") + '"' +
+            ' data-ns-fw-name="' + esc(target.device_name || "") + '"' +
             ' data-ns-fw-status="' + esc(target.status || "") + '"';
     }
 
     function targetPayload(card) {
         var target = targetFromCard(card) || selectedTarget(state.info);
-        if (target && target.host) setTarget(target);
+        if (target && (target.id || target.device_name || target.host)) setTarget(target);
         if (!target) return {};
-        return {
-            firewall_id: target.device_name || target.id || "",
+        var payload = {
+            firewall_id: target.id || "",
+            firewall_name: target.device_name || "",
+            device_name: target.device_name || "",
             firewall_host: target.host || ""
         };
+        if (!payload.firewall_id && !payload.firewall_name) return {};
+        return payload;
     }
 
     function targetNoteHtml(target) {
@@ -507,11 +516,11 @@
         return html;
     }
 
-    function openFirewallPicker() {
+    function openFirewallPicker(userText) {
         if (!nsSession()) return;
         var bridge = chat();
         if (!bridge) { toast("Chat is still loading."); return; }
-        var userMsg = bridge.user("Action");
+        var userMsg = bridge.user(userText || "Action");
         loadInfo().then(function (info) {
             var asstMsg = bridge.assistantHtml(firewallPickerCardHtml(info), "Select Firewall");
             persist([userMsg, asstMsg]);
@@ -555,7 +564,11 @@
                 return;
             }
             setTarget(fw);
-            openChooser(state.target);
+            var next = state.pendingFlow;
+            state.pendingFlow = null;
+            if (next === "bulk") openBulkFile();
+            else if (next === "manual") openManualTypes();
+            else openChooser(state.target);
         }).catch(function (err) {
             toast((err && err.message) || "Could not load firewall inventory.");
         });
@@ -601,7 +614,8 @@
                 return;
             }
             if (!selectedTarget(info)) {
-                openFirewallPicker();
+                state.pendingFlow = "manual";
+                openFirewallPicker("Single operation");
                 return;
             }
             if (!requireLiveTarget()) return;
@@ -811,7 +825,8 @@
                 return;
             }
             if (!selectedTarget(info)) {
-                openFirewallPicker();
+                state.pendingFlow = "bulk";
+                openFirewallPicker("Bulk ops");
                 return;
             }
             if (!requireLiveTarget()) return;
@@ -1063,15 +1078,33 @@
         loadInfo().catch(function () {});
     }
 
+    function isBulkRequest(text) {
+        var low = String(text || "").replace(/\s+/g, " ").trim();
+        if (!low) return false;
+        if (BULK_REQUEST_RE.test(low)) return true;
+        return /\bbulk\b/i.test(low) && /\b(excel|xlsx|workbook|upload|file|spreadsheet)\b/i.test(low);
+    }
+
+    function interceptTypedBulk(text) {
+        if (!nsSession()) return false;
+        if (!isBulkRequest(text)) return false;
+        state.pendingFlow = "bulk";
+        openFirewallPicker(text);
+        return true;
+    }
+
     window.NetsecPanel = {
         agentId: NETSEC_AGENT_ID,
         isNetsecId: isNetsecId,
         isNetsecAgent: isNetsecAgent,
         isMaestroAgent: isMaestroAgent,
+        isBulkRequest: isBulkRequest,
+        interceptTypedBulk: interceptTypedBulk,
         onAgentActivated: onActivated,
         startChat: function (action) {
+            state.pendingFlow = null;
             if (action === "ns-manual") { openManualTypes(); return; }
-            if (action === "ns-bulk") { openBulkFile(); return; }
+            if (action === "ns-bulk") { state.pendingFlow = "bulk"; openFirewallPicker("Bulk ops"); return; }
             openFirewallPicker();
         },
         activate: onActivated

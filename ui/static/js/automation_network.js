@@ -96,7 +96,8 @@
         var option = firewallSelect && firewallSelect.options[firewallSelect.selectedIndex];
         if (!option || !option.value) return null;
         return {
-            id: option.getAttribute("data-id") || option.value,
+            id: option.getAttribute("data-id") || "",
+            device_name: option.getAttribute("data-name") || "",
             host: option.getAttribute("data-host") || option.value,
             label: option.textContent || option.value,
             status: option.getAttribute("data-status") || ""
@@ -118,6 +119,7 @@
             var status = String(fw.status || "").toLowerCase();
             return '<option value="' + esc(fw.id || fw.device_name || host) + '"' +
                 ' data-id="' + esc(fw.id || "") + '"' +
+                ' data-name="' + esc(fw.device_name || "") + '"' +
                 ' data-host="' + esc(host) + '"' +
                 ' data-status="' + esc(status) + '"' +
                 (status === "live" ? " selected" : "") +
@@ -439,6 +441,7 @@
                 source_type: "automation_hub",
                 source_name: state.workbookName || "Automation Hub",
                 firewall_id: target.id || "",
+                firewall_name: target.device_name || "",
                 firewall_host: target.host || ""
             })
         }).then(function (r) {

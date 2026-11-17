@@ -84,9 +84,15 @@ def _request(method, path, user_id, body=None, params=None):
     return data
 
 
-def preflight(user_id, firewall_host=None):
-    params = {"firewall_host": firewall_host} if firewall_host else None
-    return _request("GET", "firewall/preflight", user_id, params=params)
+def preflight(user_id, firewall_host=None, firewall_id=None, firewall_name=None):
+    params = {}
+    if firewall_id:
+        params["firewall_id"] = firewall_id
+    if firewall_name:
+        params["firewall_name"] = firewall_name
+    if firewall_host:
+        params["firewall_host"] = firewall_host
+    return _request("GET", "firewall/preflight", user_id, params=params or None)
 
 
 def list_jobs(user_id, status=None, limit=100):

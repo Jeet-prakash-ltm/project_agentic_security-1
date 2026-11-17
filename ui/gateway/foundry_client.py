@@ -237,7 +237,21 @@ def _system_prompt(agent):
             "You are an AI security agent on the LTM Security Platform. "
             "Provide concise, actionable security guidance. Format responses with clear headings and bullet points."
         )
+    if "orchestrat" in agent_key or "maestro" in agent_key:
+        return base
     return base + " " + UI_BLOCK_DIRECTIVE
+
+
+def is_maestro_agent(agent):
+    if not agent:
+        return False
+    text = " ".join([
+        str(agent.get("type") or ""),
+        str(agent.get("name") or ""),
+        str(agent.get("id") or ""),
+        str(agent.get("agent_id") or ""),
+    ]).lower()
+    return "maestro" in text or "orchestrat" in text
 
 
 def is_cloud_agent(agent):
@@ -296,9 +310,16 @@ def _normalize_messages(messages):
 def _with_ui_blocks(result, agent=None):
     """Strip any fenced ui block from the reply and expose it as blocks.
 
-    Audit/selection cards are only attached for the Firewall Audit Agent.
+    Maestro returns the Foundry agent reply unchanged. Audit/selection cards
+    are only attached for the Firewall Audit Agent.
     """
-    text, blocks = interactive_blocks.finalize(result.get("reply") or "")
+    reply = result.get("reply") or ""
+    if is_maestro_agent(agent):
+        result["reply"] = reply
+        result["blocks"] = []
+        result.pop("audit", None)
+        return result
+    text, blocks = interactive_blocks.finalize(reply)
     result["reply"] = text
     result["blocks"] = blocks
     if not is_firewall_audit_agent(agent):
@@ -397,7 +418,7 @@ def _error_suggests_missing_agent(exc):
     )
 
 
-def _run_responses(url, api_key, conversation, model, ephemeral, sys_prompt, started, attach_audit_tools=False):
+def _run_responses(url, api_key, conversation, model, ephemeral, sys_prompt, started, attach_audit_tools=False, rewrite_empty=True):
     """Run one chat over the Foundry Responses API.
 
     ``ephemeral`` agents (the historical behaviour) are defined per call with
@@ -441,7 +462,10 @@ def _run_responses(url, api_key, conversation, model, ephemeral, sys_prompt, sta
         _merge_usage(total_usage, data.get("usage") or {})
 
     if content is None:
-        content = "Assessment completed. Check the outputs above for detailed results."
+        content = (
+            "Assessment completed. Check the outputs above for detailed results."
+            if rewrite_empty else ""
+        )
 
     result = {
         "reply": content,
@@ -481,6 +505,7 @@ def chat(agent, messages):
                 url, api_key, conversation, model,
                 ephemeral=False, sys_prompt=None, started=started,
                 attach_audit_tools=False,
+                rewrite_empty=not is_maestro_agent(agent),
             )
             result["routed_via"] = "foundry_agent"
             result["agent_route"] = url
@@ -513,6 +538,7 @@ def chat(agent, messages):
         url, api_key, conversation, model,
         ephemeral=True, sys_prompt=sys_prompt, started=started,
         attach_audit_tools=is_firewall_audit_agent(agent),
+        rewrite_empty=not is_maestro_agent(agent),
     )
     result["routed_via"] = "ephemeral_model"
     result["agent_route"] = None

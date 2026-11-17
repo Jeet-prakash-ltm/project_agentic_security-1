@@ -132,39 +132,26 @@ function testStructuredSelectionCards() {
     assert.ok(rendered.html.indexOf("data-fw-intent=\"RUN_ASSESSMENT\"") !== -1);
 }
 
-function testStructuredFindingsExpand() {
-    var rendered = cards.renderAuditCards({
+function testStructuredFindingsStayPlainText() {
+    assert.equal(cards.renderAuditCards({
         schema_version: "1.0",
         source_agent: "FIREWALL_AUDITOR",
         response_type: "FINDINGS",
         title: "Key Findings",
         items: [
-            { id: "PA-24", title: "Threat Prevention Disabled", status: "NON_COMPLIANT", risk: "CRITICAL", summary: "Threat Prevention is off.", observed_finding: "false", recommendation: "Enable it." },
-            { id: "PA-10", title: "Disk", status: "NON_COMPLIANT", risk: "MEDIUM", summary: "Disk high." }
+            { id: "PA-24", title: "Threat Prevention Disabled", status: "NON_COMPLIANT", risk: "CRITICAL" }
         ]
-    });
-    assert.ok(rendered.html.indexOf("PA-24") !== -1);
-    assert.ok(rendered.html.indexOf("PA-10") !== -1);
-    assert.ok(rendered.html.indexOf("Enable it.") !== -1);
+    }), null);
 }
 
-function testStructuredReportDownloadOnlyWhenUrlExists() {
-    var withUrl = cards.renderAuditCards({
+function testStructuredReportStaysPlainText() {
+    assert.equal(cards.renderAuditCards({
         schema_version: "1.0",
         source_agent: "FIREWALL_AUDITOR",
         response_type: "REPORT_READY",
         title: "Report Ready",
         items: [{ title: "Workbook", download_url: "/api/excel?firewall=vmpafw01", file_name: "Workbook.xlsx" }]
-    });
-    var withoutUrl = cards.renderAuditCards({
-        schema_version: "1.0",
-        source_agent: "FIREWALL_AUDITOR",
-        response_type: "REPORT_READY",
-        title: "Report Ready",
-        items: [{ title: "Workbook" }]
-    });
-    assert.ok(withUrl.html.indexOf("fw-audit-download") !== -1);
-    assert.ok(withoutUrl.html.indexOf("fw-audit-download") === -1);
+    }), null);
 }
 
 function testInvalidStructuredFallsBack() {
@@ -274,7 +261,7 @@ function testLiveAssessmentHasFindingsAndDevice() {
     assert.ok(parsed.html.indexOf("Device Information") !== -1);
 }
 
-function testLiveKeyFindingsReply() {
+function testLiveKeyFindingsReplyStaysPlainText() {
     var markdown = [
         "Here are the key findings from the vmpafw01 assessment, focused on the most material risks:",
         "",
@@ -288,15 +275,10 @@ function testLiveKeyFindingsReply() {
         "     - Risk: **CRITICAL**",
         "     - Impact: Encrypted threats are invisible."
     ].join("\n");
-    var parsed = cards.parseBeforeDisplay(markdown, null);
-    assert.ok(parsed);
-    assert.ok(parsed.audit.findings.length >= 2);
-    assert.ok(parsed.html.indexOf("Key Findings") !== -1);
-    assert.ok(parsed.html.indexOf("No key findings") === -1);
-    assert.ok(parsed.html.indexOf("Threat Prevention") !== -1);
+    assert.equal(cards.parseBeforeDisplay(markdown, null), null);
 }
 
-function testLiveExecutiveSummaryReply() {
+function testLiveExecutiveSummaryReplyStaysPlainText() {
     var markdown = [
         "Here's the executive summary for the firewall **vmpafw01** assessment (Assessment ID: **NS-vmpafw01-1794881225793**).",
         "",
@@ -309,14 +291,126 @@ function testLiveExecutiveSummaryReply() {
         "### A. Core Threat Protection Not Effectively Enforced",
         "- Threat Prevention, Anti-Spyware, WildFire analysis are not enabled (PA-24)."
     ].join("\n");
+    assert.equal(cards.parseBeforeDisplay(markdown, null), null);
+}
+
+function metricMap(html) {
+    var map = {};
+    String(html || "").replace(/fw-audit-metric[\s\S]*?<span>([^<]*)<\/span><strong>([^<]*)<\/strong>/g, function (_, key, value) {
+        map[key] = value;
+        return _;
+    });
+    return map;
+}
+
+function testPostureDoesNotUseFindingCounts() {
+    var markdown = [
+        "Here's the compliance audit result for firewall **vmpafw01**.",
+        "",
+        "**Overall Posture**",
+        "- Compliance score: **27.3%**",
+        "- Overall risk: **CRITICAL**",
+        "",
+        "**Major risk drivers (examples)**",
+        "- Threat Prevention, Anti-Spyware, WildFire analysis are not enabled (PA-24).",
+        "- WildFire disabled (PA-25).",
+        "- URL Filtering disabled (PA-26)."
+    ].join("\n");
     var parsed = cards.parseBeforeDisplay(markdown, null);
-    assert.ok(parsed);
-    assert.equal(parsed.response_type, "executive_summary");
-    assert.equal(parsed.audit.device_information.name, "vmpafw01");
-    assert.equal(parsed.audit.summary.compliance_score, 27.3);
-    assert.ok(parsed.html.indexOf("27.3%") !== -1);
-    assert.ok(parsed.html.indexOf("vmpafw01") !== -1);
-    assert.ok(parsed.html.indexOf("No key findings") === -1);
+    var metrics = metricMap(parsed.html);
+    assert.equal(metrics.Score, "27.3%");
+    assert.equal(metrics.Risk, "CRITICAL");
+    assert.equal(metrics.Controls, undefined);
+    assert.equal(metrics.Compliant, undefined);
+    assert.equal(metrics["Non-Compliant"], undefined);
+    assert.ok(parsed.audit.findings.length >= 1);
+}
+
+function testNonAssessmentRepliesStayPlainText() {
+    assert.equal(cards.parseBeforeDisplay("I can generate an Excel workbook for this assessment.", null), null);
+    assert.equal(cards.parseBeforeDisplay("Download the report from the Reports page.", null), null);
+    assert.equal(cards.renderAuditCards({
+        schema_version: "1.0",
+        source_agent: "FIREWALL_AUDITOR",
+        response_type: "FINDINGS",
+        items: [{ id: "PA-24", title: "Threat Prevention Disabled" }]
+    }), null);
+    assert.equal(cards.renderAuditCards({
+        schema_version: "1.0",
+        source_agent: "FIREWALL_AUDITOR",
+        response_type: "REPORT_READY",
+        items: [{ title: "Workbook", download_url: "/api/excel" }]
+    }), null);
+}
+
+function testLastTwoAssessmentPostureMatchesAgent() {
+    var first = cards.parseBeforeDisplay([
+        "Here's the compliance audit result for firewall **vmpafw01** (Palo Alto PA-VM, PAN-OS 10.2.10-h9, IP 20.44.53.215):",
+        "",
+        "**Overall posture**",
+        "- Assessment ID: **NS-vmpafw01-1794879675302**",
+        "- Total controls: **44**",
+        "- COMPLIANT: **12**",
+        "- NON_COMPLIANT: **32**",
+        "- Compliance score: **27.3%**",
+        "- Overall risk: **CRITICAL**",
+        "",
+        "**Major risk drivers (examples)**",
+        "- PAN-OS version not on supported baseline (PA-01).",
+        "- Threat Prevention, WildFire, URL Filtering all disabled (PA-24)."
+    ].join("\n"), null);
+    var second = cards.parseBeforeDisplay([
+        "Here's the compliance audit summary for firewall **vmpafw01**:",
+        "",
+        "**Device & Scope**",
+        "- Vendor/Model: Palo Alto PA-VM",
+        "- Version: PAN-OS 10.2.10-h9",
+        "- IP: 20.44.53.215",
+        "- Status: live",
+        "- Assessment ID: **NS-vmpafw01-1794881225793**",
+        "",
+        "**Overall Posture**",
+        "- Total controls: **44**",
+        "- COMPLIANT: **12**",
+        "- NON_COMPLIANT: **32**",
+        "- Compliance score: **27.3%**",
+        "- Overall risk: **CRITICAL**",
+        "",
+        "**Major Risk Areas (evidence-based)**",
+        "1. **Platform & Updates**",
+        "   - PAN-OS version not on supported baseline (PA-01, NON_COMPLIANT, HIGH).",
+        "   - Threat Prevention: **disabled** (PA-24, NON_COMPLIANT, CRITICAL)."
+    ].join("\n"), null);
+    [first, second].forEach(function (parsed) {
+        var metrics = metricMap(parsed.html);
+        assert.equal(metrics.Score, "27.3%");
+        assert.equal(metrics.Controls, "44");
+        assert.equal(metrics.Compliant, "12");
+        assert.equal(metrics["Non-Compliant"], "32");
+        assert.equal(metrics.Insufficient, undefined);
+        assert.equal(metrics.Risk, "CRITICAL");
+        assert.ok(parsed.audit.findings.length >= 2);
+        assert.notEqual(String(metrics.Controls), String(parsed.audit.findings.length));
+    });
+}
+
+function testProsePostureSentence() {
+    var parsed = cards.parseBeforeDisplay([
+        "Here's the compliance audit result for firewall **vmpafw01**.",
+        "",
+        "**Overall Posture**",
+        "The firewall scored 27.3% (12 compliant / 32 non-compliant of 44 controls). Overall risk is CRITICAL.",
+        "",
+        "**Key Findings**",
+        "- PAN-OS version not on supported baseline (PA-01).",
+        "- Threat Prevention disabled (PA-24)."
+    ].join("\n"), null);
+    var metrics = metricMap(parsed.html);
+    assert.equal(metrics.Score, "27.3%");
+    assert.equal(metrics.Controls, "44");
+    assert.equal(metrics.Compliant, "12");
+    assert.equal(metrics["Non-Compliant"], "32");
+    assert.equal(metrics.Risk, "CRITICAL");
 }
 
 testSelectionOptions();
@@ -324,13 +418,17 @@ testComplianceScoreNotNaN();
 testMarkdownAssessment();
 testTopFiveFindingsOnly();
 testStructuredSelectionCards();
-testStructuredFindingsExpand();
-testStructuredReportDownloadOnlyWhenUrlExists();
+testStructuredFindingsStayPlainText();
+testStructuredReportStaysPlainText();
 testInvalidStructuredFallsBack();
 testLiveFoundrySelectionMarkdown();
 testLiveFoundryAssessmentMarkdown();
 testLivePipeSelectionIncludesAll();
 testLiveAssessmentHasFindingsAndDevice();
-testLiveKeyFindingsReply();
-testLiveExecutiveSummaryReply();
+testLiveKeyFindingsReplyStaysPlainText();
+testLiveExecutiveSummaryReplyStaysPlainText();
+testPostureDoesNotUseFindingCounts();
+testLastTwoAssessmentPostureMatchesAgent();
+testProsePostureSentence();
+testNonAssessmentRepliesStayPlainText();
 console.log("ok");

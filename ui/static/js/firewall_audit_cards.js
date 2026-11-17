@@ -471,6 +471,7 @@
                 summary.compliance_score = score;
                 summary.compliance_pct = score;
             }
+            applyPostureText(summary, kv.value);
         } else if (/total control|controls assessed/.test(kv.key) || kv.key === "controls") {
             summary.total_controls = asNumber(kv.value);
         } else if (/non[_\s-]?compliant/.test(kv.key)) {
@@ -483,6 +484,41 @@
             return kv.value;
         }
         return "";
+    }
+
+    function applyPostureText(summary, text) {
+        var raw = String(text || "");
+        if (!raw) return "";
+        if (summary.compliance_score == null) {
+            var scoreMatch = /(?:compliance(?:\s+score)?|scored)\s*[:=]?\s*(-?\d+(?:\.\d+)?)\s*%/i.exec(raw)
+                || /(-?\d+(?:\.\d+)?)\s*%/.exec(raw);
+            if (scoreMatch) {
+                summary.compliance_score = parseFloat(scoreMatch[1]);
+                summary.compliance_pct = summary.compliance_score;
+            }
+        }
+        if (summary.total_controls == null) {
+            var totalMatch = /(?:total\s+)?controls(?:\s+assessed)?\s*[:=]?\s*(-?\d+)/i.exec(raw)
+                || /(-?\d+)\s+(?:total\s+)?controls/i.exec(raw);
+            if (totalMatch) summary.total_controls = parseInt(totalMatch[1], 10);
+        }
+        raw.replace(/(-?\d+)\s*(non[_\s-]?)?compliant/ig, function (_, num, non) {
+            var value = parseInt(num, 10);
+            if (!isFinite(value)) return "";
+            if (non) {
+                if (summary.non_compliant == null) summary.non_compliant = value;
+            } else if (summary.compliant == null) {
+                summary.compliant = value;
+            }
+            return "";
+        });
+        if (summary.not_assessed == null) {
+            var insuff = /(-?\d+)\s*(?:insufficient(?:[_\s-]?data)?|not[_\s-]?assessed)/i.exec(raw);
+            if (insuff) summary.not_assessed = parseInt(insuff[1], 10);
+        }
+        var riskMatch = /(?:overall\s+risk|risk rating)\s*[:=]?\s*(CRITICAL|HIGH|MEDIUM|LOW)/i.exec(raw)
+            || /\b(CRITICAL|HIGH|MEDIUM|LOW)\b/i.exec(raw);
+        return riskMatch ? riskMatch[1] : "";
     }
 
     function parseInlineFinding(plain) {
@@ -586,6 +622,23 @@
         return /here are the key findings|key findings from/i.test(text);
     }
 
+    function looksLikeComplianceAssessment(text) {
+        var raw = String(text || "");
+        if (!raw) return false;
+        if (looksLikeKeyFindingsReply(raw) || looksLikeExecutiveSummary(raw)) return false;
+        return /(overall posture|device information|device & scope|compliance (?:audit|assessment|score)|total controls)/i.test(raw);
+    }
+
+    function isCardResponse(payload) {
+        if (!payload || typeof payload !== "object") return false;
+        var type = String(payload.response_type || "").trim();
+        var structured = type.toUpperCase();
+        if (type === "firewall_selection" || structured === "FIREWALL_SELECTION") return true;
+        if (type === "firewall_down") return true;
+        if (type === "firewall_assessment" || structured === "ASSESSMENT_SUMMARY") return true;
+        return false;
+    }
+
     function parseMarkdownAssessment(text) {
         var raw = String(text || "");
         if (!/(overall posture|device information|device & scope|key findings|key risk themes|priority recommendations|major risk|executive summary|PA-\d+)/i.test(raw)) return null;
@@ -609,6 +662,8 @@
                     applyDeviceKv(device, parseKvLine(line));
                 });
             } else if (/overall posture|compliance status|assessment overview/.test(lower)) {
+                var fromSection = applyPostureText(summary, body);
+                if (fromSection) postureLabel = fromSection;
                 body.split(/\r?\n/).forEach(function (line) {
                     var kv = parseKvLine(line);
                     var plain = stripMd(line);
@@ -659,12 +714,9 @@
         if (!findings.length) {
             parseKeyFindingItems(raw).forEach(function (item) { findings.push(item); });
         }
-        if (!summary.compliance_score && !summary.total_controls) {
-            String(raw).split(/\r?\n/).forEach(function (line) {
-                var kv = parseKvLine(line);
-                var fromKv = applyPostureKv(summary, kv);
-                if (fromKv) postureLabel = fromKv;
-            });
+        if (summary.compliance_score == null || summary.total_controls == null) {
+            var leadPosture = applyPostureText(summary, raw.split(/\n(?=\s*(?:#{1,3}\s+|\*{0,2}(?:\d+\.\s+)?)(?:Key Findings|Key Risk|Major risk|Priority Recommendations|PA-\d+))/i)[0] || raw);
+            if (leadPosture) postureLabel = postureLabel || leadPosture;
         }
         if (!findings.length && !summary.total_controls && !device.name) return null;
         var type = "firewall_assessment";
@@ -695,10 +747,10 @@
         if (/firewall down or stopped/i.test(trimmed) && trimmed.length < 80) {
             return { response_type: "firewall_down", message: "firewall down or stopped" };
         }
-        if (looksLikeKeyFindingsReply(trimmed) || looksLikeExecutiveSummary(trimmed)) {
-            return parseMarkdownAssessment(trimmed);
-        }
-        return parseMarkdownSelection(trimmed) || parseMarkdownAssessment(trimmed);
+        var selection = parseMarkdownSelection(trimmed);
+        if (selection) return selection;
+        if (!looksLikeComplianceAssessment(trimmed)) return null;
+        return parseMarkdownAssessment(trimmed);
     }
 
     function deviceFrom(payload) {
@@ -722,7 +774,6 @@
     function postureFrom(payload) {
         var posture = payload.overall_posture || {};
         var summary = payload.summary || {};
-        var findings = asList(payload.findings);
         var pct = asNumber(posture.compliance_score);
         if (pct == null) pct = asNumber(summary.compliance_score);
         if (pct == null) pct = asNumber(posture.compliance_pct);
@@ -731,44 +782,23 @@
         var compliant = asNumber(posture.compliant != null ? posture.compliant : summary.compliant);
         var nonCompliant = asNumber(posture.non_compliant != null ? posture.non_compliant : summary.non_compliant);
         var notAssessed = asNumber(posture.not_assessed != null ? posture.not_assessed : summary.not_assessed);
-        if (total == null && (asNumber(summary.total_controls) != null || asNumber(posture.total_controls) != null || asNumber(summary.compliance_score) != null || asNumber(posture.compliance_score) != null)) {
-            total = findings.length;
-        }
-        if (compliant == null && total != null) {
-            compliant = findings.filter(function (item) {
-                return String(item.status || "").toUpperCase() === "COMPLIANT";
-            }).length;
-        }
-        if (nonCompliant == null && total != null) {
-            nonCompliant = findings.filter(function (item) {
-                return String(item.status || "").toUpperCase() === "NON_COMPLIANT";
-            }).length;
-        }
-        if (notAssessed == null) {
-            notAssessed = findings.filter(isInsufficientFinding).length;
-        }
-        if (pct == null && total) pct = Math.round((Number(compliant) / Number(total)) * 1000) / 10;
-        var severity = posture.severity || { critical: 0, high: 0, medium: 0, low: 0 };
-        if (!posture.severity) {
-            findings.forEach(function (finding) {
-                var key = riskKey(finding.risk);
-                if (key && severity[key] != null) severity[key] += 1;
-            });
-        }
+        var severity = posture.severity && typeof posture.severity === "object"
+            ? {
+                critical: Number(posture.severity.critical) || 0,
+                high: Number(posture.severity.high) || 0,
+                medium: Number(posture.severity.medium) || 0,
+                low: Number(posture.severity.low) || 0
+            }
+            : { critical: 0, high: 0, medium: 0, low: 0 };
         return {
             label: textOf(posture.label),
             compliance_score: pct,
             compliance_pct: pct,
-            total_controls: Number(total) || 0,
-            compliant: Number(compliant) || 0,
-            non_compliant: Number(nonCompliant) || 0,
-            not_assessed: Number(notAssessed) || 0,
-            severity: {
-                critical: Number(severity.critical) || 0,
-                high: Number(severity.high) || 0,
-                medium: Number(severity.medium) || 0,
-                low: Number(severity.low) || 0
-            }
+            total_controls: total,
+            compliant: compliant,
+            non_compliant: nonCompliant,
+            not_assessed: notAssessed,
+            severity: severity
         };
     }
 
@@ -799,18 +829,12 @@
     }
 
     function overallRisk(posture) {
-        if (posture.label) {
-            var cleaned = posture.label.replace(/_/g, " ").replace(/\b\w/g, function (ch) {
-                return ch.toUpperCase();
-            });
-            if (/critical|high|medium|low/i.test(cleaned)) return cleaned.replace(/risk/ig, "").trim();
-            return cleaned;
-        }
-        if (posture.severity.critical) return "CRITICAL";
-        if (posture.severity.high) return "HIGH";
-        if (posture.severity.medium) return "MEDIUM";
-        if (posture.severity.low) return "LOW";
-        return "UNKNOWN";
+        if (!posture || !posture.label) return "";
+        var cleaned = posture.label.replace(/_/g, " ").replace(/\b\w/g, function (ch) {
+            return ch.toUpperCase();
+        });
+        if (/critical|high|medium|low/i.test(cleaned)) return cleaned.replace(/risk/ig, "").trim();
+        return cleaned;
     }
 
     function findingRank(finding) {
@@ -839,7 +863,7 @@
             var parsed = parseBeforeDisplay(scratch.innerText || scratch.textContent || "", null);
             if (parsed && parsed.html) return parsed.html;
         }
-        return '<div class="ws-mcq-card ns-card fw-audit-card"><div class="ws-mcq-head"><strong>Firewall Auditor Agent</strong><span>Read-only assessment</span></div><div class="ns-block">' + html + "</div></div>";
+        return html;
     }
 
     function badge(label, className) {
@@ -936,12 +960,14 @@
         var posture = postureFrom(payload);
         var risk = overallRisk(posture);
         var html = '<div class="fw-audit-posture">';
-        html += metricCard("Score", formatScore(posture.compliance_score != null ? posture.compliance_score : posture.compliance_pct), "is-score");
-        html += metricCard("Risk", risk, "is-risk " + riskClass(risk));
-        html += metricCard("Controls", posture.total_controls, "is-controls");
-        html += metricCard("Compliant", posture.compliant, "is-ok");
-        html += metricCard("Non-Compliant", posture.non_compliant, "is-bad");
-        html += metricCard("Insufficient", posture.not_assessed, "is-muted");
+        if (posture.compliance_score != null || posture.compliance_pct != null) {
+            html += metricCard("Score", formatScore(posture.compliance_score != null ? posture.compliance_score : posture.compliance_pct), "is-score");
+        }
+        if (risk) html += metricCard("Risk", risk, "is-risk " + riskClass(risk));
+        if (posture.total_controls != null) html += metricCard("Controls", posture.total_controls, "is-controls");
+        if (posture.compliant != null) html += metricCard("Compliant", posture.compliant, "is-ok");
+        if (posture.non_compliant != null) html += metricCard("Non-Compliant", posture.non_compliant, "is-bad");
+        if (posture.not_assessed != null) html += metricCard("Insufficient", posture.not_assessed, "is-muted");
         html += "</div>";
         return html;
     }
@@ -1227,9 +1253,8 @@
     }
 
     function renderAuditCards(payload) {
-        if (isStructuredAuditorPayload(payload)) return renderStructuredAuditor(payload);
-        var data = normalizeAuditPayload(payload);
-        if (!data) return null;
+        var data = normalizeAuditPayload(payload) || payload;
+        if (!isCardResponse(data)) return null;
         if (isStructuredAuditorPayload(data)) return renderStructuredAuditor(data);
         var type = data.response_type;
         if (type === "firewall_selection") {
@@ -1239,14 +1264,14 @@
             return { html: downCard(data), findings: [], cardTitle: "Firewall down or stopped", response_type: type };
         }
         var rendered = assessmentCard(data);
-        rendered.cardTitle = type === "executive_summary" ? "Executive Summary" : "Firewall Assessment";
+        rendered.cardTitle = "Firewall Assessment";
         rendered.response_type = type;
         return rendered;
     }
 
     function parseBeforeDisplay(content, audit) {
         var payload = extractAuditPayload(content, audit);
-        if (!payload) return null;
+        if (!payload || !isCardResponse(payload)) return null;
         var rendered = renderAuditCards(payload);
         if (!rendered) return null;
         rendered.audit = payload;

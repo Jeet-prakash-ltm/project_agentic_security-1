@@ -764,10 +764,11 @@
         } else {
             html = '<div class="ws-msg-text">' + formatAgentReply(msg.content || "") + "</div>";
         }
-        if (isFirewallAuditMessage(msg) && window.FirewallAuditCards && window.FirewallAuditCards.wrapAgentOutput) {
-            var content = String((msg && msg.content) || "");
-            if (window.FirewallAuditCards.extractAuditPayload && window.FirewallAuditCards.extractAuditPayload(content, msg && msg.audit)) {
-                return window.FirewallAuditCards.wrapAgentOutput(html);
+        if (isFirewallAuditMessage(msg) && window.FirewallAuditCards && window.FirewallAuditCards.parseBeforeDisplay) {
+            var wrapped = window.FirewallAuditCards.parseBeforeDisplay(msg && msg.content, msg && msg.audit);
+            if (wrapped && wrapped.html) {
+                if (wrapped.audit) msg.audit = wrapped.audit;
+                return wrapped.html;
             }
             return html;
         }

@@ -1,369 +1,1153 @@
 {
   "openapi": "3.0.1",
   "info": {
-    "title": "Firewall Execution Agent",
-    "version": "1.0.0",
-    "description": "Palo Alto PAN-OS firewall operations exposed through Azure Functions. Chat or Hub submit is the only approval. POST /api/firewall/jobs and POST /api/panos/change queue the change immediately. The Jobs page is status only (queued, running, successful, failed)."
+    "title": "Firewall Execution Agent - AI Workspace API",
+    "version": "3.2.0",
+    "description": "Agent-facing API for read-only PAN-OS queries and job-based firewall changes. Every create, update or delete must resolve one unique managed firewall first. Use firewall_id/target_asset_id or firewall_name. firewall_host may be that unique name or id. Shared host IP is rejected. Never reuse a previous job target. Never send ALL. Missing target returns MISSING_FIREWALL plus inventory and the preserved pending write. Unknown name or id returns INVALID_FIREWALL. After a unique live firewall is selected, prepare the exact job, collect one explicit approval, then queue."
   },
   "servers": [
     {
       "url": "https://firewall-execution-agent-gahmfgfghubpa6gk.southindia-01.azurewebsites.net"
     }
   ],
-  "components": {
-    "securitySchemes": {
-      "function_key": {
-        "type": "apiKey",
-        "in": "query",
-        "name": "code",
-        "description": "Azure Functions host key."
-      }
-    }
-  },
   "security": [
     {
       "function_key": []
     }
   ],
+  "components": {
+    "securitySchemes": {
+      "function_key": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-functions-key",
+        "description": "Azure Functions function or host key."
+      }
+    },
+    "schemas": {
+      "ChangeFields": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "Category-specific firewall configuration fields. Examples include Address Value and Address Type for address objects, Protocol and Port for services, and From, To, Source, Destination, Applications, Services and Action for security rules."
+      },
+      "FirewallChange": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "category",
+          "action",
+          "name"
+        ],
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Execution order within the job.",
+            "example": 1
+          },
+          "source_sheet": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 255,
+            "description": "Original Excel worksheet name for a bulk request.",
+            "example": "Addresses"
+          },
+          "source_row": {
+            "type": "integer",
+            "minimum": 1,
+            "nullable": true,
+            "description": "Original Excel row number.",
+            "example": 2
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "address",
+              "address_group",
+              "service",
+              "service_group",
+              "zone",
+              "virtual_router",
+              "static_route",
+              "interface",
+              "interface_mgmt_profile",
+              "security_rule",
+              "nat_rule"
+            ],
+            "description": "PAN-OS configuration category.",
+            "example": "address"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "create",
+              "update",
+              "delete"
+            ],
+            "description": "Requested configuration action.",
+            "example": "create"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "description": "Requested object or rule name.",
+            "example": "webserver12"
+          },
+          "fields": {
+            "$ref": "#/components/schemas/ChangeFields"
+          }
+        }
+      },
+      "ManagedFirewall": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique managed_firewalls.id.",
+            "example": "2"
+          },
+          "firewall_id": {
+            "type": "string",
+            "example": "2"
+          },
+          "target_asset_id": {
+            "type": "string",
+            "example": "2"
+          },
+          "firewall_name": {
+            "type": "string",
+            "example": "vmpafw01"
+          },
+          "device_name": {
+            "type": "string",
+            "example": "vmpafw01"
+          },
+          "name": {
+            "type": "string",
+            "example": "vmpafw01"
+          },
+          "host_ip": {
+            "type": "string",
+            "example": "20.44.53.215"
+          },
+          "firewall_host": {
+            "type": "string",
+            "description": "Resolved host IP after unique identity match. Do not send this shared IP as the write target.",
+            "example": "20.44.53.215"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "live",
+              "down"
+            ],
+            "example": "live"
+          },
+          "vendor": {
+            "type": "string",
+            "example": "Palo Alto"
+          }
+        }
+      },
+      "PendingWrite": {
+        "type": "object",
+        "description": "Preserved original write. Continue this change after the user selects a unique firewall. Do not ask what to do with the selected firewall.",
+        "properties": {
+          "category": {
+            "type": "string",
+            "example": "address"
+          },
+          "action": {
+            "type": "string",
+            "example": "create"
+          },
+          "name": {
+            "type": "string",
+            "example": "webserver12"
+          },
+          "fields": {
+            "$ref": "#/components/schemas/ChangeFields"
+          },
+          "operation": {
+            "type": "string",
+            "example": "apply_change"
+          },
+          "conversation_id": {
+            "type": "string"
+          },
+          "bulk": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PrepareFirewallJobRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation",
+          "conversation_id",
+          "changes"
+        ],
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "apply_change",
+              "apply_bulk"
+            ],
+            "description": "Use apply_change for exactly one natural-language change. Use apply_bulk for Excel-derived changes.",
+            "example": "apply_change"
+          },
+          "conversation_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "AI Workspace conversation identifier.",
+            "example": "conversation-001"
+          },
+          "user_id": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 64
+          },
+          "agent_id": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 64
+          },
+          "source_type": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 64,
+            "example": "ai_workspace"
+          },
+          "source_name": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 255,
+            "example": "Create webserver12"
+          },
+          "source_file_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "maxLength": 64,
+            "description": "conversation_attachments.id for apply_bulk."
+          },
+          "firewall_id": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 64,
+            "description": "Unique managed_firewalls.id. Live inventory ids include 2, 4, 5.",
+            "example": "2"
+          },
+          "firewall_name": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 64,
+            "description": "Unique managed firewall name. Live inventory names include vmpafw01, vmpafw03, vmpafw04.",
+            "example": "vmpafw01"
+          },
+          "device_name": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 64,
+            "description": "Alias of firewall_name."
+          },
+          "target_asset_id": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 64,
+            "description": "Same unique identity as firewall_id. Preferred Foundry field when firewall_id is not sent.",
+            "example": "2"
+          },
+          "firewall_host": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 255,
+            "description": "Unique firewall_name or firewall_id for this write. Example: vmpafw01 or 2. Shared clone IP 20.44.53.215 is rejected.",
+            "example": "vmpafw01"
+          },
+          "device_group": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 255,
+            "example": "vsys1"
+          },
+          "auto_create": {
+            "type": "boolean",
+            "default": true
+          },
+          "stop_on_error": {
+            "type": "boolean",
+            "default": true
+          },
+          "changes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/FirewallChange"
+            },
+            "description": "Exactly one item for apply_change. One or more Excel-derived items for apply_bulk."
+          }
+        }
+      },
+      "JobSummary": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "valid": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "invalid": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pending": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "successful": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failed": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "skipped": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "nullable": true
+          },
+          "source_sheet": {
+            "type": "string",
+            "nullable": true
+          },
+          "source_row": {
+            "type": "integer",
+            "nullable": true
+          },
+          "field": {
+            "type": "string",
+            "nullable": true
+          },
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "PreparedOperation": {
+        "type": "object",
+        "properties": {
+          "sequence": {
+            "type": "integer"
+          },
+          "source_sheet": {
+            "type": "string",
+            "nullable": true
+          },
+          "source_row": {
+            "type": "integer",
+            "nullable": true
+          },
+          "category": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "requested_name": {
+            "type": "string"
+          },
+          "normalized_name": {
+            "type": "string"
+          },
+          "normalized_fields": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "invalid"
+            ]
+          }
+        }
+      },
+      "PrepareFirewallJobResponse": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "apply_change",
+              "apply_bulk"
+            ]
+          },
+          "source_type": {
+            "type": "string"
+          },
+          "source_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "conversation_id": {
+            "type": "string"
+          },
+          "firewall_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "firewall_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "target_asset_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "firewall_host": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "approval_status": {
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/JobSummary"
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreparedOperation"
+            }
+          },
+          "validation_errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            }
+          },
+          "payload_hash": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 128
+          },
+          "plan_hash": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 128
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "FirewallSelectionResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "code",
+          "message",
+          "selection_required"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "MISSING_FIREWALL",
+              "INVALID_FIREWALL",
+              "AMBIGUOUS_FIREWALL",
+              "SELECT_FIREWALL"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "MISSING_FIREWALL",
+              "INVALID_FIREWALL",
+              "AMBIGUOUS_FIREWALL",
+              "SELECT_FIREWALL"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "example": "Select a firewall by firewall_id or firewall_name before this write."
+          },
+          "selection_required": {
+            "type": "boolean",
+            "example": true
+          },
+          "action_required": {
+            "type": "string",
+            "example": "select_firewall"
+          },
+          "firewalls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManagedFirewall"
+            }
+          },
+          "managed_firewalls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManagedFirewall"
+            }
+          },
+          "pending_write": {
+            "$ref": "#/components/schemas/PendingWrite"
+          }
+        }
+      },
+      "ApproveFirewallJobRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "approve": {
+            "type": "boolean",
+            "default": true
+          },
+          "payload_hash": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 128
+          },
+          "plan_hash": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 128
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1000
+          }
+        }
+      },
+      "RejectFirewallJobRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "comment": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1000
+          }
+        }
+      },
+      "JobDecisionResponse": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "approval_status": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "JobOperationResult": {
+        "type": "object",
+        "properties": {
+          "sequence": {
+            "type": "integer"
+          },
+          "source_sheet": {
+            "type": "string",
+            "nullable": true
+          },
+          "source_row": {
+            "type": "integer",
+            "nullable": true
+          },
+          "category": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "object_name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "success",
+              "failed",
+              "skipped"
+            ]
+          },
+          "result": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "FirewallJobResponse": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "apply_change",
+              "apply_bulk"
+            ]
+          },
+          "source_type": {
+            "type": "string"
+          },
+          "source_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "conversation_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "firewall_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "firewall_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "target_asset_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "firewall_host": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "approval_status": {
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/JobSummary"
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobOperationResult"
+            }
+          },
+          "result": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "approved_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "GetFirewallConfigRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "xpath"
+        ],
+        "properties": {
+          "xpath": {
+            "type": "string",
+            "minLength": 1,
+            "description": "PAN-OS XPath to retrieve. Read-only."
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "error"
+          },
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "message": {
+            "type": "string"
+          },
+          "details": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  },
   "paths": {
-    "/api/panos/test_connection": {
+    "/api/firewall/inventory": {
       "get": {
-        "operationId": "testConnection",
-        "summary": "Test firewall connectivity",
+        "operationId": "ListManagedFirewalls",
+        "summary": "List managed firewalls for write-target selection",
+        "description": "Call this when a write has no unique firewall_id or firewall_name. Never reuse a previous job target. Preserve the pending write and present these firewalls. After the user selects one live firewall by firewall_id or firewall_name, continue the original write. Do not ask what to do with the selected firewall.",
         "responses": {
           "200": {
-            "description": "Connection successful"
+            "description": "Managed firewall inventory.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirewallSelectionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/firewall/preflight": {
+      "get": {
+        "operationId": "PreflightFirewallTarget",
+        "summary": "Validate a unique managed firewall before PrepareFirewallJob",
+        "description": "Resolves firewall_id, target_asset_id, firewall_name, or unique firewall_host (name or id) against managed_firewalls. Shared host IP is rejected. Returns live reachability for the unique match.",
+        "parameters": [
+          {
+            "name": "firewall_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "target_asset_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "firewall_name",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "firewall_host",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Unique firewall_name or firewall_id. Shared IP is rejected."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unique firewall resolved and reachable."
+          },
+          "400": {
+            "description": "Missing, invalid, or ambiguous firewall selection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirewallSelectionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/firewall/jobs": {
+      "post": {
+        "operationId": "PrepareFirewallJob",
+        "summary": "Prepare an AI Workspace firewall change job",
+        "description": "Use this for every AI Workspace firewall create, update or delete. Every write requires one unique managed firewall: firewall_id/target_asset_id or firewall_name. firewall_host may be that unique name (vmpafw01) or id (2). Host IP alone is rejected. Never reuse a previous job target. Missing target returns MISSING_FIREWALL plus managed_firewalls and the preserved pending write. Unknown name or id returns INVALID_FIREWALL. For apply_change, changes must contain exactly one item. For apply_bulk, source_file_id identifies the Excel attachment.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepareFirewallJobRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Firewall job prepared.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrepareFirewallJobResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Firewall job prepared and awaiting explicit user approval.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrepareFirewallJobResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid firewall selection, or change validation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirewallSelectionResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Selected firewall is down."
+          },
+          "500": {
+            "description": "Job preparation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/firewall/jobs/{job_id}": {
+      "get": {
+        "operationId": "GetFirewallJobStatus",
+        "summary": "Get the status of a specific firewall job",
+        "description": "Use only with a job_id returned during the current workflow.",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Firewall job returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirewallJobResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Firewall job not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/firewall/jobs/{job_id}/approve": {
+      "post": {
+        "operationId": "ApproveFirewallJob",
+        "summary": "Approve and queue a prepared firewall job",
+        "description": "Use only after the user explicitly approved this job_id. Never call this automatically immediately after PrepareFirewallJob.",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveFirewallJobRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Job approved and queued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDecisionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Job cannot be approved in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Firewall job not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stored job data does not match or the job was concurrently modified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/firewall/jobs/{job_id}/reject": {
+      "post": {
+        "operationId": "RejectFirewallJob",
+        "summary": "Reject a prepared firewall job",
+        "description": "Use only after the user explicitly rejects this job_id. No PAN-OS change occurs.",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectFirewallJobRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Job rejected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobDecisionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Job cannot be rejected in its current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Firewall job not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/panos/test_connection": {
+      "get": {
+        "operationId": "TestFirewallConnection",
+        "summary": "Test firewall connectivity",
+        "description": "Read-only connectivity test. Does not create a job or modify configuration.",
+        "responses": {
+          "200": {
+            "description": "Firewall connectivity result."
+          },
+          "500": {
+            "description": "Firewall connectivity test failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
     },
     "/api/panos/info": {
       "get": {
-        "operationId": "getFirewallInfo",
-        "summary": "Get firewall information",
+        "operationId": "GetFirewallInfo",
+        "summary": "Get firewall connection and execution information",
+        "description": "Read-only connection and execution information. Does not create a job.",
         "responses": {
           "200": {
-            "description": "Firewall information"
+            "description": "Firewall information returned."
+          },
+          "500": {
+            "description": "Firewall information retrieval failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
     },
-    "/api/panos/op": {
-      "post": {
-        "operationId": "executeOperationalCommand",
-        "summary": "Execute PAN-OS operational command",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "cmd": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "cmd"
-                ]
-              }
-            }
-          }
-        },
+    "/api/panos/categories": {
+      "get": {
+        "operationId": "ListChangeCategories",
+        "summary": "List supported firewall change categories",
+        "description": "Read-only list of supported PAN-OS configuration categories.",
         "responses": {
           "200": {
-            "description": "Command execution result"
+            "description": "Supported firewall categories returned."
           }
         }
       }
     },
     "/api/panos/config/get": {
       "post": {
-        "operationId": "getConfig",
-        "summary": "Get configuration data",
+        "operationId": "GetFirewallConfig",
+        "summary": "Read PAN-OS configuration",
+        "description": "Retrieves PAN-OS configuration at the supplied XPath. Read-only. Does not create a job.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "xpath": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "xpath"
-                ]
+                "$ref": "#/components/schemas/GetFirewallConfigRequest"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Configuration retrieved"
-          }
-        }
-      }
-    },
-    "/api/panos/config/set": {
-      "post": {
-        "operationId": "setConfig",
-        "summary": "Not a live write path. Use PrepareFirewallJob after chat approval.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "xpath": {
-                    "type": "string"
-                  },
-                  "element": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "xpath",
-                  "element"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Configuration created"
-          }
-        }
-      }
-    },
-    "/api/panos/config/edit": {
-      "post": {
-        "operationId": "editConfig",
-        "summary": "Not a live write path. Use PrepareFirewallJob after chat approval.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "xpath": {
-                    "type": "string"
-                  },
-                  "element": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "xpath",
-                  "element"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Configuration edited"
-          }
-        }
-      }
-    },
-    "/api/panos/config/delete": {
-      "post": {
-        "operationId": "deleteConfig",
-        "summary": "Not a live write path. Use PrepareFirewallJob after chat approval.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "xpath": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "xpath"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Configuration deleted"
-          }
-        }
-      }
-    },
-    "/api/panos/commit": {
-      "post": {
-        "operationId": "commitConfig",
-        "summary": "Not a live write path. Use PrepareFirewallJob after chat approval.",
-        "responses": {
-          "200": {
-            "description": "Commit successful"
-          }
-        }
-      }
-    },
-    "/api/panos/workbook/run": {
-      "post": {
-        "operationId": "runWorkbook",
-        "summary": "Queue a bulk workbook job after chat or Hub submit",
-        "description": "Parses a filled-in .xlsx workbook and queues a firewall job. Chat or Hub Execute is the only approval. Do not send users to Jobs to approve. Do not invent xpaths.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "workbook_base64": {
-                    "type": "string",
-                    "description": "Base64-encoded .xlsx workbook"
-                  },
-                  "workbook_name": {
-                    "type": "string",
-                    "description": "Original workbook file name"
-                  },
-                  "row_limit": {
-                    "type": "integer",
-                    "description": "Optional per-sheet row cap"
-                  }
-                },
-                "required": [
-                  "workbook_base64"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Workbook job queued. Watch Jobs for queued, running, successful, or failed."
-          }
-        }
-      }
-    },
-    "/api/panos/change": {
-      "post": {
-        "operationId": "prepareFirewallChange",
-        "summary": "Queue one structured firewall change after chat approval",
-        "description": "Call only after the user approves in chat. Queues the change immediately. Do not send the user to Jobs to approve.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "category": { "type": "string" },
-                  "action": { "type": "string" },
-                  "name": { "type": "string" },
-                  "fields": { "type": "object" },
-                  "firewall_id": { "type": "string" },
-                  "firewall_name": { "type": "string" },
-                  "target_asset_id": { "type": "string" },
-                  "firewall_host": { "type": "string" },
-                  "conversation_id": { "type": "string" },
-                  "source_type": { "type": "string" },
-                  "user_id": { "type": "string" }
-                },
-                "required": ["category", "action", "name"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Job queued"
-          }
-        }
-      }
-    },
-    "/api/firewall/inventory": {
-      "get": {
-        "operationId": "ListManagedFirewalls",
-        "summary": "List managed firewalls for write-target selection",
-        "description": "Call this when a write has no firewall_id or firewall_name. Never reuse a previous job target. Preserve the pending write and present these firewalls for selection.",
-        "responses": {
-          "200": {
-            "description": "Managed firewall inventory"
-          }
-        }
-      }
-    },
-    "/api/firewall/jobs": {
-      "get": {
-        "operationId": "listFirewallJobs",
-        "summary": "List firewall jobs",
-        "responses": {
-          "200": {
-            "description": "Job list"
-          }
-        }
-      },
-      "post": {
-        "operationId": "PrepareFirewallJob",
-        "summary": "Queue a firewall job after chat or Hub approval",
-        "description": "Chat or Hub Execute is the only approval. This call queues the job. Jobs is status only. Every write requires a unique managed firewall. Foundry v3.1.0 exposes target_asset_id and firewall_host only; firewall_host may be the inventory name (vmpafw01) or id (2). Host IP alone is rejected because clones share it. Missing target returns MISSING_FIREWALL plus managed_firewalls options, selection_required, and the preserved pending write. Unknown name or id returns INVALID_FIREWALL. Never reuse a previous job target.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "operation": { "type": "string" },
-                  "source_type": { "type": "string" },
-                  "source_name": { "type": "string" },
-                  "device_group": { "type": "string" },
-                  "firewall_id": { "type": "string" },
-                  "firewall_name": { "type": "string" },
-                  "target_asset_id": {
-                    "type": "string",
-                    "description": "Unique managed_firewalls.id. Live inventory ids are 2, 4, 5."
-                  },
-                  "firewall_host": {
-                    "type": "string",
-                    "description": "Unique firewall_name (vmpafw01) or firewall_id (2). Shared host IP is rejected."
-                  },
-                  "conversation_id": { "type": "string" },
-                  "changes": { "type": "array", "items": { "type": "object" } },
-                  "user_id": { "type": "string" }
+            "description": "PAN-OS configuration returned."
+          },
+          "400": {
+            "description": "Invalid configuration read request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Job queued"
-          }
-        }
-      }
-    },
-    "/api/firewall/jobs/{task_id}": {
-      "get": {
-        "operationId": "getFirewallJob",
-        "summary": "Get one firewall job",
-        "parameters": [
-          {
-            "name": "task_id",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string" }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Job status"
+          },
+          "500": {
+            "description": "Configuration retrieval failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }

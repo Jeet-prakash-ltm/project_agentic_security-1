@@ -267,6 +267,11 @@
                   "action": { "type": "string" },
                   "name": { "type": "string" },
                   "fields": { "type": "object" },
+                  "firewall_id": { "type": "string" },
+                  "firewall_name": { "type": "string" },
+                  "target_asset_id": { "type": "string" },
+                  "firewall_host": { "type": "string" },
+                  "conversation_id": { "type": "string" },
                   "source_type": { "type": "string" },
                   "user_id": { "type": "string" }
                 },
@@ -278,6 +283,18 @@
         "responses": {
           "200": {
             "description": "Job queued"
+          }
+        }
+      }
+    },
+    "/api/firewall/inventory": {
+      "get": {
+        "operationId": "ListManagedFirewalls",
+        "summary": "List managed firewalls for write-target selection",
+        "description": "Call this when a write has no firewall_id or firewall_name. Never reuse a previous job target. Preserve the pending write and present these firewalls for selection.",
+        "responses": {
+          "200": {
+            "description": "Managed firewall inventory"
           }
         }
       }
@@ -295,7 +312,7 @@
       "post": {
         "operationId": "PrepareFirewallJob",
         "summary": "Queue a firewall job after chat or Hub approval",
-        "description": "Chat or Hub Execute is the only approval. This call queues the job. Jobs is status only.",
+        "description": "Chat or Hub Execute is the only approval. This call queues the job. Jobs is status only. Every write requires a unique managed firewall. Foundry v3.1.0 exposes target_asset_id and firewall_host only; firewall_host may be the inventory name (vmpafw01) or id (2). Host IP alone is rejected because clones share it. Missing target returns MISSING_FIREWALL plus managed_firewalls options, selection_required, and the preserved pending write. Unknown name or id returns INVALID_FIREWALL. Never reuse a previous job target.",
         "requestBody": {
           "required": true,
           "content": {
@@ -307,7 +324,17 @@
                   "source_type": { "type": "string" },
                   "source_name": { "type": "string" },
                   "device_group": { "type": "string" },
-                  "firewall_host": { "type": "string" },
+                  "firewall_id": { "type": "string" },
+                  "firewall_name": { "type": "string" },
+                  "target_asset_id": {
+                    "type": "string",
+                    "description": "Unique managed_firewalls.id. Live inventory ids are 2, 4, 5."
+                  },
+                  "firewall_host": {
+                    "type": "string",
+                    "description": "Unique firewall_name (vmpafw01) or firewall_id (2). Shared host IP is rejected."
+                  },
+                  "conversation_id": { "type": "string" },
                   "changes": { "type": "array", "items": { "type": "object" } },
                   "user_id": { "type": "string" }
                 }

@@ -181,17 +181,31 @@ def list_target_firewalls():
     return [_public_firewall(entry) for entry in entries if _public_firewall(entry)]
 
 
+def _looks_like_ip(value):
+    parts = str(value or "").split(".")
+    return len(parts) == 4 and all(part.isdigit() for part in parts)
+
+
 def _matches_id(entry, wanted_id):
     if not wanted_id:
         return False
-    return str(entry.get("id") or "") == wanted_id
+    wanted = str(wanted_id).strip()
+    for key in ("id", "firewall_id", "target_asset_id"):
+        value = entry.get(key)
+        if value is not None and str(value).strip() == wanted:
+            return True
+    return False
 
 
 def _matches_name(entry, wanted_name):
-    if not wanted_name:
+    if not wanted_name or _looks_like_ip(wanted_name):
         return False
-    name = (entry.get("device_name") or "").strip()
-    return name.lower() == wanted_name.lower()
+    needle = wanted_name.lower()
+    for key in ("device_name", "firewall_name", "name"):
+        value = (entry.get(key) or "").strip()
+        if value and value.lower() == needle:
+            return True
+    return False
 
 
 def _matches_host(entry, wanted_host):
@@ -214,8 +228,7 @@ def _unique_or_ambiguous(matches, wanted):
             "Choose one by firewall_id or firewall_name."
         )
     raise ValueError(
-        "Selected firewall is not in inventory. Choose one by "
-        "firewall_id or firewall_name ({0}).".format(wanted)
+        "Selected firewall is not in inventory. Choose one from the list."
     )
 
 
@@ -231,7 +244,7 @@ def job_target_fields(target):
             "Select a firewall by firewall_id or firewall_name before running this job."
         )
     body = {
-        "firewall_host": host,
+        "firewall_host": firewall_name or host,
         "target_asset_id": firewall_id or None,
     }
     if firewall_id:
@@ -247,7 +260,12 @@ def resolve_target(firewall_id=None, firewall_host=None, firewall_name=None):
     wanted_id = str(firewall_id or "").strip()
     wanted_name = str(firewall_name or "").strip()
     wanted_host = str(firewall_host or "").strip()
-    if not wanted_id and not wanted_name and not wanted_host:
+    if not wanted_id and not wanted_name and wanted_host:
+        if wanted_host.isdigit():
+            wanted_id = wanted_host
+        elif not _looks_like_ip(wanted_host):
+            wanted_name = wanted_host
+    if not wanted_id and not wanted_name:
         raise ValueError(
             "Select a firewall by firewall_id or firewall_name before preparing the job."
         )
@@ -260,6 +278,8 @@ def resolve_target(firewall_id=None, firewall_host=None, firewall_name=None):
             return _unique_or_ambiguous(matches, wanted_id)
     if wanted_name:
         matches = [entry for entry in entries if _matches_name(entry, wanted_name)]
+        if not matches:
+            matches = [entry for entry in entries if _matches_id(entry, wanted_name)]
         if matches:
             return _unique_or_ambiguous(matches, wanted_name)
     if wanted_host:
@@ -267,7 +287,7 @@ def resolve_target(firewall_id=None, firewall_host=None, firewall_name=None):
         if matches:
             return _unique_or_ambiguous(matches, wanted_host)
     raise ValueError(
-        "Select a firewall by firewall_id or firewall_name before preparing the job."
+        "Selected firewall is not in inventory. Choose one from the list."
     )
 
 

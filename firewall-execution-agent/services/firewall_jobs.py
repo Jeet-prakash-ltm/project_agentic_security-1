@@ -52,6 +52,10 @@ from services.firewall_job_lifecycle import (
     TIMEOUT,
 )
 from services.job_planner import JobValidationError
+from services.managed_targets import (
+    job_identity,
+    resolve_write_target,
+)
 from services.settings import Settings
 
 logger = logging.getLogger("firewall.jobs")
@@ -138,13 +142,26 @@ def check_firewall_live(firewall_host=None):
         return False, "{0}: firewall unreachable".format(type(exc).__name__)
 
 
-def preflight(firewall_host=None):
-    live, detail = check_firewall_live(firewall_host)
+def preflight(firewall_host=None, firewall_id=None, firewall_name=None):
+    target = resolve_write_target(
+        {
+            "firewall_host": firewall_host,
+            "firewall_id": firewall_id,
+            "firewall_name": firewall_name,
+            "target_asset_id": firewall_id,
+        }
+    )
+    identity = job_identity(target)
+    live, detail = check_firewall_live(identity.get("firewall_host"))
     return {
         "live": live,
         "message": None if live else FIREWALL_DOWN_MESSAGE,
         "detail": detail,
-        "host": firewall_host or Settings.FW_HOST or "",
+        "host": identity.get("firewall_host") or "",
+        "firewall_id": identity.get("firewall_id") or "",
+        "firewall_name": identity.get("firewall_name") or "",
+        "target_asset_id": identity.get("target_asset_id") or "",
+        "target": target,
     }
 
 
@@ -189,10 +206,10 @@ def _source_type(payload):
 
 def create_job(user_id, payload, workbook_bytes=None):
     payload = payload or {}
+    target = resolve_write_target(payload)
+    identity = job_identity(target)
     device_group = _clean(payload.get("device_group"), 255) or "vsys1"
-    firewall_host = _clean(payload.get("firewall_host"), 255) or (
-        Settings.FW_HOST or ""
-    )
+    firewall_host = identity["firewall_host"]
 
     _require_live()
 
@@ -221,6 +238,15 @@ def create_job(user_id, payload, workbook_bytes=None):
             "changes": payload.get("changes") or [],
             "source_type": source_type,
         }
+    requested_payload = dict(requested_payload)
+    requested_payload.update(
+        {
+            "firewall_id": identity.get("firewall_id") or "",
+            "firewall_name": identity.get("firewall_name") or "",
+            "target_asset_id": identity.get("target_asset_id") or "",
+            "firewall_host": firewall_host,
+        }
+    )
     job = job_store.create_job(
         {
             "job_id": job_id,
@@ -235,7 +261,7 @@ def create_job(user_id, payload, workbook_bytes=None):
             "source_name": _clean(payload.get("source_name"), 255)
             or ("AI Workspace" if source_type == "ai_workspace" else "Automation Hub"),
             "source_file_id": _clean(payload.get("source_file_id"), 64) or None,
-            "target_asset_id": _clean(payload.get("target_asset_id"), 64) or None,
+            "target_asset_id": identity.get("target_asset_id"),
             "firewall_host": firewall_host,
             "device_group": device_group,
             "status": AWAITING_APPROVAL,

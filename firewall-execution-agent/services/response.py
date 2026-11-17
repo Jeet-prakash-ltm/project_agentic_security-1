@@ -21,12 +21,17 @@ def success(data=None):
     )
 
 
-def error(message, status_code=400):
+def error(message, status_code=400, extra=None):
 
     payload = {
         "status": "error",
         "message": message
     }
+    if isinstance(extra, dict):
+        payload.update(extra)
+        payload["message"] = message
+        if not extra.get("status"):
+            payload["status"] = "error"
 
     return func.HttpResponse(
         json.dumps(payload),

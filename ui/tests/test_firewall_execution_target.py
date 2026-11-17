@@ -82,7 +82,7 @@ class JobTargetFieldsTests(unittest.TestCase):
         self.assertEqual(body["firewall_name"], "vmpafw01")
         self.assertEqual(body["device_name"], "vmpafw01")
         self.assertEqual(body["target_asset_id"], "11")
-        self.assertEqual(body["firewall_host"], "20.44.53.215")
+        self.assertEqual(body["firewall_host"], "vmpafw01")
 
     def test_missing_identity_raises(self):
         from services import netsec_service
@@ -96,7 +96,7 @@ class ResolveTargetTests(unittest.TestCase):
         from services import netsec_service
 
         with mock.patch.object(netsec_service, "list_target_firewalls", return_value=CLONES):
-            with self.assertRaisesRegex(ValueError, "Multiple firewalls"):
+            with self.assertRaisesRegex(ValueError, "firewall_id or firewall_name"):
                 netsec_service.resolve_target(firewall_host="20.44.53.215")
 
     def test_unique_id_wins_among_clones(self):
@@ -120,6 +120,43 @@ class ResolveTargetTests(unittest.TestCase):
         with mock.patch.object(netsec_service, "list_target_firewalls", return_value=CLONES):
             target = netsec_service.resolve_target(firewall_id="vmpafw01")
         self.assertEqual(target["id"], 11)
+
+    def test_live_name_as_firewall_host(self):
+        from services import netsec_service
+
+        live = [
+            {
+                "id": 2,
+                "device_name": "vmpafw01",
+                "host_name": "20.44.53.215",
+                "host_ip": "20.44.53.215",
+                "host": "20.44.53.215",
+                "status": "live",
+            },
+            {
+                "id": 4,
+                "device_name": "vmpafw03",
+                "host_name": "20.44.53.215",
+                "host_ip": "20.44.53.215",
+                "host": "20.44.53.215",
+                "status": "live",
+            },
+            {
+                "id": 5,
+                "device_name": "vmpafw04",
+                "host_name": "20.44.53.215",
+                "host_ip": "20.44.53.215",
+                "host": "20.44.53.215",
+                "status": "live",
+            },
+        ]
+        with mock.patch.object(netsec_service, "list_target_firewalls", return_value=live):
+            by_name = netsec_service.resolve_target(firewall_host="vmpafw01")
+            by_id = netsec_service.resolve_target(firewall_id="2")
+            by_asset = netsec_service.resolve_target(firewall_host="2")
+        self.assertEqual(by_name["id"], 2)
+        self.assertEqual(by_id["device_name"], "vmpafw01")
+        self.assertEqual(by_asset["device_name"], "vmpafw01")
 
     def test_missing_selection_raises(self):
         from services import netsec_service
@@ -166,6 +203,66 @@ class MaestroSelectionTests(unittest.TestCase):
                 "create object web-01 with ip 10.0.0.1",
             )
         self.assertIn("firewall_id or firewall_name", result["reply"])
+        self.assertIn("Pending:", result["reply"])
+        option_block = next(
+            block for block in result["blocks"] if block.get("type") == "options"
+        )
+        self.assertEqual(option_block["title"], "Select firewall")
+        self.assertTrue(any("vmpafw01" in opt["label"] for opt in option_block["options"]))
+
+    def test_selection_continues_pending_write(self):
+        from services import maestro_firewall_jobs
+
+        agent = {"id": "netsec-execution-agent", "name": "Firewall Execution Agent"}
+        history = [
+            {"role": "user", "content": "Delete service HTTPS-8443"},
+            {"role": "user", "content": "vmpafw01"},
+        ]
+        with mock.patch.object(
+            maestro_firewall_jobs.netsec_service,
+            "list_target_firewalls",
+            return_value=CLONES,
+        ):
+            with mock.patch.object(
+                maestro_firewall_jobs.firewall_jobs_service,
+                "preflight",
+                return_value={"live": True, "host": "20.44.53.215"},
+            ):
+                result = maestro_firewall_jobs.try_handle(
+                    agent,
+                    "user-1",
+                    "vmpafw01",
+                    messages=history,
+                )
+        self.assertIn("https-8443", result["reply"].lower())
+        self.assertNotIn("What do you want to do", result["reply"])
+        confirm = next(block for block in result["blocks"] if block.get("type") == "confirm")
+        self.assertIn("HTTPS-8443", confirm["text"])
+
+    def test_new_write_does_not_reuse_previous_job_firewall(self):
+        from services import maestro_firewall_jobs
+
+        agent = {"id": "netsec-execution-agent", "name": "Firewall Execution Agent"}
+        history = [
+            {
+                "role": "user",
+                "content": "create object web-01 with ip 10.0.0.1 firewall_name=vmpafw01",
+            },
+            {"role": "user", "content": "Delete service HTTPS-8443"},
+        ]
+        with mock.patch.object(
+            maestro_firewall_jobs.netsec_service,
+            "list_target_firewalls",
+            return_value=CLONES,
+        ):
+            result = maestro_firewall_jobs.try_handle(
+                agent,
+                "user-1",
+                "Delete service HTTPS-8443",
+                messages=history,
+            )
+        self.assertIn("firewall_id or firewall_name", result["reply"])
+        self.assertIn("HTTPS-8443", result["reply"])
 
 
 if __name__ == "__main__":

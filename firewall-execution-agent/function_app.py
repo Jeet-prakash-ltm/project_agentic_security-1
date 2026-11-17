@@ -308,6 +308,20 @@ def _user_id(req, body=None):
     return str(value).strip()[:64] or "anonymous"
 
 
+def _selection_payload(ex):
+    extra = {
+        "code": getattr(ex, "code", None) or "MISSING_FIREWALL",
+        "status": getattr(ex, "code", None) or "MISSING_FIREWALL",
+        "selection_required": True,
+        "action_required": "select_firewall",
+        "firewalls": getattr(ex, "firewalls", None) or [],
+        "managed_firewalls": getattr(ex, "firewalls", None) or [],
+        "pending_write": getattr(ex, "pending_write", None),
+    }
+    extra["message"] = redact(ex)
+    return extra
+
+
 def _job_response(ex):
     from services.firewall_jobs import (
         FirewallDownError,
@@ -315,8 +329,13 @@ def _job_response(ex):
         JobNotFound,
         JobValidationError,
     )
+    from services.managed_targets import InvalidFirewallError, MissingFirewallError
 
     message = redact(ex)
+    if isinstance(ex, (MissingFirewallError, InvalidFirewallError)):
+        extra = _selection_payload(ex)
+        extra["status"] = extra.get("code")
+        return error(message, 400, extra=extra)
     if isinstance(ex, FirewallDownError):
         return error(message, 409)
     if isinstance(ex, JobNotFound):
@@ -328,12 +347,49 @@ def _job_response(ex):
     return error(message, 502)
 
 
+@app.route(route="firewall/inventory", methods=["GET"])
+def firewall_inventory(req):
+    """List managed firewalls for write-target selection."""
+    from services.managed_targets import list_managed_firewalls
+
+    try:
+        body = get_body(req) or {}
+        pending_write = body.get("pending_write") if isinstance(body, dict) else None
+        firewalls = list_managed_firewalls()
+        return success({
+            "status": "SELECT_FIREWALL",
+            "code": "MISSING_FIREWALL" if not firewalls else "SELECT_FIREWALL",
+            "firewalls": firewalls,
+            "pending_write": pending_write,
+            "message": (
+                "Select a firewall by firewall_id or firewall_name before this write."
+            ),
+        })
+    except Exception as ex:
+        return _job_response(ex)
+
+
 @app.route(route="firewall/preflight")
 def firewall_preflight(req):
     from services.firewall_jobs import preflight
 
+    body = get_body(req) if req.method and req.method.upper() == "POST" else {}
     try:
-        return success(preflight(req.params.get("firewall_host")))
+        return success(preflight(
+            firewall_host=req.params.get("firewall_host") or body.get("firewall_host"),
+            firewall_id=(
+                req.params.get("firewall_id")
+                or req.params.get("target_asset_id")
+                or body.get("firewall_id")
+                or body.get("target_asset_id")
+            ),
+            firewall_name=(
+                req.params.get("firewall_name")
+                or req.params.get("device_name")
+                or body.get("firewall_name")
+                or body.get("device_name")
+            ),
+        ))
     except Exception as ex:
         return _job_response(ex)
 

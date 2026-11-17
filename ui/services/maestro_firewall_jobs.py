@@ -369,26 +369,93 @@ def extract_firewall_selection(text, messages=None):
     }
 
 
+def _bare_firewall_selection(text):
+    """Treat a whole-message firewall id/name as the write target."""
+    token = _clean(text, 64)
+    if not token or any(ch.isspace() for ch in token):
+        return {"firewall_id": "", "firewall_name": ""}
+    if token.lower() in ("yes", "no", "ok", "okay", "approve", "cancel"):
+        return {"firewall_id": "", "firewall_name": ""}
+    entries = netsec_service.list_target_firewalls()
+    by_id = [entry for entry in entries if str(entry.get("id") or "") == token]
+    if len(by_id) == 1:
+        return {
+            "firewall_id": str(by_id[0].get("id") or ""),
+            "firewall_name": by_id[0].get("device_name") or "",
+        }
+    by_name = [
+        entry for entry in entries
+        if (entry.get("device_name") or "").lower() == token.lower()
+    ]
+    if len(by_name) == 1:
+        return {
+            "firewall_id": str(by_name[0].get("id") or ""),
+            "firewall_name": by_name[0].get("device_name") or "",
+        }
+    return {"firewall_id": "", "firewall_name": ""}
+
+
 def _resolve_write_target(text, messages=None):
     selection = extract_firewall_selection(text, messages)
+    if not selection.get("firewall_id") and not selection.get("firewall_name"):
+        selection = _bare_firewall_selection(text)
+    if not selection.get("firewall_id") and not selection.get("firewall_name"):
+        for item in reversed(messages or []):
+            content = (item.get("content") or "").strip()
+            if not content:
+                continue
+            selection = _bare_firewall_selection(content)
+            if selection.get("firewall_id") or selection.get("firewall_name"):
+                break
     return netsec_service.resolve_target(
         firewall_id=selection.get("firewall_id"),
         firewall_name=selection.get("firewall_name"),
     )
 
 
-def _need_firewall_result(started=None):
-    return _result(
-        "Select a live firewall by firewall_id or firewall_name before this write.",
-        [
-            {
-                "type": "callout",
-                "tone": "warn",
-                "text": "Choose one live firewall first, then retry the change.",
-            }
-        ],
-        started=started,
-    )
+def _need_firewall_result(started=None, change=None):
+    summary = (change or {}).get("summary") or "this write"
+    firewalls = netsec_service.list_target_firewalls()
+    options = []
+    for entry in firewalls:
+        name = entry.get("device_name") or ""
+        firewall_id = str(entry.get("id") or "")
+        host = entry.get("host") or entry.get("host_ip") or ""
+        status = entry.get("status") or ""
+        label = "{0} ({1})".format(name, host) if host else name or firewall_id
+        if status:
+            label = "{0} [{1}]".format(label, status)
+        value = (
+            "firewall_name={0}".format(name)
+            if name else "firewall_id={0}".format(firewall_id)
+        )
+        options.append({
+            "label": label[:200],
+            "value": value,
+            "description": "firewall_id={0}".format(firewall_id),
+        })
+    blocks = [
+        {
+            "type": "callout",
+            "tone": "warn",
+            "text": (
+                "Choose one live firewall, then I will continue {0}. "
+                "I will not ask what to do with the selected firewall."
+            ).format(summary),
+        }
+    ]
+    if options:
+        blocks.append({
+            "type": "options",
+            "title": "Select firewall",
+            "description": "Pending write: {0}".format(summary),
+            "options": options[:24],
+        })
+    reply = (
+        "Select a live firewall by firewall_id or firewall_name before this write. "
+        "Pending: {0}."
+    ).format(summary)
+    return _result(reply, blocks, started=started)
 
 
 def _bulk_upload_result(started=None):
@@ -916,7 +983,7 @@ def try_handle(agent, user_id, message, messages=None):
         try:
             target = change.get("target") or _resolve_write_target(text, history)
         except ValueError:
-            return _need_firewall_result(started=started)
+            return _need_firewall_result(started=started, change=change)
         try:
             job = _submit_change(user_id, change, target=target)
         except ValueError as exc:
@@ -968,12 +1035,18 @@ def try_handle(agent, user_id, message, messages=None):
             )
         change = filled or change
     if change is None:
-        return None
+        selection = extract_firewall_selection(text)
+        if not selection.get("firewall_id") and not selection.get("firewall_name"):
+            selection = _bare_firewall_selection(text)
+        if selection.get("firewall_id") or selection.get("firewall_name"):
+            change = pending_change_from_history(history[:-1] if history else [])
+        if change is None:
+            return None
 
     try:
-        target = _resolve_write_target(text, history)
+        target = _resolve_write_target(text)
     except ValueError:
-        return _need_firewall_result(started=started)
+        return _need_firewall_result(started=started, change=change)
     change["target"] = target
     identity = netsec_service.job_target_fields(target)
 

@@ -2,8 +2,8 @@
   "openapi": "3.0.1",
   "info": {
     "title": "Firewall Execution Agent - AI Workspace API",
-    "version": "3.2.0",
-    "description": "Agent-facing API for read-only PAN-OS queries and job-based firewall changes. Every create, update or delete must resolve one unique managed firewall first. Use firewall_id/target_asset_id or firewall_name. firewall_host may be that unique name or id. Shared host IP is rejected. Never reuse a previous job target. Never send ALL. Missing target returns MISSING_FIREWALL plus inventory and the preserved pending write. Unknown name or id returns INVALID_FIREWALL. After a unique live firewall is selected, prepare the exact job, collect one explicit approval, then queue."
+    "version": "3.3.0",
+    "description": "Agent-facing API for read-only PAN-OS queries and job-based firewall changes. Every create, update or delete must resolve one unique managed firewall first. Use firewall_id/target_asset_id or firewall_name. firewall_host may be that unique name or id. Shared host IP is rejected. Never reuse a previous job target. Never send ALL. Missing target returns MISSING_FIREWALL plus inventory and the preserved pending write. Unknown name or id returns INVALID_FIREWALL. After a unique live firewall is selected, call PrepareFirewallJob. Prepare always returns status pending_approval and approval_status pending. Prepare does not approve, queue, or publish to Service Bus. Present the prepared job and wait for an explicit user decision. Only ApproveFirewallJob queues the job. RejectFirewallJob cancels with no PAN-OS change. The worker refuses any job that is not approved and queued."
   },
   "servers": [
     {
@@ -42,21 +42,18 @@
           "sequence": {
             "type": "integer",
             "minimum": 1,
-            "description": "Execution order within the job.",
             "example": 1
           },
           "source_sheet": {
             "type": "string",
             "nullable": true,
             "maxLength": 255,
-            "description": "Original Excel worksheet name for a bulk request.",
             "example": "Addresses"
           },
           "source_row": {
             "type": "integer",
             "minimum": 1,
             "nullable": true,
-            "description": "Original Excel row number.",
             "example": 2
           },
           "category": {
@@ -74,7 +71,6 @@
               "security_rule",
               "nat_rule"
             ],
-            "description": "PAN-OS configuration category.",
             "example": "address"
           },
           "action": {
@@ -84,14 +80,12 @@
               "update",
               "delete"
             ],
-            "description": "Requested configuration action.",
             "example": "create"
           },
           "name": {
             "type": "string",
             "minLength": 1,
             "maxLength": 255,
-            "description": "Requested object or rule name.",
             "example": "webserver12"
           },
           "fields": {
@@ -104,8 +98,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "description": "Unique managed_firewalls.id.",
-            "example": "2"
+            "example": "2",
+            "description": "Unique managed_firewalls.id."
           },
           "firewall_id": {
             "type": "string",
@@ -133,8 +127,8 @@
           },
           "firewall_host": {
             "type": "string",
-            "description": "Resolved host IP after unique identity match. Do not send this shared IP as the write target.",
-            "example": "20.44.53.215"
+            "example": "20.44.53.215",
+            "description": "Resolved host IP after unique identity match. Do not send this shared IP as the write target."
           },
           "status": {
             "type": "string",
@@ -152,7 +146,6 @@
       },
       "PendingWrite": {
         "type": "object",
-        "description": "Preserved original write. Continue this change after the user selects a unique firewall. Do not ask what to do with the selected firewall.",
         "properties": {
           "category": {
             "type": "string",
@@ -179,7 +172,8 @@
           "bulk": {
             "type": "boolean"
           }
-        }
+        },
+        "description": "Preserved original write. Continue this change after the user selects a unique firewall. Do not ask what to do with the selected firewall."
       },
       "PrepareFirewallJobRequest": {
         "type": "object",
@@ -196,15 +190,15 @@
               "apply_change",
               "apply_bulk"
             ],
-            "description": "Use apply_change for exactly one natural-language change. Use apply_bulk for Excel-derived changes.",
-            "example": "apply_change"
+            "example": "apply_change",
+            "description": "Use apply_change for exactly one natural-language change. Use apply_bulk for Excel-derived changes."
           },
           "conversation_id": {
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "AI Workspace conversation identifier.",
-            "example": "conversation-001"
+            "example": "conversation-001",
+            "description": "AI Workspace conversation identifier."
           },
           "user_id": {
             "type": "string",
@@ -239,15 +233,15 @@
             "type": "string",
             "nullable": true,
             "maxLength": 64,
-            "description": "Unique managed_firewalls.id. Live inventory ids include 2, 4, 5.",
-            "example": "2"
+            "example": "2",
+            "description": "Unique managed_firewalls.id. Live inventory ids include 2, 4, 5."
           },
           "firewall_name": {
             "type": "string",
             "nullable": true,
             "maxLength": 64,
-            "description": "Unique managed firewall name. Live inventory names include vmpafw01, vmpafw03, vmpafw04.",
-            "example": "vmpafw01"
+            "example": "vmpafw01",
+            "description": "Unique managed firewall name. Live inventory names include vmpafw01, vmpafw03, vmpafw04."
           },
           "device_name": {
             "type": "string",
@@ -259,15 +253,15 @@
             "type": "string",
             "nullable": true,
             "maxLength": 64,
-            "description": "Same unique identity as firewall_id. Preferred Foundry field when firewall_id is not sent.",
-            "example": "2"
+            "example": "2",
+            "description": "Same unique identity as firewall_id. Preferred Foundry field when firewall_id is not sent."
           },
           "firewall_host": {
             "type": "string",
             "nullable": true,
             "maxLength": 255,
-            "description": "Unique firewall_name or firewall_id for this write. Example: vmpafw01 or 2. Shared clone IP 20.44.53.215 is rejected.",
-            "example": "vmpafw01"
+            "example": "vmpafw01",
+            "description": "Unique firewall_name or firewall_id for this write. Example: vmpafw01 or 2. Shared clone IP 20.44.53.215 is rejected."
           },
           "device_group": {
             "type": "string",
@@ -292,6 +286,33 @@
             "description": "Exactly one item for apply_change. One or more Excel-derived items for apply_bulk."
           }
         }
+      },
+      "JobStatus": {
+        "type": "string",
+        "description": "security_jobs.status. Prepare writes pending_approval. awaiting_approval is a legacy prepare alias. Only ApproveFirewallJob may set queued.",
+        "enum": [
+          "pending_approval",
+          "awaiting_approval",
+          "queued",
+          "running",
+          "committing",
+          "completed",
+          "failed",
+          "cancelled",
+          "timeout",
+          "rejected"
+        ],
+        "example": "pending_approval"
+      },
+      "ApprovalStatus": {
+        "type": "string",
+        "description": "security_jobs.approval_status. Prepare writes pending. Only ApproveFirewallJob may set approved.",
+        "enum": [
+          "pending",
+          "approved",
+          "rejected"
+        ],
+        "example": "pending"
       },
       "JobSummary": {
         "type": "object",
@@ -434,10 +455,20 @@
             "nullable": true
           },
           "status": {
-            "type": "string"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JobStatus"
+              }
+            ],
+            "description": "Always pending_approval after PrepareFirewallJob. Never queued, approved, or completed from prepare."
           },
           "approval_status": {
-            "type": "string"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApprovalStatus"
+              }
+            ],
+            "description": "Always pending after PrepareFirewallJob. Prepare does not set approved."
           },
           "summary": {
             "$ref": "#/components/schemas/JobSummary"
@@ -465,7 +496,14 @@
             "maxLength": 128
           },
           "message": {
-            "type": "string"
+            "type": "string",
+            "description": "Present the prepared job and wait for an explicit user approve or reject. Do not call ApproveFirewallJob automatically.",
+            "example": "Job prepared. status=pending_approval approval_status=pending. Waiting for explicit user approval. Not queued."
+          },
+          "queued": {
+            "type": "boolean",
+            "description": "Always false after PrepareFirewallJob. True only after ApproveFirewallJob publishes to Service Bus.",
+            "example": false
           }
         }
       },
@@ -497,8 +535,7 @@
             ]
           },
           "message": {
-            "type": "string",
-            "example": "Select a firewall by firewall_id or firewall_name before this write."
+            "type": "string"
           },
           "selection_required": {
             "type": "boolean",
@@ -531,7 +568,13 @@
         "properties": {
           "approve": {
             "type": "boolean",
-            "default": true
+            "default": true,
+            "description": "true queues a pending_approval/pending job. false rejects it with no PAN-OS change."
+          },
+          "user_id": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 64
           },
           "payload_hash": {
             "type": "string",
@@ -554,10 +597,22 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
+          "user_id": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 64
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 500,
+            "description": "Optional reject reason stored on the job."
+          },
           "comment": {
             "type": "string",
             "nullable": true,
-            "maxLength": 1000
+            "maxLength": 1000,
+            "description": "Alias of reason."
           }
         }
       },
@@ -568,10 +623,14 @@
             "type": "string"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/JobStatus"
           },
           "approval_status": {
-            "type": "string"
+            "$ref": "#/components/schemas/ApprovalStatus"
+          },
+          "queued": {
+            "type": "boolean",
+            "description": "true only after a successful ApproveFirewallJob publish to Service Bus."
           },
           "message": {
             "type": "string"
@@ -667,10 +726,10 @@
             "nullable": true
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/JobStatus"
           },
           "approval_status": {
-            "type": "string"
+            "$ref": "#/components/schemas/ApprovalStatus"
           },
           "summary": {
             "$ref": "#/components/schemas/JobSummary"
@@ -754,7 +813,6 @@
       "get": {
         "operationId": "ListManagedFirewalls",
         "summary": "List managed firewalls for write-target selection",
-        "description": "Call this when a write has no unique firewall_id or firewall_name. Never reuse a previous job target. Preserve the pending write and present these firewalls. After the user selects one live firewall by firewall_id or firewall_name, continue the original write. Do not ask what to do with the selected firewall.",
         "responses": {
           "200": {
             "description": "Managed firewall inventory.",
@@ -766,14 +824,14 @@
               }
             }
           }
-        }
+        },
+        "description": "Call this when a write has no unique firewall_id or firewall_name. Never reuse a previous job target. Preserve the pending write and present these firewalls. After the user selects one live firewall by firewall_id or firewall_name, continue the original write. Do not ask what to do with the selected firewall."
       }
     },
     "/api/firewall/preflight": {
       "get": {
         "operationId": "PreflightFirewallTarget",
         "summary": "Validate a unique managed firewall before PrepareFirewallJob",
-        "description": "Resolves firewall_id, target_asset_id, firewall_name, or unique firewall_host (name or id) against managed_firewalls. Shared host IP is rejected. Returns live reachability for the unique match.",
         "parameters": [
           {
             "name": "firewall_id",
@@ -819,14 +877,14 @@
               }
             }
           }
-        }
+        },
+        "description": "Resolves firewall_id, target_asset_id, firewall_name, or unique firewall_host (name or id) against managed_firewalls. Shared host IP is rejected. Returns live reachability for the unique match."
       }
     },
     "/api/firewall/jobs": {
       "post": {
         "operationId": "PrepareFirewallJob",
         "summary": "Prepare an AI Workspace firewall change job",
-        "description": "Use this for every AI Workspace firewall create, update or delete. Every write requires one unique managed firewall: firewall_id/target_asset_id or firewall_name. firewall_host may be that unique name (vmpafw01) or id (2). Host IP alone is rejected. Never reuse a previous job target. Missing target returns MISSING_FIREWALL plus managed_firewalls and the preserved pending write. Unknown name or id returns INVALID_FIREWALL. For apply_change, changes must contain exactly one item. For apply_bulk, source_file_id identifies the Excel attachment.",
         "requestBody": {
           "required": true,
           "content": {
@@ -839,7 +897,7 @@
         },
         "responses": {
           "200": {
-            "description": "Firewall job prepared.",
+            "description": "Firewall job prepared with status pending_approval and approval_status pending. Not queued.",
             "content": {
               "application/json": {
                 "schema": {
@@ -849,7 +907,7 @@
             }
           },
           "201": {
-            "description": "Firewall job prepared and awaiting explicit user approval.",
+            "description": "Firewall job prepared with status pending_approval and approval_status pending. Waiting for explicit user approval. Not queued.",
             "content": {
               "application/json": {
                 "schema": {
@@ -881,14 +939,13 @@
               }
             }
           }
-        }
+        },
+        "description": "Use this for every AI Workspace firewall create, update or delete. Every write requires one unique managed firewall: firewall_id/target_asset_id or firewall_name. firewall_host may be that unique name (vmpafw01) or id (2). Host IP alone is rejected. Never reuse a previous job target. Missing target returns MISSING_FIREWALL plus managed_firewalls and the preserved pending write. Unknown name or id returns INVALID_FIREWALL. For apply_change, changes must contain exactly one item. For apply_bulk, source_file_id identifies the Excel attachment. Prepare only stores the job as status pending_approval and approval_status pending. It does not approve, queue, or publish to Service Bus. Do not call ApproveFirewallJob automatically after this operation."
       }
     },
     "/api/firewall/jobs/{job_id}": {
       "get": {
         "operationId": "GetFirewallJobStatus",
-        "summary": "Get the status of a specific firewall job",
-        "description": "Use only with a job_id returned during the current workflow.",
         "parameters": [
           {
             "name": "job_id",
@@ -921,14 +978,14 @@
               }
             }
           }
-        }
+        },
+        "summary": "Get the status of a specific firewall job",
+        "description": "Use only with a job_id returned during the current workflow."
       }
     },
     "/api/firewall/jobs/{job_id}/approve": {
       "post": {
         "operationId": "ApproveFirewallJob",
-        "summary": "Approve and queue a prepared firewall job",
-        "description": "Use only after the user explicitly approved this job_id. Never call this automatically immediately after PrepareFirewallJob.",
         "parameters": [
           {
             "name": "job_id",
@@ -991,14 +1048,14 @@
               }
             }
           }
-        }
+        },
+        "summary": "Approve and queue a prepared firewall job",
+        "description": "Use only after the user explicitly approved this job_id. Requires status pending_approval or awaiting_approval and approval_status pending. Sets approval_status approved and status queued, then publishes the job id to Service Bus. Never call this automatically immediately after PrepareFirewallJob. The worker refuses any job that is not approved and queued."
       }
     },
     "/api/firewall/jobs/{job_id}/reject": {
       "post": {
         "operationId": "RejectFirewallJob",
-        "summary": "Reject a prepared firewall job",
-        "description": "Use only after the user explicitly rejects this job_id. No PAN-OS change occurs.",
         "parameters": [
           {
             "name": "job_id",
@@ -1051,14 +1108,14 @@
               }
             }
           }
-        }
+        },
+        "summary": "Reject a prepared firewall job",
+        "description": "Use only after the user explicitly rejects this job_id. Requires status pending_approval or awaiting_approval and approval_status pending. Sets status rejected and approval_status rejected. No Service Bus publish and no PAN-OS change occurs."
       }
     },
     "/api/panos/test_connection": {
       "get": {
         "operationId": "TestFirewallConnection",
-        "summary": "Test firewall connectivity",
-        "description": "Read-only connectivity test. Does not create a job or modify configuration.",
         "responses": {
           "200": {
             "description": "Firewall connectivity result."
@@ -1073,14 +1130,14 @@
               }
             }
           }
-        }
+        },
+        "summary": "Test firewall connectivity",
+        "description": "Read-only connectivity test. Does not create a job or modify configuration."
       }
     },
     "/api/panos/info": {
       "get": {
         "operationId": "GetFirewallInfo",
-        "summary": "Get firewall connection and execution information",
-        "description": "Read-only connection and execution information. Does not create a job.",
         "responses": {
           "200": {
             "description": "Firewall information returned."
@@ -1095,26 +1152,26 @@
               }
             }
           }
-        }
+        },
+        "summary": "Get firewall connection and execution information",
+        "description": "Read-only connection and execution information. Does not create a job."
       }
     },
     "/api/panos/categories": {
       "get": {
         "operationId": "ListChangeCategories",
-        "summary": "List supported firewall change categories",
-        "description": "Read-only list of supported PAN-OS configuration categories.",
         "responses": {
           "200": {
             "description": "Supported firewall categories returned."
           }
-        }
+        },
+        "summary": "List supported firewall change categories",
+        "description": "Read-only list of supported PAN-OS configuration categories."
       }
     },
     "/api/panos/config/get": {
       "post": {
         "operationId": "GetFirewallConfig",
-        "summary": "Read PAN-OS configuration",
-        "description": "Retrieves PAN-OS configuration at the supplied XPath. Read-only. Does not create a job.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1149,7 +1206,9 @@
               }
             }
           }
-        }
+        },
+        "summary": "Read PAN-OS configuration",
+        "description": "Retrieves PAN-OS configuration at the supplied XPath. Read-only. Does not create a job."
       }
     }
   }

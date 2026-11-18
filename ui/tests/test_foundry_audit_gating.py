@@ -19,7 +19,7 @@ MAESTRO_AGENT = {
     "id": "master-orchestrator-agent",
     "name": "Maestro AI",
     "type": "Master Orchestrator",
-    "agent_id": "Maestro-AI",
+    "agent_id": "test-agent",
 }
 
 ZERO_TRUST_AGENT = {

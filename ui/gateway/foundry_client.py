@@ -356,20 +356,137 @@ def _call_tool(tool_registry, function_call, collected=None):
         return json.dumps({"error": str(error)})
 
 
-def _extract_reply(data):
-    content_parts = []
-    function_calls = []
-    for item in data.get("output") or []:
-        item_type = item.get("type")
-        if item_type == "message":
-            for part in item.get("content") or []:
-                if part.get("type") in ("output_text", "text"):
+_ROUTING_LINE_RE = re.compile(
+    r"^\s*routing this to(?: the)? .+\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def _drop_routing_preamble(text):
+    if not text:
+        return text
+    stripped = _ROUTING_LINE_RE.sub("", text).strip()
+    return stripped or text
+
+
+def _stringify_tool_output(value):
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return ""
+        if text[:1] in "{[":
+            try:
+                parsed = json.loads(text)
+            except (TypeError, ValueError):
+                return text
+            return _stringify_tool_output(parsed)
+        return text
+    if isinstance(value, dict):
+        for key in (
+            "reply",
+            "text",
+            "output_text",
+            "message",
+            "content",
+            "output",
+            "response",
+            "result",
+        ):
+            nested = _stringify_tool_output(value.get(key))
+            if nested:
+                return nested
+        return ""
+    if isinstance(value, list):
+        parts = [_stringify_tool_output(item) for item in value]
+        return "\n\n".join(part for part in parts if part)
+    return str(value).strip()
+
+
+def _nested_text(item):
+    if isinstance(item, str):
+        return item.strip()
+    if not isinstance(item, dict):
+        return ""
+    parts = []
+    content = item.get("content")
+    if isinstance(content, str) and content.strip():
+        parts.append(content.strip())
+    elif isinstance(content, list):
+        for part in content:
+            if isinstance(part, str) and part.strip():
+                parts.append(part.strip())
+            elif isinstance(part, dict):
+                part_type = part.get("type")
+                if part_type in ("output_text", "text", "input_text"):
                     text = (part.get("text") or "").strip()
                     if text:
-                        content_parts.append(text)
-        elif item_type == "function_call":
+                        parts.append(text)
+                else:
+                    nested = _nested_text(part)
+                    if nested:
+                        parts.append(nested)
+    for key in ("output_text", "text"):
+        value = item.get(key)
+        if isinstance(value, str) and value.strip():
+            parts.append(value.strip())
+    output_text = _stringify_tool_output(item.get("output") or item.get("result"))
+    if output_text:
+        parts.append(output_text)
+    seen = []
+    for part in parts:
+        if part and part not in seen:
+            seen.append(part)
+    return "\n\n".join(seen).strip()
+
+
+_TOOL_OUTPUT_TYPES = frozenset((
+    "mcp_call",
+    "mcp_tool_call",
+    "custom_tool_call",
+    "tool_call",
+    "tool_result",
+    "function_call_output",
+    "connected_agent_call",
+    "connected_agent",
+))
+
+
+def _extract_reply(data):
+    message_parts = []
+    tool_parts = []
+    function_calls = []
+    for item in data.get("output") or []:
+        if isinstance(item, str):
+            if item.strip():
+                message_parts.append(item.strip())
+            continue
+        if not isinstance(item, dict):
+            continue
+        item_type = item.get("type")
+        if item_type == "function_call":
             function_calls.append(item)
-    content = "\n\n".join(content_parts).strip() or None
+            text = _nested_text(item)
+            if text:
+                tool_parts.append(text)
+            continue
+        if item_type in ("reasoning", "mcp_list_tools", "mcp_approval_request"):
+            continue
+        text = _nested_text(item)
+        if not text:
+            continue
+        if item_type in _TOOL_OUTPUT_TYPES:
+            tool_parts.append(text)
+        else:
+            message_parts.append(text)
+    content = "\n\n".join(tool_parts).strip() or "\n\n".join(message_parts).strip() or None
+    if content is None:
+        fallback = data.get("output_text")
+        if isinstance(fallback, str) and fallback.strip():
+            content = fallback.strip()
+    if content:
+        content = _drop_routing_preamble(content) or None
     return content, function_calls
 
 
@@ -444,7 +561,7 @@ def _run_responses(url, api_key, conversation, model, ephemeral, sys_prompt, sta
     audit_payloads = []
 
     max_rounds = 3
-    while function_calls and max_rounds > 0:
+    while ephemeral and function_calls and max_rounds > 0:
         max_rounds -= 1
 
         next_input = list(conversation)

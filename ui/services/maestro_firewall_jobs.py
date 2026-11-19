@@ -291,10 +291,10 @@ def _normalize_name(value):
     return text.strip("-")[:63]
 
 
-def _is_maestro(agent):
+def _agent_text(agent):
     if not agent:
-        return False
-    text = " ".join(
+        return ""
+    return " ".join(
         [
             str(agent.get("type") or ""),
             str(agent.get("name") or ""),
@@ -302,9 +302,25 @@ def _is_maestro(agent):
             str(agent.get("agent_id") or ""),
         ]
     ).lower()
+
+
+def _is_foundry_maestro(agent):
+    text = _agent_text(agent)
+    if not text or "execution" in text:
+        return False
     return any(
         token in text
-        for token in ("maestro", "orchestrat", "execution", "netsec")
+        for token in ("maestro", "orchestrat", "master-orchestrator-agent")
+    )
+
+
+def _is_maestro(agent):
+    text = _agent_text(agent)
+    if not text or _is_foundry_maestro(agent):
+        return False
+    return any(
+        token in text
+        for token in ("execution", "netsec")
     )
 
 

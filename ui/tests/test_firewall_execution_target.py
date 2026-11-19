@@ -239,6 +239,22 @@ class MaestroSelectionTests(unittest.TestCase):
         confirm = next(block for block in result["blocks"] if block.get("type") == "confirm")
         self.assertIn("HTTPS-8443", confirm["text"])
 
+    def test_foundry_maestro_is_not_intercepted(self):
+        from services import maestro_firewall_jobs
+
+        agent = {
+            "id": "master-orchestrator-agent",
+            "name": "Maestro AI",
+            "type": "Master Orchestrator",
+            "agent_id": "test-agent",
+        }
+        result = maestro_firewall_jobs.try_handle(
+            agent,
+            "user-1",
+            "create object web-01 with ip 10.0.0.1",
+        )
+        self.assertIsNone(result)
+
     def test_new_write_does_not_reuse_previous_job_firewall(self):
         from services import maestro_firewall_jobs
 

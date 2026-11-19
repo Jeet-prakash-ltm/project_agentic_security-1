@@ -1,6 +1,7 @@
 import unittest
 
 from gateway.foundry_client import (
+    _extract_reply,
     _system_prompt,
     _with_ui_blocks,
     is_firewall_audit_agent,
@@ -116,6 +117,80 @@ class FirewallAuditAgentGateTests(unittest.TestCase):
             )
             self.assertIsNone(result.get("audit"), agent["name"])
             self.assertIn("Which firewall", result["reply"])
+
+
+class FoundryReplyExtractionTests(unittest.TestCase):
+    def test_message_output_text(self):
+        content, calls = _extract_reply({
+            "output": [
+                {
+                    "type": "message",
+                    "content": [
+                        {"type": "output_text", "text": "Which firewall should I use?"},
+                    ],
+                }
+            ]
+        })
+        self.assertEqual(content, "Which firewall should I use?")
+        self.assertEqual(calls, [])
+
+    def test_prefers_connected_agent_output_over_routing_message(self):
+        content, calls = _extract_reply({
+            "output": [
+                {
+                    "type": "message",
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": "Routing this to the firewall execution agent...",
+                        },
+                    ],
+                },
+                {
+                    "type": "connected_agent_call",
+                    "output": "I need a specific firewall. Which one should I use?",
+                },
+            ]
+        })
+        self.assertEqual(content, "I need a specific firewall. Which one should I use?")
+        self.assertEqual(calls, [])
+
+    def test_mcp_json_output_uses_reply_field(self):
+        content, _calls = _extract_reply({
+            "output": [
+                {
+                    "type": "mcp_call",
+                    "output": '{"reply":"Prepared webserver12. Approve?"}',
+                }
+            ]
+        })
+        self.assertEqual(content, "Prepared webserver12. Approve?")
+
+    def test_top_level_output_text_fallback(self):
+        content, _calls = _extract_reply({
+            "output": [],
+            "output_text": "Firewall is down",
+        })
+        self.assertEqual(content, "Firewall is down")
+
+    def test_drops_routing_preamble_when_real_text_follows(self):
+        content, _calls = _extract_reply({
+            "output": [
+                {
+                    "type": "message",
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": (
+                                "Routing this to the firewall execution agent...\n\n"
+                                "I need a specific firewall. Which one should I use?"
+                            ),
+                        }
+                    ],
+                }
+            ]
+        })
+        self.assertEqual(content, "I need a specific firewall. Which one should I use?")
 
 
 if __name__ == "__main__":

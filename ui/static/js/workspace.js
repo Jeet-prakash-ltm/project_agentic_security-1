@@ -304,7 +304,7 @@
                 if (state.activeId !== id) return;
                 state.messages = (data && data.messages) || [];
                 var bound = agentFromMessages(state.messages);
-                if (bound && state.activeAgentId !== bound.id) {
+                if (bound && isOrchestratorAgent(bound) && state.activeAgentId !== bound.id) {
                     setActiveAgent(bound);
                     if (window.setGlobalAgent) window.setGlobalAgent(bound);
                 }
@@ -2152,31 +2152,11 @@
         }
     }
 
-    var WORKSPACE_CHAT_AGENTS = [
-        { id: "zero-trust-with-endpoint-agent", name: "Zero Trust with Endpoint", type: "Cloud Security Agent", model: "gpt-5.1", agent_id: "Zero-trust-Agent" },
-        { id: "cloud-security-agent", name: "Cloud Security", type: "Cloud Security Agent", model: "gpt-5.1", agent_id: "Cloud-Security-Agent" }
-    ];
-
-    function ensureWorkspaceChatAgents() {
-        var byId = {};
-        state.agents.forEach(function (a) {
-            if (a && a.id) byId[a.id] = a;
-        });
-        WORKSPACE_CHAT_AGENTS.forEach(function (extra) {
-            if (!byId[extra.id]) {
-                state.agents.push(extra);
-                byId[extra.id] = extra;
-            }
-        });
-    }
-
     function populateAgentSelect() {
         if (!wsAgentSelect) return;
-        ensureWorkspaceChatAgents();
         wsAgentSelect.innerHTML = "";
         state.agents.forEach(function (a) {
-            if (isCloudSecurityOpsAgent(a)) return;
-            if (isRetiredZeroTrustAgent(a)) return;
+            if (!isOrchestratorAgent(a)) return;
             var opt = document.createElement("option");
             opt.value = a.id;
             opt.textContent = a.name;
@@ -2184,10 +2164,11 @@
         });
         if (!wsAgentSelect.options.length) {
             var empty = document.createElement("option");
-            empty.value = "";
-            empty.textContent = "No agents configured";
+            empty.value = DEFAULT_WORKSPACE_AGENT_ID;
+            empty.textContent = "Maestro AI";
             wsAgentSelect.appendChild(empty);
         }
+        wsAgentSelect.disabled = wsAgentSelect.options.length <= 1;
     }
 
     function resolveInitialAgent() {
@@ -2196,12 +2177,7 @@
         for (var i = 0; i < state.agents.length; i++) {
             if (isOrchestratorAgent(state.agents[i])) return state.agents[i];
         }
-        var visible = state.agents.filter(function (a) {
-            return !isCloudSecurityOpsAgent(a) && !isRetiredZeroTrustAgent(a);
-        });
-        var connected = visible.filter(function (a) { return a.connected; });
-        if (connected[0]) return connected[0];
-        return visible[0] || null;
+        return null;
     }
 
     function loadAgents() {
@@ -2644,7 +2620,7 @@
 
     document.addEventListener("agent-changed", function (e) {
         var agent = e.detail;
-        if (agent) setActiveAgent(agent);
+        if (agent && isOrchestratorAgent(agent)) setActiveAgent(agent);
     });
 
     // ============================================================

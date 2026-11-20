@@ -615,14 +615,6 @@ def workspace():
         "workspace.html"
     )
 
-
-@app.route("/workspace/maestro-ai")
-@login_required
-def maestro_ai():
-    return render_with_css(
-        "maestro_ai.html"
-    )
-
 # --------------------------------------------------
 # FINDINGS
 # --------------------------------------------------

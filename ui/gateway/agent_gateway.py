@@ -70,6 +70,11 @@ class AgentGateway:
 
         telemetry_map_service.record_request(agent.get("id", ""), error=False)
 
+        reply = foundry_client.final_assistant_reply(result, agent)
+        result["reply"] = reply
+        result.pop("events", None)
+        result.pop("output", None)
+
         if message:
             session_manager.add_message(
                 conversation_id,
@@ -81,7 +86,7 @@ class AgentGateway:
             session_manager.add_message(
                 conversation_id,
                 "assistant",
-                result.get("reply", ""),
+                reply,
                 user_id=user_id,
                 meta={
                     "tool": tool or None,

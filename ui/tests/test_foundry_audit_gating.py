@@ -192,6 +192,88 @@ class FoundryReplyExtractionTests(unittest.TestCase):
         })
         self.assertEqual(content, "I need a specific firewall. Which one should I use?")
 
+    def test_final_assistant_message_not_a2a_tool_response(self):
+        content, calls = _extract_reply({
+            "output": [
+                {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [
+                        {"type": "output_text", "text": "Routing this to Heimdrix-a2a..."},
+                    ],
+                },
+                {
+                    "type": "tool_call",
+                    "name": "heimdrix-a2a",
+                    "arguments": "{\"query\":\"list firewalls\"}",
+                },
+                {
+                    "role": "tool",
+                    "type": "tool_call_response",
+                    "output": "vmpafw01, vmpafw03, vmpafw04",
+                },
+                {
+                    "type": "function_call_output",
+                    "output": "vmpafw01, vmpafw03, vmpafw04",
+                },
+                {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": "Here are the managed firewalls: vmpafw01, vmpafw03, and vmpafw04.",
+                        },
+                    ],
+                },
+            ]
+        })
+        self.assertEqual(
+            content,
+            "Here are the managed firewalls: vmpafw01, vmpafw03, and vmpafw04.",
+        )
+        self.assertEqual(calls, [])
+
+    def test_function_call_is_collected_not_rendered(self):
+        content, calls = _extract_reply({
+            "output": [
+                {
+                    "type": "function_call",
+                    "name": "heimdrix-a2a",
+                    "arguments": "{}",
+                    "content": "internal tool payload",
+                },
+                {
+                    "type": "message",
+                    "content": [{"type": "output_text", "text": "Done."}],
+                },
+            ]
+        })
+        self.assertEqual(content, "Done.")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["name"], "heimdrix-a2a")
+
+    def test_maestro_does_not_render_a2a_tool_response(self):
+        content, _calls = _extract_reply(
+            {
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [
+                            {"type": "output_text", "text": "Routing this to Heimdrix-a2a..."},
+                        ],
+                    },
+                    {
+                        "role": "tool",
+                        "type": "tool_call_response",
+                        "output": "vmpafw01, vmpafw03, vmpafw04",
+                    },
+                ]
+            },
+            skip_internal=True,
+        )
+        self.assertIsNone(content)
+
 
 if __name__ == "__main__":
     unittest.main()

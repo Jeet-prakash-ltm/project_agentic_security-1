@@ -1536,7 +1536,7 @@ def api_chat():
         )
         return jsonify(
             {
-                "reply": result.get("reply"),
+                "reply": result.get("reply") or "",
                 "blocks": result.get("blocks") or [],
                 "audit": result.get("audit") or None,
                 "usage": result.get("usage") or {},

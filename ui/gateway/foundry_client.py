@@ -404,7 +404,24 @@ def _stringify_tool_output(value):
     return str(value).strip()
 
 
-def _nested_text(item):
+_INTERNAL_EVENT_TYPES = frozenset((
+    "tool",
+    "tool_call",
+    "tool_call_response",
+    "function_call",
+    "function_call_output",
+    "mcp_call",
+    "mcp_tool_call",
+    "custom_tool_call",
+    "tool_result",
+    "connected_agent_call",
+    "connected_agent",
+))
+
+_TOOL_OUTPUT_TYPES = _INTERNAL_EVENT_TYPES
+
+
+def _nested_text(item, include_tool_output=True):
     if isinstance(item, str):
         return item.strip()
     if not isinstance(item, dict):
@@ -419,21 +436,24 @@ def _nested_text(item):
                 parts.append(part.strip())
             elif isinstance(part, dict):
                 part_type = part.get("type")
+                if part_type in _INTERNAL_EVENT_TYPES or (part.get("role") or "").lower() == "tool":
+                    continue
                 if part_type in ("output_text", "text", "input_text"):
                     text = (part.get("text") or "").strip()
                     if text:
                         parts.append(text)
                 else:
-                    nested = _nested_text(part)
+                    nested = _nested_text(part, include_tool_output=include_tool_output)
                     if nested:
                         parts.append(nested)
     for key in ("output_text", "text"):
         value = item.get(key)
         if isinstance(value, str) and value.strip():
             parts.append(value.strip())
-    output_text = _stringify_tool_output(item.get("output") or item.get("result"))
-    if output_text:
-        parts.append(output_text)
+    if include_tool_output:
+        output_text = _stringify_tool_output(item.get("output") or item.get("result"))
+        if output_text:
+            parts.append(output_text)
     seen = []
     for part in parts:
         if part and part not in seen:
@@ -441,21 +461,19 @@ def _nested_text(item):
     return "\n\n".join(seen).strip()
 
 
-_TOOL_OUTPUT_TYPES = frozenset((
-    "mcp_call",
-    "mcp_tool_call",
-    "custom_tool_call",
-    "tool_call",
-    "tool_result",
-    "function_call_output",
-    "connected_agent_call",
-    "connected_agent",
-))
+def _assistant_text(item):
+    return _nested_text(item, include_tool_output=False)
 
 
-def _extract_reply(data):
+def _is_routing_only(text):
+    if not text or not str(text).strip():
+        return True
+    return not _ROUTING_LINE_RE.sub("", str(text)).strip()
+
+
+def _extract_reply(data, skip_internal=False):
     message_parts = []
-    tool_parts = []
+    internal_parts = []
     function_calls = []
     for item in data.get("output") or []:
         if isinstance(item, str):
@@ -464,23 +482,31 @@ def _extract_reply(data):
             continue
         if not isinstance(item, dict):
             continue
-        item_type = item.get("type")
+        item_type = (item.get("type") or "").strip()
+        role = (item.get("role") or "").strip().lower()
         if item_type == "function_call":
             function_calls.append(item)
-            text = _nested_text(item)
-            if text:
-                tool_parts.append(text)
             continue
         if item_type in ("reasoning", "mcp_list_tools", "mcp_approval_request"):
             continue
-        text = _nested_text(item)
-        if not text:
+        if role == "tool" or item_type in _INTERNAL_EVENT_TYPES:
+            text = _nested_text(item)
+            if text:
+                internal_parts.append(text)
             continue
-        if item_type in _TOOL_OUTPUT_TYPES:
-            tool_parts.append(text)
-        else:
+        text = _assistant_text(item)
+        if text:
             message_parts.append(text)
-    content = "\n\n".join(tool_parts).strip() or "\n\n".join(message_parts).strip() or None
+    content = None
+    for text in reversed(message_parts):
+        if not _is_routing_only(text):
+            content = _drop_routing_preamble(text)
+            break
+    if not content and not skip_internal:
+        for text in reversed(internal_parts):
+            if text:
+                content = text
+                break
     if content is None:
         fallback = data.get("output_text")
         if isinstance(fallback, str) and fallback.strip():
@@ -488,6 +514,28 @@ def _extract_reply(data):
     if content:
         content = _drop_routing_preamble(content) or None
     return content, function_calls
+
+
+def final_assistant_reply(result, agent=None):
+    """Return the single user-visible assistant message.
+
+    Internal Foundry tool/A2A events stay available to the model through
+    Foundry's own tool loop. They are never returned as chat text.
+    """
+    if not result:
+        return ""
+    events = result.get("output") or result.get("events")
+    if isinstance(events, list) and events:
+        content, _calls = _extract_reply(
+            {
+                "output": events,
+                "output_text": result.get("reply") or result.get("output_text"),
+            },
+            skip_internal=is_maestro_agent(agent),
+        )
+        if content:
+            return content
+    return result.get("reply") or ""
 
 
 def _function_call_item(function_call):
@@ -555,8 +603,9 @@ def _run_responses(url, api_key, conversation, model, ephemeral, sys_prompt, sta
                 payload["instructions"] = sys_prompt
         return payload
 
+    skip_internal = not rewrite_empty
     data = _post(url, api_key, build_payload(conversation))
-    content, function_calls = _extract_reply(data)
+    content, function_calls = _extract_reply(data, skip_internal=skip_internal)
     total_usage = dict(data.get("usage") or {})
     audit_payloads = []
 
@@ -575,7 +624,7 @@ def _run_responses(url, api_key, conversation, model, ephemeral, sys_prompt, sta
             })
 
         data = _post(url, api_key, build_payload(next_input))
-        content, function_calls = _extract_reply(data)
+        content, function_calls = _extract_reply(data, skip_internal=skip_internal)
         _merge_usage(total_usage, data.get("usage") or {})
 
     if content is None:

@@ -73,11 +73,15 @@ def public_user(user_id):
     return _public(get_user(user_id))
 
 
+def _is_removed(user):
+    return (getattr(user, "status", None) or "approved") == "disabled"
+
+
 def list_users(status=None):
     if status:
         users = _repo().list_by_status(status)
     else:
-        users = _repo().list_users()
+        users = [user for user in _repo().list_users() if not _is_removed(user)]
     return [_public(user) for user in users]
 
 
@@ -85,7 +89,8 @@ def list_members():
     """Read-only roster for non-admin users: name and role only.
 
     No e-mail, status or account management fields are exposed so members can
-    only see the platform's people directory.
+    only see the platform's people directory. Removed (disabled) accounts
+    are omitted.
     """
     return [
         {
@@ -94,11 +99,16 @@ def list_members():
             "role": user.role or "",
         }
         for user in _repo().list_users()
+        if not _is_removed(user)
     ]
 
 
 def list_admins():
-    return [_public(user) for user in _repo().list_admins()]
+    return [
+        _public(user)
+        for user in _repo().list_admins()
+        if not _is_removed(user)
+    ]
 
 
 def create_user(name, email, password, role=None, status="pending", user_id=None):

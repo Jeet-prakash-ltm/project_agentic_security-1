@@ -23,8 +23,14 @@
         return capitalize(status || "approved");
     }
 
+    function visibleAccounts(users) {
+        return (users || []).filter(function (user) {
+            return user.status !== "disabled";
+        });
+    }
+
     function renderUsers(users) {
-        var rows = users.map(function (user) {
+        var rows = visibleAccounts(users).map(function (user) {
             if (isUsersAdmin) {
                 var actions = "";
                 if (user.status === "pending") {
@@ -74,7 +80,7 @@
         if (window.loadingRow) usersBody.innerHTML = window.loadingRow(isUsersAdmin ? 4 : 2, "Loading accounts…");
         fetch("/api/admin/users", { headers: { "Accept": "application/json" } })
             .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error("Failed to load accounts")); })
-            .then(function (data) { renderUsers(data.users || []); })
+            .then(function (data) { renderUsers(visibleAccounts(data.users || [])); })
             .catch(function (err) {
                 usersBody.innerHTML = '<tr><td colspan="' + (isUsersAdmin ? 4 : 2) + '" class="users-empty">' + escapeHtml(err.message) + '</td></tr>';
             });
@@ -249,9 +255,15 @@
             '<button type="button" class="btn btn-sm btn-ghost roles-cancel-btn">Cancel</button>';
     }
 
+    function visibleAccounts(users) {
+        return (users || []).filter(function (user) {
+            return user.status !== "disabled";
+        });
+    }
+
     function renderRoleUsers(users) {
         var cols = isRolesAdmin ? 4 : 2;
-        var rows = (users || []).map(function (user) {
+        var rows = visibleAccounts(users).map(function (user) {
             if (isRolesAdmin) {
                 return "<tr data-user-id=\"" + escapeHtml(user.id) + "\" data-user-role=\"" + escapeHtml(user.role || "") + "\">" +
                     "<td>" + escapeHtml(user.name || "") + "</td>" +
@@ -273,7 +285,7 @@
         if (window.loadingRow) rolesBody.innerHTML = window.loadingRow(isRolesAdmin ? 4 : 2, "Loading accounts…");
         fetch("/api/admin/users", { headers: { "Accept": "application/json" } })
             .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error("Failed to load accounts")); })
-            .then(function (data) { renderRoleUsers(data.users || []); })
+            .then(function (data) { renderRoleUsers(visibleAccounts(data.users || [])); })
             .catch(function (err) {
                 rolesBody.innerHTML = '<tr><td colspan="' + (isRolesAdmin ? 4 : 2) + '" class="users-empty">' + escapeHtml(err.message) + "</td></tr>";
             });

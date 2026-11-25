@@ -390,6 +390,8 @@ body {
 .ws-typing,
 .ws-suggestion,
 .ws-chip,
+.ws-drawer-prompt,
+.ws-drawer-tab,
 .ws-composer,
 .ws-msg-text .msg-card,
 .ws-mcq-card,
@@ -398,6 +400,49 @@ body {
     background: #202020;
     color: #ffffff;
     border-color: #3a3a3a;
+}
+
+.ws-drawer {
+    background: #1f1f1f;
+    border-left-color: rgba(255, 255, 255, 0.1);
+    box-shadow: -24px 0 60px rgba(0, 0, 0, 0.6);
+}
+
+.ws-drawer-backdrop {
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.ws-drawer-category {
+    background: rgba(255, 94, 79, 0.14);
+    border-color: rgba(255, 94, 79, 0.3);
+}
+
+.ws-drawer-category p,
+.ws-drawer-intro,
+.ws-drawer-note {
+    color: #b8b8b8;
+}
+
+.ws-drawer-multiturn {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 94, 79, 0.4);
+}
+
+.ws-drawer-steps li {
+    color: #ffffff;
+}
+
+.ws-drawer-tab:hover,
+.ws-drawer-prompt:hover {
+    background: rgba(255, 94, 79, 0.18);
+    border-color: rgba(255, 94, 79, 0.5);
+    color: #ffffff;
+}
+
+.ws-drawer-tab.is-active {
+    background: var(--gradient-red);
+    border-color: transparent;
+    color: #ffffff;
 }
 
 .ws-composer input,

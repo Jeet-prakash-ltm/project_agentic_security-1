@@ -81,6 +81,70 @@
 
     var NETSEC_SUGGESTIONS = [];
 
+    // Prompt library — curated starting prompts grouped by specialist.
+    // Prompts are sent to the currently selected agent so Maestro's
+    // specialist routing is exercised exactly as a user would type them.
+    var PROMPT_LIBRARY = [
+        {
+            id: "zero-trust-a2a",
+            label: "Zero-trust-a2a",
+            subtitle: "New / Live Zero Trust Assessment",
+            blurb: "Tests whether Maestro correctly routes fresh Azure Zero Trust work.",
+            prompts: [
+                "Run a new Zero Trust assessment.",
+                "Assess the Identity pillar.",
+                "Check the Network pillar now.",
+                "Run a complete Zero Trust assessment.",
+                "Reassess Identity after our changes.",
+                "Show findings from the Zero Trust assessment I just ran.",
+                "Check the status of my current Zero Trust assessment.",
+                "Show evidence from the current assessment.",
+                "Show collection issues from the assessment.",
+                "Generate the current Zero Trust report."
+            ]
+        },
+        {
+            id: "firewall-audit-agent-tool",
+            label: "Firewall-Audit-Agent-Tool",
+            subtitle: "New / Live Firewall Audit",
+            blurb: "Tests fresh firewall assessments and continuation of an active firewall-audit workflow.",
+            prompts: [
+                "Run a firewall audit.",
+                "Start a firewall compliance assessment.",
+                "Run a full firewall assessment.",
+                "Audit the firewall for risky rules.",
+                "Check firewall security compliance.",
+                "Show findings from the firewall audit I just ran.",
+                "Show critical findings from the current audit.",
+                "Explain finding PA-24.",
+                "Generate an executive summary for this audit.",
+                "Generate the current firewall assessment report."
+            ],
+            multiTurn: [
+                "Run firewall audit",
+                "Show findings",
+                "Generate executive summary"
+            ],
+            multiTurnNote: "Select vmpafw01 after the first turn. All four turns should stay with the firewall specialist."
+        },
+        {
+            id: "heimdrix-a2a",
+            label: "Heimdrix-a2a",
+            subtitle: "Persisted / Historical Data",
+            blurb: "Tests read-only retrieval from your HeimDRIX database.",
+            prompts: [
+                "Show the latest stored Zero Trust assessment.",
+                "Show Identity findings from the latest stored assessment.",
+                "Show the previous Zero Trust assessment.",
+                "Compare the last two Zero Trust assessments.",
+                "Show the latest stored firewall audit.",
+                "Show historical firewall findings.",
+                "Show managed firewall inventory.",
+                "Show previous firewall assessments."
+            ]
+        }
+    ];
+
     var CLOUD_KPI_PERIODS = [
         { id: "daily", label: "Daily", sub: "Today" },
         { id: "weekly", label: "Weekly", sub: "Last 7 days" },
@@ -2419,6 +2483,107 @@
     }
 
     // ============================================================
+    // PROMPT LIBRARY DRAWER
+    // ============================================================
+
+    var promptDrawer = document.getElementById("wsPromptDrawer");
+    var promptDrawerBackdrop = document.getElementById("promptDrawerBackdrop");
+    var promptDrawerToggle = document.getElementById("promptDrawerToggle");
+    var promptDrawerClose = document.getElementById("promptDrawerClose");
+    var promptDrawerTabs = document.getElementById("promptDrawerTabs");
+    var promptDrawerPrompts = document.getElementById("promptDrawerPrompts");
+    var promptDrawerCategory = PROMPT_LIBRARY[0].id;
+
+    var PROMPT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 10v9h12v-9"/></svg>';
+
+    function categoryById(id) {
+        for (var i = 0; i < PROMPT_LIBRARY.length; i++) {
+            if (PROMPT_LIBRARY[i].id === id) return PROMPT_LIBRARY[i];
+        }
+        return PROMPT_LIBRARY[0];
+    }
+
+    function renderPromptDrawerTabs() {
+        if (!promptDrawerTabs) return;
+        promptDrawerTabs.innerHTML = "";
+        PROMPT_LIBRARY.forEach(function (cat) {
+            var tab = document.createElement("button");
+            tab.type = "button";
+            tab.className = "ws-drawer-tab" + (cat.id === promptDrawerCategory ? " is-active" : "");
+            tab.setAttribute("role", "tab");
+            tab.setAttribute("aria-selected", cat.id === promptDrawerCategory ? "true" : "false");
+            tab.textContent = cat.label;
+            tab.addEventListener("click", function () {
+                promptDrawerCategory = cat.id;
+                renderPromptDrawerTabs();
+                renderPromptDrawerPrompts();
+            });
+            promptDrawerTabs.appendChild(tab);
+        });
+    }
+
+    function renderPromptDrawerPrompts() {
+        if (!promptDrawerPrompts) return;
+        var cat = categoryById(promptDrawerCategory);
+        promptDrawerPrompts.innerHTML = "";
+
+        var head = document.createElement("div");
+        head.className = "ws-drawer-category";
+        head.innerHTML =
+            '<span class="ws-drawer-category-eyebrow">' + escapeHtml(cat.subtitle) + "</span>" +
+            "<p>" + escapeHtml(cat.blurb) + "</p>";
+        promptDrawerPrompts.appendChild(head);
+
+        cat.prompts.forEach(function (prompt) {
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "ws-drawer-prompt";
+            btn.innerHTML = PROMPT_ICON + "<span>" + escapeHtml(prompt) + "</span>";
+            btn.addEventListener("click", function () {
+                launchDrawerPrompt(prompt);
+            });
+            promptDrawerPrompts.appendChild(btn);
+        });
+
+        if (cat.multiTurn && cat.multiTurn.length) {
+            var block = document.createElement("div");
+            block.className = "ws-drawer-multiturn";
+            var steps = cat.multiTurn.map(function (step, idx) {
+                return '<li><span class="ws-drawer-step-index">' + (idx + 1) + "</span>" + escapeHtml(step) + "</li>";
+            }).join("");
+            block.innerHTML =
+                '<span class="ws-drawer-category-eyebrow">Important multi-turn test</span>' +
+                '<ol class="ws-drawer-steps">' + steps + "</ol>" +
+                (cat.multiTurnNote ? '<p class="ws-drawer-note">' + escapeHtml(cat.multiTurnNote) + "</p>" : "");
+            promptDrawerPrompts.appendChild(block);
+        }
+    }
+
+    function launchDrawerPrompt(prompt) {
+        setPromptDrawerOpen(false);
+        sendPrompt(prompt);
+    }
+
+    function setPromptDrawerOpen(open) {
+        if (open) {
+            renderPromptDrawerTabs();
+            renderPromptDrawerPrompts();
+        }
+        if (promptDrawerBackdrop) {
+            promptDrawerBackdrop.classList.toggle("is-open", open);
+            promptDrawerBackdrop.setAttribute("aria-hidden", open ? "false" : "true");
+        }
+        if (promptDrawer) {
+            promptDrawer.classList.toggle("is-open", open);
+            promptDrawer.setAttribute("aria-hidden", open ? "false" : "true");
+        }
+        if (promptDrawerToggle) {
+            promptDrawerToggle.classList.toggle("is-active", open);
+            promptDrawerToggle.setAttribute("aria-expanded", open ? "true" : "false");
+        }
+    }
+
+    // ============================================================
     // COMPOSER
     // ============================================================
 
@@ -2583,6 +2748,20 @@
     });
 
     if (insightsClose) insightsClose.addEventListener("click", function () { setInsightsOpen(false); });
+
+    if (promptDrawerToggle) promptDrawerToggle.addEventListener("click", function () {
+        setPromptDrawerOpen(!(promptDrawer && promptDrawer.classList.contains("is-open")));
+    });
+
+    if (promptDrawerClose) promptDrawerClose.addEventListener("click", function () { setPromptDrawerOpen(false); });
+
+    if (promptDrawerBackdrop) promptDrawerBackdrop.addEventListener("click", function () { setPromptDrawerOpen(false); });
+
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && promptDrawer && promptDrawer.classList.contains("is-open")) {
+            setPromptDrawerOpen(false);
+        }
+    });
 
     if (convSearch) convSearch.addEventListener("input", renderConversationList);
 

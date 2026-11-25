@@ -48,6 +48,9 @@
                     <span class="sr-only">Active copilot</span>
                     <select id="wsAgentSelect" aria-label="Active copilot"></select>
                 </label>
+                <button class="ws-icon-btn ws-prompt-drawer-btn" id="promptDrawerToggle" title="Open prompt library" aria-label="Open prompt library" aria-expanded="false" aria-controls="wsPromptDrawer">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+                </button>
                 <strong id="chatAgentTitle" class="sr-only">Maestro AI</strong>
                 <span id="chatAgentSub" class="sr-only">Copilot session</span>
             </div>
@@ -122,5 +125,31 @@
 <script src="{{ url_for('static', filename='js/finding_enrichment.js') }}?v=7"></script>
 <script src="{{ url_for('static', filename='js/firewall_audit_cards.js') }}?v=11"></script>
 <script src="{{ url_for('static', filename='js/netsec.js') }}?v=12"></script>
-    <script src="{{ url_for('static', filename='js/workspace.js') }}?v=48"></script>
+    <script src="{{ url_for('static', filename='js/workspace.js') }}?v=49"></script>
+{% endblock %}
+
+{% block overlays %}
+<!-- ============================================================
+     PROMPT LIBRARY DRAWER — opens from the right
+     ============================================================ -->
+<div class="ws-drawer-backdrop" id="promptDrawerBackdrop" aria-hidden="true"></div>
+
+<aside class="ws-drawer" id="wsPromptDrawer" aria-label="Prompt library" aria-hidden="true">
+    <div class="ws-drawer-head">
+        <div class="ws-drawer-head-text">
+            <span class="ws-drawer-eyebrow">Prompt Library</span>
+            <h3>Start with a proven prompt</h3>
+        </div>
+        <button class="ws-icon-btn ws-drawer-close" id="promptDrawerClose" title="Close prompt library" aria-label="Close prompt library">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+    </div>
+
+    <div class="ws-drawer-scroll">
+        <p class="ws-drawer-intro">Pick a category, then tap any prompt to send it straight to Maestro AI. The conversation keeps its specialist routing.</p>
+
+        <div class="ws-drawer-tabs" id="promptDrawerTabs" role="tablist"></div>
+        <div class="ws-drawer-prompts" id="promptDrawerPrompts"></div>
+    </div>
+</aside>
 {% endblock %}

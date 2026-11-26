@@ -17,6 +17,15 @@
     box-shadow: var(--shadow-soft);
 }
 
+.sys-loading[hidden],
+.sys-hero[hidden],
+.sys-error[hidden],
+.sys-agent-note[hidden],
+.agent-drawer[hidden],
+.agent-drawer-backdrop[hidden] {
+    display: none !important;
+}
+
 .sys-page-header {
     display: flex;
     align-items: flex-start;

@@ -302,6 +302,15 @@
     overflow-x: auto;
     scrollbar-width: none;
 }
+.findings-toolbar .rep-filter-pills.is-rows {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    overflow: visible;
+}
+.findings-toolbar .rep-filter-pills.is-rows .rep-pill {
+    width: 100%;
+    text-align: center;
+}
 .findings-toolbar .rep-filter-pills::-webkit-scrollbar {
     display: none;
 }

@@ -88,8 +88,6 @@
         {
             id: "zero-trust-a2a",
             label: "Zero-trust-a2a",
-            subtitle: "New / Live Zero Trust Assessment",
-            blurb: "Tests whether Maestro correctly routes fresh Azure Zero Trust work.",
             prompts: [
                 "Run a new Zero Trust assessment.",
                 "Assess the Identity pillar.",
@@ -106,8 +104,6 @@
         {
             id: "firewall-audit-agent-tool",
             label: "Firewall-Audit-Agent-Tool",
-            subtitle: "New / Live Firewall Audit",
-            blurb: "Tests fresh firewall assessments and continuation of an active firewall-audit workflow.",
             prompts: [
                 "Run a firewall audit.",
                 "Start a firewall compliance assessment.",
@@ -119,19 +115,11 @@
                 "Explain finding PA-24.",
                 "Generate an executive summary for this audit.",
                 "Generate the current firewall assessment report."
-            ],
-            multiTurn: [
-                "Run firewall audit",
-                "Show findings",
-                "Generate executive summary"
-            ],
-            multiTurnNote: "Select vmpafw01 after the first turn. All four turns should stay with the firewall specialist."
+            ]
         },
         {
             id: "heimdrix-a2a",
             label: "Heimdrix-a2a",
-            subtitle: "Persisted / Historical Data",
-            blurb: "Tests read-only retrieval from your HeimDRIX database.",
             prompts: [
                 "Show the latest stored Zero Trust assessment.",
                 "Show Identity findings from the latest stored assessment.",
@@ -2527,13 +2515,6 @@
         var cat = categoryById(promptDrawerCategory);
         promptDrawerPrompts.innerHTML = "";
 
-        var head = document.createElement("div");
-        head.className = "ws-drawer-category";
-        head.innerHTML =
-            '<span class="ws-drawer-category-eyebrow">' + escapeHtml(cat.subtitle) + "</span>" +
-            "<p>" + escapeHtml(cat.blurb) + "</p>";
-        promptDrawerPrompts.appendChild(head);
-
         cat.prompts.forEach(function (prompt) {
             var btn = document.createElement("button");
             btn.type = "button";
@@ -2544,19 +2525,6 @@
             });
             promptDrawerPrompts.appendChild(btn);
         });
-
-        if (cat.multiTurn && cat.multiTurn.length) {
-            var block = document.createElement("div");
-            block.className = "ws-drawer-multiturn";
-            var steps = cat.multiTurn.map(function (step, idx) {
-                return '<li><span class="ws-drawer-step-index">' + (idx + 1) + "</span>" + escapeHtml(step) + "</li>";
-            }).join("");
-            block.innerHTML =
-                '<span class="ws-drawer-category-eyebrow">Important multi-turn test</span>' +
-                '<ol class="ws-drawer-steps">' + steps + "</ol>" +
-                (cat.multiTurnNote ? '<p class="ws-drawer-note">' + escapeHtml(cat.multiTurnNote) + "</p>" : "");
-            promptDrawerPrompts.appendChild(block);
-        }
     }
 
     function launchDrawerPrompt(prompt) {

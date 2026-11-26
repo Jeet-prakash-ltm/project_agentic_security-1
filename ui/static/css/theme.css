@@ -412,24 +412,8 @@ body {
     background: rgba(0, 0, 0, 0.45);
 }
 
-.ws-drawer-category {
-    background: rgba(255, 94, 79, 0.14);
-    border-color: rgba(255, 94, 79, 0.3);
-}
-
-.ws-drawer-category p,
-.ws-drawer-intro,
-.ws-drawer-note {
+.ws-drawer-intro {
     color: #b8b8b8;
-}
-
-.ws-drawer-multiturn {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 94, 79, 0.4);
-}
-
-.ws-drawer-steps li {
-    color: #ffffff;
 }
 
 .ws-drawer-tab:hover,

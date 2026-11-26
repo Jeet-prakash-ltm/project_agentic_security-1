@@ -178,6 +178,10 @@
     min-width: 0;
 }
 
+.sys-hero .pulse-dot {
+    background: currentColor;
+}
+
 .sys-hero-name-row {
     display: flex;
     align-items: center;

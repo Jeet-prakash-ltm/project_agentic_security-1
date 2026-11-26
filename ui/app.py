@@ -29,6 +29,7 @@ from services import report_history_service
 from services import system_status_service
 from services import telemetry_map_service
 from services import firewall_data_service
+from services import feat_health_service
 from services import firewall_bulk_service
 from services import tenant_bulk_service
 from services import foundry_incidents
@@ -1460,6 +1461,17 @@ def api_agent_status():
                 )
             }
         )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/agents/feat-health")
+@login_required
+def api_feat_health():
+
+    force = request.args.get("refresh", "0") == "1"
+    try:
+        return jsonify(feat_health_service.get_feat_health(force=force))
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

@@ -12,19 +12,80 @@
     <div class="sys-page-header">
         <div class="page-title-line">
             <h1>Agents</h1>
-            {% with page_info_label="About workspace agents", page_info_text="AI Workspace Agents shows registered copilots and live reachability. Master Orchestrator sits on the top row; remaining agents are Network Security or Cloud Security." %}
+            {% with page_info_label="About workspace agents", page_info_text="AI Workspace Agents shows registered copilots and live reachability. Master Orchestrator sits in the hero row; specialist cards open a detail drawer with connection and activity evidence." %}
             {% include "_page_info.html" %}
             {% endwith %}
         </div>
-        <span class="sys-count-chip" id="agentCountChip">Total —</span>
+        <div class="sys-status-block">
+            <div class="sys-counters" id="sysCounters" aria-label="Agent status counters">
+                <span class="sys-counter"><span>Total</span><strong id="countTotal">—</strong></span>
+                <span class="sys-counter"><span>Live</span><strong id="countLive">—</strong></span>
+                <span class="sys-counter"><span>Degraded</span><strong id="countDegraded">—</strong></span>
+                <span class="sys-counter"><span>Down</span><strong id="countDown">—</strong></span>
+            </div>
+            <div class="sys-sync">
+                <span class="sys-sync-label">Last sync</span>
+                <span class="sys-sync-value" id="sysLastSync">—</span>
+                <button class="sys-refresh-btn" id="sysRefreshBtn" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+                    <span id="sysRefreshLabel">Refresh</span>
+                </button>
+            </div>
+        </div>
     </div>
-    <div class="sys-agent-grid" id="sysAgentCards">
-        <div class="section-loading"><span class="spinner"></span><span class="section-loading-text">Loading agents…</span></div>
+
+    <div class="sys-error" id="sysError" role="alert" hidden></div>
+
+    <div class="sys-hero" id="sysHero" hidden>
+        <span class="agent-hex agent-hex-lg" id="heroHex" aria-hidden="true">MA</span>
+        <div class="sys-hero-main">
+            <div class="sys-hero-name-row">
+                <strong id="heroName">Maestro AI</strong>
+                <span class="status-chip" id="heroStatus"></span>
+            </div>
+            <span class="sys-hero-sub" id="heroSub">Master Orchestrator</span>
+        </div>
+        <span class="sys-hero-meta" id="heroMeta">—</span>
+        <button class="btn btn-primary sys-hero-action" id="heroAction" type="button">Inspect</button>
     </div>
+
+    <div class="sys-toolbar">
+        <div class="sys-filters" id="sysFilters" role="group" aria-label="Agent category filters">
+            <button class="sys-filter is-active" data-filter="all" type="button">All</button>
+            <button class="sys-filter" data-filter="assessment" type="button">Assessment</button>
+            <button class="sys-filter" data-filter="data" type="button">Data</button>
+            <button class="sys-filter" data-filter="operations" type="button">Operations</button>
+        </div>
+        <label class="sys-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input type="search" id="sysSearch" placeholder="Search agents" autocomplete="off" aria-label="Search agents">
+        </label>
+    </div>
+
+    <div class="sys-loading" id="sysLoading"><span class="spinner"></span><span>Loading agents…</span></div>
+    <div class="sys-agent-grid" id="sysAgentCards"></div>
+    <p class="sys-agent-note" id="sysEmpty" hidden>No agents match the current filters.</p>
 </section>
+
+<div class="agent-drawer-backdrop" id="agentDetailBackdrop" hidden></div>
+<aside class="agent-drawer" id="agentDetailDrawer" hidden role="dialog" aria-modal="true" aria-labelledby="agentDetailTitle">
+    <div class="agent-drawer-head">
+        <div class="agent-drawer-id">
+            <span class="agent-hex" id="agentDetailHex" aria-hidden="true">AI</span>
+            <div>
+                <h3 id="agentDetailTitle">Agent</h3>
+                <span class="agent-drawer-sub" id="agentDetailSub">—</span>
+            </div>
+        </div>
+        <button type="button" class="agent-drawer-close" id="agentDetailClose" aria-label="Close agent details">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+    </div>
+    <div class="agent-drawer-body" id="agentDetailBody"></div>
+</aside>
 
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/system_info.js') }}?v=6"></script>
+<script src="{{ url_for('static', filename='js/system_info.js') }}?v=7"></script>
 {% endblock %}

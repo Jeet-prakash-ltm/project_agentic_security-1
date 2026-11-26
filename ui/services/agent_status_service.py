@@ -18,6 +18,7 @@ the ``last_active``/``conversations`` activity shown on the health card is
 scoped to the signed-in user so each user only sees their own usage.
 """
 
+import concurrent.futures
 import threading
 import time
 
@@ -27,11 +28,15 @@ from database.db import get_session
 from database.repositories import InsightsRepository
 from gateway import foundry_client
 
-STATUS_TTL = 60
-PROBE_TIMEOUT = 15
+STATUS_TTL = 120
+PROBE_TIMEOUT = 8
+PROBE_WORKERS = 8
 
 _lock = threading.Lock()
 _cache = {"ts": 0.0, "agents": []}
+_refreshing = False
+_refresh_done = threading.Event()
+_refresh_done.set()
 
 
 def _last_activity_by_agent(user_id=None):
@@ -132,52 +137,75 @@ def _probe_agent(agent):
     return _post_probe(url, api_key, payload)
 
 
-def get_agent_statuses(force=False, user_id=None):
-    """Return the live/down status of every registered agent.
-
-    Probe results are cached ``STATUS_TTL`` seconds (they reflect the shared
-    agent estate); the per-agent ``last_active``/``conversations`` activity is
-    merged per request and scoped to ``user_id`` so each user only sees their
-    own usage. Never includes API keys.
-    """
+def _probe_all(registered):
+    """Probe every agent concurrently so total latency is the slowest probe."""
+    if not registered:
+        return []
     now = time.time()
+    workers = max(1, min(PROBE_WORKERS, len(registered)))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+        probes = list(pool.map(_probe_agent, registered))
+    rows = []
+    for agent, probe in zip(registered, probes):
+        rows.append(
+            {
+                "id": agent.get("id"),
+                "name": agent.get("name") or agent.get("id") or "Unknown",
+                "type": agent.get("type") or "Agent",
+                "model": agent.get("model") or "-",
+                "connected": bool(agent.get("connected")),
+                "status": "live" if probe["live"] else "down",
+                "detail": probe["detail"],
+                "latency_ms": probe["latency_ms"],
+                "checked_at": now,
+            }
+        )
+    return rows
+
+
+def _refresh_cache():
+    """Probe the agent estate and replace the shared cache."""
+    from services import agents_service
+
+    # include_key=True so the probe resolves the real secret (env override or
+    # stored value); the key is never placed on the returned dicts.
+    registered = agents_service.list_agents(include_key=True)
+    base = _probe_all(registered)
     with _lock:
-        if (
-            not force
-            and _cache["agents"]
-            and now - _cache["ts"] < STATUS_TTL
-        ):
-            base = _cache["agents"]
-        else:
-            base = None
+        _cache["agents"] = base
+        _cache["ts"] = time.time()
+    return base
 
-    if base is None:
-        from services import agents_service
 
-        # include_key=True so the probe resolves the real secret (env override
-        # or stored value); the key is never placed on the returned dicts.
-        registered = agents_service.list_agents(include_key=True)
-        base = []
-        for agent in registered:
-            name = agent.get("name") or agent.get("id") or "Unknown"
-            probe = _probe_agent(agent)
-            base.append(
-                {
-                    "id": agent.get("id"),
-                    "name": name,
-                    "type": agent.get("type") or "Agent",
-                    "model": agent.get("model") or "-",
-                    "connected": bool(agent.get("connected")),
-                    "status": "live" if probe["live"] else "down",
-                    "detail": probe["detail"],
-                    "latency_ms": probe["latency_ms"],
-                    "checked_at": now,
-                }
-            )
-        with _lock:
-            _cache["agents"] = base
-            _cache["ts"] = now
+def _claim_refresh():
+    """Become the single in-flight refresher. Other callers wait on the event."""
+    global _refreshing
+    with _lock:
+        if _refreshing:
+            return False
+        _refreshing = True
+        _refresh_done.clear()
+        return True
 
+
+def _finish_refresh():
+    global _refreshing
+    with _lock:
+        _refreshing = False
+        _refresh_done.set()
+
+
+def _background_refresh():
+    try:
+        _refresh_cache()
+    except Exception:
+        pass
+    finally:
+        _finish_refresh()
+
+
+def _decorate(base, user_id):
+    """Merge per-user activity onto the shared probe rows."""
     activity = _last_activity_by_agent(user_id=user_id)
     result = []
     for entry in base:
@@ -187,3 +215,54 @@ def get_agent_statuses(force=False, user_id=None):
         row["conversations"] = record.get("conversations") or 0
         result.append(row)
     return result
+
+
+def get_agent_statuses(force=False, user_id=None):
+    """Return the live/down status of every registered agent.
+
+    Probes run concurrently and are cached ``STATUS_TTL`` seconds (they reflect
+    the shared agent estate). A stale cache is served immediately while one
+    background refresh runs, so page loads never wait on the full probe sweep.
+    Only a cold cache blocks, and only for a single caller (single-flight).
+    The per-agent ``last_active``/``conversations`` activity is merged per
+    request and scoped to ``user_id``. Never includes API keys.
+    """
+    now = time.time()
+    with _lock:
+        cached = list(_cache["agents"])
+        fresh = bool(cached) and (now - _cache["ts"] < STATUS_TTL)
+        in_flight = _refreshing
+
+    if fresh and not force:
+        return _decorate(cached, user_id)
+
+    if force:
+        if _claim_refresh():
+            try:
+                _refresh_cache()
+            finally:
+                _finish_refresh()
+        else:
+            _refresh_done.wait(timeout=PROBE_TIMEOUT * 2 + 2)
+        with _lock:
+            cached = list(_cache["agents"])
+        return _decorate(cached, user_id)
+
+    if cached:
+        # Stale-while-revalidate: answer now, refresh in the background.
+        if not in_flight and _claim_refresh():
+            threading.Thread(target=_background_refresh, daemon=True).start()
+        return _decorate(cached, user_id)
+
+    # Cold cache: one caller probes, concurrent callers wait for that probe.
+    for _ in range(2):
+        if _claim_refresh():
+            try:
+                _refresh_cache()
+            finally:
+                _finish_refresh()
+            break
+        _refresh_done.wait(timeout=PROBE_TIMEOUT * 2 + 2)
+    with _lock:
+        cached = list(_cache["agents"])
+    return _decorate(cached, user_id)

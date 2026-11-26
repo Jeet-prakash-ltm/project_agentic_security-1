@@ -1,4 +1,5 @@
 import os
+import threading
 import time
 
 from functools import wraps
@@ -2519,6 +2520,17 @@ except Exception as exc:  # noqa: BLE001 - intentional fail-fast boot
 
     app.logger.error("FATAL: %s", exc)
     sys.exit("FATAL: PostgreSQL unavailable - refusing to start without a database. {0}".format(exc))
+
+
+def _warm_agent_status_cache():
+    """Prime the agent-status cache so the first Agents page load is fast."""
+    try:
+        agent_status_service.get_agent_statuses()
+    except Exception:
+        app.logger.warning("Agent status warm-up failed", exc_info=True)
+
+
+threading.Thread(target=_warm_agent_status_cache, daemon=True).start()
 
 
 # --------------------------------------------------
